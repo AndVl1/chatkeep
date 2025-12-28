@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: chatkeep
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chatkeep}
+    username: ${DB_USERNAME:chatkeep}
+    password: ${DB_PASSWORD:chatkeep}
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
+
+logging:
+  level:
+    ru.andvl.chatkeep: ${LOG_LEVEL:INFO}
+    dev.inmo.tgbotapi: WARN

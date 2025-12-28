@@ -81,3 +81,43 @@ The project uses strict compiler settings:
 - JUnit 5 (Jupiter)
 - Spring Boot Test with `@SpringBootTest`
 - Kotlinx Coroutines Test support
+
+## Current Implementation
+
+### Telegram Bot
+The project implements a Telegram bot using KTgBotAPI library:
+- **ChatkeepBot** - main bot service with long polling
+- **GroupMessageHandler** - saves text messages from group chats
+- **ChatMemberHandler** - auto-registers chats when bot is added
+- **AdminCommandHandler** - handles admin commands in private messages
+
+### Domain Layer
+- **ChatMessage** - stored message entity (text, user info, chat ID, timestamp)
+- **ChatSettings** - chat configuration (collection enabled/disabled)
+- **MessageService** - message persistence logic
+- **ChatService** - chat registration and settings
+- **AdminService** - statistics and admin operations
+
+### Database
+- PostgreSQL with Flyway migrations
+- Tables: `messages`, `chat_settings`
+- Indexes on chat_id, user_id, message_date
+
+### Environment Variables
+```
+TELEGRAM_BOT_TOKEN - Bot token from @BotFather
+DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD - PostgreSQL connection
+LOG_LEVEL - Logging level (default: INFO)
+```
+
+## Conventions
+
+### Handler Pattern
+Bot handlers implement `Handler` interface with `suspend fun BehaviourContext.register()`.
+Each handler is a Spring `@Component` auto-discovered by `ChatkeepBot`.
+
+### Coroutines
+Use `withContext(Dispatchers.IO)` when calling blocking Spring Data operations from handlers.
+
+### Error Handling
+Catch exceptions in handlers, log errors, don't crash the bot.
