@@ -22,6 +22,7 @@ repositories {
 
 dependencies {
     // Spring Boot
+    implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.springframework.boot:spring-boot-starter-webclient")
@@ -38,8 +39,10 @@ dependencies {
 
     // Database
     runtimeOnly("org.postgresql:postgresql")
-    implementation("org.flywaydb:flyway-core")
-    implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
+    // Upgrade Flyway to support PostgreSQL 16.11
+    implementation("org.flywaydb:flyway-database-postgresql:11.20.0")
+    implementation("org.flywaydb:flyway-core:11.20.0")
 
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -49,7 +52,18 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     testImplementation("com.h2database:h2")
+    testImplementation("io.mockk:mockk:1.13.13")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    // Testcontainers for database integration tests
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:testcontainers:1.20.4")
+    testImplementation("org.testcontainers:postgresql:1.20.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+
+    // Spring Boot 4 TestRestTemplate
+    testImplementation("org.springframework.boot:spring-boot-resttestclient")
+    testRuntimeOnly("org.springframework.boot:spring-boot-restclient")
 }
 
 kotlin {
