@@ -1,0 +1,40 @@
+# Production deployment template
+# Copy this file and configure environment variables
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: chatkeep-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-chatkeep}
+      POSTGRES_USER: ${DB_USERNAME:-chatkeep}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-chatkeep} -d ${DB_NAME:-chatkeep}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY:-andvl/chatkeep}:${IMAGE_TAG:-latest}
+    container_name: chatkeep-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-chatkeep}
+      DB_USERNAME: ${DB_USERNAME:-chatkeep}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8080:8080"
+    restart: always
+
+volumes:
+  postgres_data:

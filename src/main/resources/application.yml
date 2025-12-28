@@ -16,6 +16,15 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
 logging:
   level:
     ru.andvl.chatkeep: ${LOG_LEVEL:INFO}
