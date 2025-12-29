@@ -11,6 +11,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    validate-on-migrate: true
+    baseline-on-migrate: false
 
 telegram:
   bot:
@@ -20,12 +22,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,flyway
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
+      show-components: always
+  health:
+    db:
+      enabled: true
 
 logging:
   level:
     ru.andvl.chatkeep: ${LOG_LEVEL:INFO}
     dev.inmo.tgbotapi: WARN
+    org.flywaydb: INFO
