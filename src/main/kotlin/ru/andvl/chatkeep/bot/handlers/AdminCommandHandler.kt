@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.domain.model.ChatSettings
 import ru.andvl.chatkeep.domain.service.AdminService
 import ru.andvl.chatkeep.domain.service.ChatService
 
@@ -44,15 +45,50 @@ class AdminCommandHandler(
         }
 
         onCommand("mychats", initialFilter = { it.chat is PrivateChat }) { message ->
-            val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return@onCommand
+            logger.info("Received /mychats command from chat ${message.chat.id}")
 
-            val adminChats = withContext(Dispatchers.IO) {
-                chatService.getAllChats().filter { settings ->
-                    isUserAdminInChat(bot, userId, settings.chatId)
+            val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long
+            if (userId == null) {
+                logger.warn("Could not get user ID from message")
+                reply(message, "Could not identify you. Please try again.")
+                return@onCommand
+            }
+            logger.info("/mychats: userId=$userId")
+
+            val allChats = try {
+                withContext(Dispatchers.IO) {
+                    chatService.getAllChats()
                 }
+            } catch (e: Exception) {
+                logger.error("/mychats: Failed to get chats from DB", e)
+                reply(message, "Error loading chats. Please try again.")
+                return@onCommand
+            }
+            logger.info("/mychats: Found ${allChats.size} chats in DB")
+
+            if (allChats.isEmpty()) {
+                logger.info("/mychats: No chats registered, sending response")
+                reply(message, "I'm not added to any chats yet.")
+                return@onCommand
             }
 
+            // Filter chats where user is admin (must use loop for suspend calls)
+            val adminChats = mutableListOf<ChatSettings>()
+            for (settings in allChats) {
+                logger.debug("/mychats: Checking admin status for chat ${settings.chatId}")
+                try {
+                    if (isUserAdminInChat(bot, userId, settings.chatId)) {
+                        adminChats.add(settings)
+                        logger.debug("/mychats: User is admin in chat ${settings.chatId}")
+                    }
+                } catch (e: Exception) {
+                    logger.warn("/mychats: Error checking admin for chat ${settings.chatId}: ${e.message}")
+                }
+            }
+            logger.info("/mychats: User is admin in ${adminChats.size} chats")
+
             if (adminChats.isEmpty()) {
+                logger.info("/mychats: User is not admin in any chats, sending response")
                 reply(message, "You are not an admin in any chats where I'm active.")
                 return@onCommand
             }
@@ -62,7 +98,9 @@ class AdminCommandHandler(
                 "- ${chat.chatTitle ?: "Unknown"} (ID: ${chat.chatId}) [$status]"
             }
 
+            logger.info("/mychats: Sending response with ${adminChats.size} chats")
             reply(message, "Your admin chats:\n$chatList")
+            logger.info("/mychats: Response sent successfully")
         }
 
         onCommand("stats", initialFilter = { it.chat is PrivateChat }) { message ->
