@@ -121,3 +121,29 @@ Use `withContext(Dispatchers.IO)` when calling blocking Spring Data operations f
 
 ### Error Handling
 Catch exceptions in handlers, log errors, don't crash the bot.
+
+## Global Execution Rules (IMPORTANT)
+
+These rules apply to the main agent and ALL sub-agents.
+
+### Bash Command Invariants
+
+Whenever generating or executing a bash command:
+
+- Always output a SINGLE, complete, standalone command.
+- The command MUST start with an executable (e.g. `./gradlew`, `git`, `docker`, `mkdir`, `bash`).
+- NEVER start a command with flags (`-`, `--`) or shell operators (`&&`, `||`, `|`, `>`, `<`, `!`).
+- NEVER output partial commands, continuations, or fragments.
+- NEVER assume previous shell context (no implicit `cd`, no command chaining).
+- NEVER use history expansion (`!`).
+
+If multiple steps are required, wrap them explicitly in:
+
+```bash
+bash -c "<full command sequence>"
+```
+
+Sub-agent Safety
+
+Sub-agents MUST follow the same bash command rules.
+If a sub-agent is not explicitly responsible for executing commands, it MUST NOT output bash commands at all.
