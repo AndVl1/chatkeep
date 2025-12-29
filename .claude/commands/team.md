@@ -93,14 +93,26 @@ Use for COMPLEX features. This is the primary workflow.
 **Goal**: Understand what needs to be built
 
 **Actions**:
-1. Create todo list with all phases
-2. If request unclear, ask:
+1. **Create feature branch** (MANDATORY for FEATURE/REFACTOR tasks):
+   - Check current branch: `git branch --show-current`
+   - If not on main, switch: `git checkout main && git pull origin main`
+   - Create feature branch: `git checkout -b feat/<descriptive-name>`
+   - For bug fixes use: `fix/<bug-description>`
+   - For refactoring use: `refactor/<what-refactored>`
+   - Skip this step only for: INVESTIGATION, REVIEW, HOTFIX (emergency fixes can be on main)
+
+2. Create todo list with all phases
+
+3. If request unclear, ask:
    - What problem are you solving?
    - What should the feature do?
    - Any constraints or requirements?
-3. Summarize understanding and confirm
 
-**Output**: Clear, confirmed feature description
+4. Summarize understanding and confirm
+
+**Output**:
+- Feature branch created (if applicable)
+- Clear, confirmed feature description
 
 **Checkpoint**: ✋ WAIT for user confirmation before Phase 2
 
@@ -259,12 +271,16 @@ Please answer these before I proceed.
 
    Requirements:
    - Follow existing codebase conventions
+   - Commit incrementally (small, logical commits)
+   - Each commit should compile and tests should pass
+   - Use conventional commit messages (feat:, fix:, etc.)
    - Run build after implementation
    - Report all files created/modified
    ```
 
 3. Review implementation
 4. Run build to verify
+5. Ensure all changes are committed with meaningful messages
 
 **Output**: Working implementation with all files listed
 
@@ -369,7 +385,13 @@ Please answer these before I proceed.
    - [Recommendation 2]
    ```
 
-3. Offer to commit changes
+3. **Git workflow completion**:
+   - All changes should already be committed incrementally during Phase 5
+   - Verify all commits are present: `git log --oneline`
+   - If on feature branch, offer to:
+     - Push branch: `git push origin <branch-name>`
+     - Create PR (provide instructions or use `gh pr create`)
+   - If accidentally on main (should not happen!), warn user and suggest moving to feature branch
 
 ---
 
