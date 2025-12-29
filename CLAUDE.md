@@ -121,3 +121,98 @@ Use `withContext(Dispatchers.IO)` when calling blocking Spring Data operations f
 
 ### Error Handling
 Catch exceptions in handlers, log errors, don't crash the bot.
+
+## Git Workflow
+
+**IMPORTANT: ALL features and fixes MUST be developed in separate branches.**
+
+### Branch Naming Convention
+
+Use descriptive branch names following these patterns:
+- `feat/<feature-name>` - for new features
+- `fix/<bug-description>` - for bug fixes
+- `refactor/<what-refactored>` - for refactoring
+- `docs/<documentation-change>` - for documentation updates
+- `test/<test-description>` - for test additions
+
+Examples:
+```
+feat/telegram-message-search
+fix/database-connection-timeout
+refactor/repository-layer
+docs/api-documentation
+test/integration-tests
+```
+
+### Feature Development Workflow
+
+1. **Start from main:**
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+
+2. **Create feature branch:**
+   ```bash
+   git checkout -b feat/your-feature-name
+   ```
+
+3. **Develop incrementally:**
+   - Make small, logical commits
+   - Each commit should compile and tests should pass
+   - Use conventional commit messages (feat:, fix:, docs:, etc.)
+
+4. **Before creating PR:**
+   ```bash
+   # Ensure tests pass
+   ./gradlew test
+
+   # Ensure build succeeds
+   ./gradlew build
+   ```
+
+5. **Create Pull Request:**
+   - Push branch: `git push origin feat/your-feature-name`
+   - Create PR to merge into `main`
+   - Wait for review and CI/CD checks
+
+### Commit Message Convention
+
+Follow conventional commits format:
+```
+<type>: <short description>
+
+[optional detailed description]
+
+[optional footer]
+```
+
+Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+
+**CRITICAL: Never commit directly to main. Always use feature branches.**
+
+## Global Execution Rules (IMPORTANT)
+
+These rules apply to the main agent and ALL sub-agents.
+
+### Bash Command Invariants
+
+Whenever generating or executing a bash command:
+
+- Always output a SINGLE, complete, standalone command.
+- The command MUST start with an executable (e.g. `./gradlew`, `git`, `docker`, `mkdir`, `bash`).
+- NEVER start a command with flags (`-`, `--`) or shell operators (`&&`, `||`, `|`, `>`, `<`, `!`).
+- NEVER output partial commands, continuations, or fragments.
+- NEVER assume previous shell context (no implicit `cd`, no command chaining).
+- NEVER use history expansion (`!`).
+
+If multiple steps are required, wrap them explicitly in:
+
+```bash
+bash -c "<full command sequence>"
+```
+
+Sub-agent Safety
+
+Sub-agents MUST follow the same bash command rules.
+If a sub-agent is not explicitly responsible for executing commands, it MUST NOT output bash commands at all.

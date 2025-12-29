@@ -134,20 +134,24 @@ Tell me when:
 
 ### Bug Fix
 ```
-1. Understand symptoms
-2. Find relevant code
-3. Identify root cause
-4. Fix minimally
-5. Verify fix works
+1. Create fix branch: git checkout -b fix/<bug-description>
+2. Understand symptoms
+3. Find relevant code
+4. Identify root cause
+5. Fix minimally
+6. Verify fix works
+7. Commit incrementally with clear messages
 ```
 
 ### New Feature
 ```
-1. Understand requirement
-2. Find similar patterns in codebase
-3. Plan approach (discuss if complex)
-4. Implement incrementally
-5. Test and review
+1. Create feature branch: git checkout -b feat/<feature-name>
+2. Understand requirement
+3. Find similar patterns in codebase
+4. Plan approach (discuss if complex)
+5. Implement incrementally
+6. Test and review
+7. Commit incrementally with clear messages
 ```
 
 ### Investigation
@@ -156,14 +160,17 @@ Tell me when:
 2. Search and read relevant code
 3. Trace through logic
 4. Present findings clearly
+(No branch needed - read-only)
 ```
 
 ### Refactoring
 ```
-1. Understand current and goal state
-2. Plan transformation steps
-3. Execute incrementally (each step compiles)
-4. Verify behavior unchanged
+1. Create refactor branch: git checkout -b refactor/<what-refactored>
+2. Understand current and goal state
+3. Plan transformation steps
+4. Execute incrementally (each step compiles)
+5. Verify behavior unchanged
+6. Commit incrementally with clear messages
 ```
 
 ### Code Review

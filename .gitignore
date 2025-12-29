@@ -45,3 +45,12 @@ out/
 .env
 .env.local
 .env.*.local
+
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+
+### Claude Code ###
+.claude/team-state.md
+.mcp.json

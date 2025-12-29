@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: chatkeep-test
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    clean-disabled: false
+
+telegram:
+  bot:
+    token: test-token-not-used
+
+logging:
+  level:
+    ru.andvl.chatkeep: DEBUG
+    org.flywaydb: INFO
+    org.testcontainers: INFO
