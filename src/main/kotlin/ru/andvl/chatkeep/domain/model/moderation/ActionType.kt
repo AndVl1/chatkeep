@@ -8,5 +8,7 @@ enum class ActionType {
     UNMUTE,
     BAN,
     UNBAN,
-    KICK
+    KICK,
+    CLEAN_SERVICE_ON,
+    CLEAN_SERVICE_OFF
 }

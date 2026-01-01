@@ -12,10 +12,10 @@ import kotlin.time.Duration
 data class ModerationLogEntry(
     val chatId: Long,
     val chatTitle: String?,
-    val userId: Long,
-    val userFirstName: String?,
-    val userLastName: String?,
-    val userName: String?,
+    val userId: Long? = null,
+    val userFirstName: String? = null,
+    val userLastName: String? = null,
+    val userName: String? = null,
     val adminId: Long,
     val adminFirstName: String?,
     val adminLastName: String?,
@@ -30,8 +30,11 @@ data class ModerationLogEntry(
     /**
      * Format user mention for display.
      * Returns username if available, otherwise first name with optional last name.
+     * Returns null if userId is not provided (for config-only actions).
      */
-    fun formatUserMention(): String {
+    fun formatUserMention(): String? {
+        if (userId == null) return null
+
         val name = buildString {
             append(userFirstName ?: "User")
             userLastName?.let { append(" $it") }
