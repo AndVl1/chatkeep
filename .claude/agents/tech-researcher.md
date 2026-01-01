@@ -3,7 +3,7 @@ name: tech-researcher
 model: haiku
 description: Fast research agent for finding best practices, documentation, and technical solutions. USE PROACTIVELY when exploring options or gathering information.
 tools: Read, Glob, Grep, WebSearch, WebFetch
-permissionMode: default
+permissionMode: acceptEdits
 ---
 
 # Tech Researcher

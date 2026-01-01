@@ -3,7 +3,7 @@ name: security-tester
 model: opus
 description: Security specialist for vulnerability assessment. USE PROACTIVELY for security audits, penetration testing guidance, and security reviews.
 tools: Read, Glob, Grep, Bash, WebSearch
-permissionMode: default
+permissionMode: acceptEdits
 skills: api-design, kotlin-spring-patterns, ktgbotapi-patterns, koog
 ---
 
