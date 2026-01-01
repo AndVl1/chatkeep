@@ -1,7 +1,5 @@
 package ru.andvl.chatkeep.bot.util
 
-import dev.inmo.kslog.common.info
-import dev.inmo.kslog.common.logger
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
 import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.types.message.content.TextContent
@@ -43,7 +41,6 @@ object MentionExtractor {
      * @return UserExtractionResult containing user ID, remaining arguments, and source
      */
     fun extractUserAndArgs(message: CommonMessage<*>): UserExtractionResult {
-        logger.info("abcqwe extracting user $message")
         val content = message.content as? TextContent
         val allArgs = content?.text?.let { extractArguments(it) } ?: emptyList()
 
@@ -61,7 +58,6 @@ object MentionExtractor {
         // Priority 2: Check for TextMentionTextSource (clickable mention with user ID)
         val textMention = content.textSources.filterIsInstance<TextMentionTextSource>().firstOrNull()
         if (textMention != null) {
-            logger.info("abcqwe $textMention")
             val userId = textMention.user.id.chatId.long
             // TextMention found - the mention text is in args[0], skip it
             val remainingArgs = if (allArgs.isNotEmpty()) allArgs.drop(1) else emptyList()

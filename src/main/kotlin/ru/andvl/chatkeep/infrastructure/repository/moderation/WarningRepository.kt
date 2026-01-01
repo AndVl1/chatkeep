@@ -1,5 +1,6 @@
 package ru.andvl.chatkeep.infrastructure.repository.moderation
 
+import org.springframework.data.jdbc.repository.query.Modifying
 import org.springframework.data.jdbc.repository.query.Query
 import org.springframework.data.repository.CrudRepository
 import ru.andvl.chatkeep.domain.model.moderation.Warning
@@ -24,6 +25,7 @@ interface WarningRepository : CrudRepository<Warning, Long> {
     """)
     fun findActiveByChatIdAndUserId(chatId: Long, userId: Long, now: Instant): List<Warning>
 
+    @Modifying
     @Query("""
         DELETE FROM warnings
         WHERE chat_id = :chatId

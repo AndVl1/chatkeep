@@ -1,6 +1,7 @@
 package ru.andvl.chatkeep.domain.service.moderation
 
 import dev.inmo.tgbotapi.bot.TelegramBot
+import dev.inmo.tgbotapi.extensions.api.chat.get.getChat
 import dev.inmo.tgbotapi.extensions.api.chat.members.banChatMember
 import dev.inmo.tgbotapi.extensions.api.chat.members.restrictChatMember
 import dev.inmo.tgbotapi.extensions.api.chat.members.unbanChatMember
@@ -8,6 +9,8 @@ import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.RawChatId
 import dev.inmo.tgbotapi.types.UserId
 import dev.inmo.tgbotapi.types.TelegramDate
+import dev.inmo.tgbotapi.types.chat.ExtendedSupergroupChat
+import dev.inmo.tgbotapi.types.chat.LeftRestrictionsChatPermissions
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import ru.andvl.chatkeep.domain.model.moderation.ActionType
@@ -123,11 +126,16 @@ class PunishmentService(
         val userIdWrapper = UserId(RawChatId(userId))
 
         return try {
-            // Lift restrictions by setting untilDate to now (effectively removing mute)
+            // Get chat's default permissions to restore user to chat-level defaults
+            val chat = bot.getChat(chatIdWrapper)
+            val chatPermissions = (chat as? ExtendedSupergroupChat)?.permissions
+                ?: LeftRestrictionsChatPermissions
+
+            // Restore user permissions to chat defaults
             bot.restrictChatMember(
                 chatIdWrapper,
                 userIdWrapper,
-                untilDate = TelegramDate(Instant.now().epochSecond)
+                permissions = chatPermissions
             )
 
             // Log the unmute action using consolidated method
