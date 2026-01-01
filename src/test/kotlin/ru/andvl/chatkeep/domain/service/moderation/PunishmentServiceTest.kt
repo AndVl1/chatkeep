@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test
 import ru.andvl.chatkeep.domain.model.moderation.Punishment
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
+import ru.andvl.chatkeep.domain.service.logchannel.LogChannelService
 import ru.andvl.chatkeep.infrastructure.repository.moderation.PunishmentRepository
 import java.time.Instant
 import kotlin.test.assertTrue
@@ -23,13 +24,17 @@ class PunishmentServiceTest {
 
     private lateinit var repository: PunishmentRepository
     private lateinit var bot: TelegramBot
+    private lateinit var logChannelService: LogChannelService
+    private lateinit var usernameCacheService: UsernameCacheService
     private lateinit var service: PunishmentService
 
     @BeforeEach
     fun setup() {
         repository = mockk(relaxed = true)
         bot = mockk(relaxed = true)
-        service = PunishmentService(repository, bot)
+        logChannelService = mockk(relaxed = true)
+        usernameCacheService = mockk(relaxed = true)
+        service = PunishmentService(repository, bot, logChannelService, usernameCacheService)
     }
 
     @Test

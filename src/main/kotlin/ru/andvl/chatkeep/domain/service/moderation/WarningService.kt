@@ -21,7 +21,13 @@ class WarningService(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    fun issueWarning(chatId: Long, userId: Long, issuedById: Long, reason: String?): Warning {
+    fun issueWarning(
+        chatId: Long,
+        userId: Long,
+        issuedById: Long,
+        reason: String?,
+        chatTitle: String? = null
+    ): Warning {
         val config = moderationConfigRepository.findByChatId(chatId)
         val ttlHours = config?.warningTtlHours ?: 24
 
@@ -36,11 +42,23 @@ class WarningService(
 
         val saved = warningRepository.save(warning)
         logger.info("Issued warning: chatId=$chatId, userId=$userId, reason=$reason")
+
+        // Log the warning action (also sends to log channel)
+        punishmentService.logAction(
+            chatId = chatId,
+            userId = userId,
+            issuedById = issuedById,
+            actionType = ActionType.WARN,
+            reason = reason,
+            source = PunishmentSource.MANUAL,
+            chatTitle = chatTitle
+        )
+
         return saved
     }
 
     @Transactional
-    fun removeWarnings(chatId: Long, userId: Long, issuedById: Long) {
+    fun removeWarnings(chatId: Long, userId: Long, issuedById: Long, chatTitle: String? = null) {
         val now = Instant.now()
         warningRepository.deleteActiveByChatIdAndUserId(chatId, userId, now)
 
@@ -50,7 +68,8 @@ class WarningService(
             userId = userId,
             issuedById = issuedById,
             actionType = ActionType.UNWARN,
-            source = PunishmentSource.MANUAL
+            source = PunishmentSource.MANUAL,
+            chatTitle = chatTitle
         )
 
         logger.info("Removed warnings: chatId=$chatId, userId=$userId")

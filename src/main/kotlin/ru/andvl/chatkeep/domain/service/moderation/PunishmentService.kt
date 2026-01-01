@@ -17,6 +17,8 @@ import ru.andvl.chatkeep.domain.model.moderation.ActionType
 import ru.andvl.chatkeep.domain.model.moderation.Punishment
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
+import ru.andvl.chatkeep.domain.service.logchannel.LogChannelService
+import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 import ru.andvl.chatkeep.infrastructure.repository.moderation.PunishmentRepository
 import java.time.Instant
 import kotlin.time.Duration
@@ -24,7 +26,9 @@ import kotlin.time.Duration
 @Service
 class PunishmentService(
     private val punishmentRepository: PunishmentRepository,
-    private val bot: TelegramBot
+    private val bot: TelegramBot,
+    private val logChannelService: LogChannelService,
+    private val usernameCacheService: UsernameCacheService
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -37,7 +41,8 @@ class PunishmentService(
         duration: Duration?,
         reason: String?,
         source: PunishmentSource,
-        messageText: String? = null
+        messageText: String? = null,
+        chatTitle: String? = null
     ): Boolean {
         val chatIdWrapper = ChatId(RawChatId(chatId))
         val userIdWrapper = UserId(RawChatId(userId))
@@ -86,7 +91,7 @@ class PunishmentService(
         if (success) {
             // Map PunishmentType to ActionType for logging
             val actionType = ActionType.valueOf(type.name)
-            logAction(chatId, userId, issuedById, actionType, duration, reason, source, messageText)
+            logAction(chatId, userId, issuedById, actionType, duration, reason, source, messageText, chatTitle)
         }
 
         return success
@@ -95,6 +100,7 @@ class PunishmentService(
     /**
      * Unified method for logging all admin actions (CODE-001 fix).
      * Uses ActionType enum for type safety (CODE-003 fix).
+     * Also sends notifications to configured log channel.
      */
     fun logAction(
         chatId: Long,
@@ -104,7 +110,8 @@ class PunishmentService(
         duration: Duration? = null,
         reason: String? = null,
         source: PunishmentSource,
-        messageText: String? = null
+        messageText: String? = null,
+        chatTitle: String? = null
     ) {
         val punishment = Punishment(
             chatId = chatId,
@@ -119,6 +126,49 @@ class PunishmentService(
 
         punishmentRepository.save(punishment)
         logger.info("Logged action: type=$actionType, chatId=$chatId, userId=$userId, source=$source")
+
+        // Send to log channel (async, non-blocking)
+        sendToLogChannel(chatId, chatTitle, userId, issuedById, actionType, duration, reason, messageText, source)
+    }
+
+    /**
+     * Send moderation action to configured log channel.
+     * Uses cached user info for display names.
+     */
+    private fun sendToLogChannel(
+        chatId: Long,
+        chatTitle: String?,
+        userId: Long,
+        adminId: Long,
+        actionType: ActionType,
+        duration: Duration?,
+        reason: String?,
+        messageText: String?,
+        source: PunishmentSource
+    ) {
+        // Get cached user info
+        val userInfo = usernameCacheService.getUserInfo(userId)
+        val adminInfo = usernameCacheService.getUserInfo(adminId)
+
+        val entry = ModerationLogEntry(
+            chatId = chatId,
+            chatTitle = chatTitle,
+            userId = userId,
+            userFirstName = userInfo?.firstName,
+            userLastName = userInfo?.lastName,
+            userName = userInfo?.username,
+            adminId = adminId,
+            adminFirstName = adminInfo?.firstName,
+            adminLastName = adminInfo?.lastName,
+            adminUserName = adminInfo?.username,
+            actionType = actionType,
+            duration = duration,
+            reason = reason,
+            messageText = messageText,
+            source = source
+        )
+
+        logChannelService.logModerationAction(entry)
     }
 
     suspend fun unmute(chatId: Long, userId: Long, issuedById: Long): Boolean {
