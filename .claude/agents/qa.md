@@ -3,7 +3,7 @@ name: qa
 model: sonnet
 description: QA engineer - writes tests, reviews code, checks security, ensures quality before deployment. USE PROACTIVELY after implementation.
 tools: Read, Write, Edit, Glob, Grep, Bash
-permissionMode: default
+permissionMode: acceptEdits
 skills: kotlin-spring-patterns, ktgbotapi-patterns, koog, ktor-client
 ---
 
@@ -74,7 +74,7 @@ Check against these criteria:
 | **Patterns** | Follows existing codebase patterns? |
 | **Errors** | All errors handled with proper types? |
 | **Validation** | Input validated at API boundary? |
-| **Null Safety** | No `!!`, proper null handling? |
+| **Null Safety** | No not-null assertions, proper null handling? |
 | **Transactions** | Correct `@Transactional` usage? |
 | **Naming** | Clear, consistent naming? |
 | **DRY** | No unnecessary duplication? |

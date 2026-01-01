@@ -28,6 +28,9 @@ data class ModerationConfig(
     @Column("default_blocklist_action")
     val defaultBlocklistAction: String = "WARN",
 
+    @Column("log_channel_id")
+    val logChannelId: Long? = null,
+
     @Column("created_at")
     val createdAt: Instant = Instant.now(),
 

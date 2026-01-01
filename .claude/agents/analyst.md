@@ -4,7 +4,7 @@ description: Requirements analyst - clarifies requirements, researches patterns,
 model: sonnet
 color: red
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
-permissionMode: default
+permissionMode: acceptEdits
 skills: api-design, kotlin-spring-patterns, ktgbotapi-patterns, systematic-planning
 ---
 

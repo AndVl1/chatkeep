@@ -3,6 +3,7 @@ package ru.andvl.chatkeep.bot.handlers.moderation
 import dev.inmo.tgbotapi.extensions.api.send.reply
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
+import dev.inmo.tgbotapi.types.chat.ExtendedGroupChat
 import dev.inmo.tgbotapi.types.chat.GroupChat
 import dev.inmo.tgbotapi.types.chat.SupergroupChat
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
@@ -38,12 +39,14 @@ class ModerationCommandHandler(
      * Context for moderation commands containing all extracted data.
      *
      * @property chatId The chat where the command was issued
+     * @property chatTitle The title of the chat for logging
      * @property adminId The user ID of the admin issuing the command
      * @property targetUserId The user ID of the target being moderated
      * @property args Remaining command arguments (excluding command and user identifier)
      */
     private data class ModerationContext(
         val chatId: Long,
+        val chatTitle: String?,
         val adminId: Long,
         val targetUserId: Long,
         val args: List<String>
@@ -64,6 +67,8 @@ class ModerationCommandHandler(
         block: suspend (ModerationContext) -> Unit
     ) {
         val chatId = message.chat.id.chatId.long
+        val chatTitle = (message.chat as? GroupChat)?.title
+            ?: (message.chat as? SupergroupChat)?.title
         val adminId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
 
         // Check admin status
@@ -115,7 +120,7 @@ class ModerationCommandHandler(
             return
         }
 
-        block(ModerationContext(chatId, adminId, targetUserId, arguments))
+        block(ModerationContext(chatId, chatTitle, adminId, targetUserId, arguments))
     }
 
     override suspend fun BehaviourContext.register() {
@@ -161,7 +166,7 @@ class ModerationCommandHandler(
             val reason = ctx.args.takeIf { it.isNotEmpty() }?.joinToString(" ")
 
             withContext(Dispatchers.IO) {
-                warningService.issueWarning(ctx.chatId, ctx.targetUserId, ctx.adminId, reason)
+                warningService.issueWarning(ctx.chatId, ctx.targetUserId, ctx.adminId, reason, ctx.chatTitle)
                 val activeWarnings = warningService.getActiveWarningCount(ctx.chatId, ctx.targetUserId)
 
                 // Check threshold
@@ -177,7 +182,8 @@ class ModerationCommandHandler(
                         type = thresholdAction,
                         duration = duration,
                         reason = "Warning threshold reached",
-                        source = PunishmentSource.THRESHOLD
+                        source = PunishmentSource.THRESHOLD,
+                        chatTitle = ctx.chatTitle
                     )
 
                     reply(message, "User warned. Warning threshold reached - applied ${thresholdAction.name.lowercase()}.")
@@ -191,7 +197,7 @@ class ModerationCommandHandler(
     private suspend fun BehaviourContext.handleUnwarn(message: CommonMessage<*>) {
         withModerationAuth(message, "Usage: /unwarn <reply to user or user_id>") { ctx ->
             withContext(Dispatchers.IO) {
-                warningService.removeWarnings(ctx.chatId, ctx.targetUserId, ctx.adminId)
+                warningService.removeWarnings(ctx.chatId, ctx.targetUserId, ctx.adminId, ctx.chatTitle)
             }
 
             reply(message, "User warnings removed.")
@@ -223,7 +229,8 @@ class ModerationCommandHandler(
                     duration = duration,
                     reason = reason,
                     source = PunishmentSource.MANUAL,
-                    messageText = messageText
+                    messageText = messageText,
+                    chatTitle = ctx.chatTitle
                 )
             }
 
@@ -274,7 +281,8 @@ class ModerationCommandHandler(
                     duration = duration,
                     reason = reason,
                     source = PunishmentSource.MANUAL,
-                    messageText = messageText
+                    messageText = messageText,
+                    chatTitle = ctx.chatTitle
                 )
             }
 
@@ -318,7 +326,8 @@ class ModerationCommandHandler(
                     duration = null,
                     reason = reason,
                     source = PunishmentSource.MANUAL,
-                    messageText = messageText
+                    messageText = messageText,
+                    chatTitle = ctx.chatTitle
                 )
             }
 

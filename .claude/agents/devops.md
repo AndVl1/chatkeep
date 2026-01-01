@@ -3,7 +3,7 @@ name: devops
 model: sonnet
 description: DevOps engineer - handles Docker, Kubernetes, Helm, CI/CD, and deployments. USE PROACTIVELY when infrastructure changes needed.
 tools: Read, Write, Edit, Glob, Grep, Bash
-permissionMode: default
+permissionMode: acceptEdits
 skills: k8s-helm, opentelemetry
 ---
 

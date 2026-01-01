@@ -3,7 +3,7 @@ name: code-reviewer
 model: opus
 description: Expert code reviewer. USE PROACTIVELY after any code changes to ensure quality, security, and maintainability.
 tools: Read, Glob, Grep, Bash
-permissionMode: default
+permissionMode: acceptEdits
 skills: kotlin-spring-patterns, api-design, ktgbotapi-patterns
 ---
 
@@ -35,7 +35,7 @@ Review code changes for quality, security vulnerabilities, and adherence to best
 | **DRY** | No unnecessary duplication |
 | **Single Responsibility** | Each function/class does one thing |
 | **Error Handling** | Proper exceptions, no swallowed errors |
-| **Null Safety** | No `!!`, proper null handling with `?.let{}` |
+| **Null Safety** | No not-null assertions, proper null handling with safe calls |
 | **Transactions** | Correct `@Transactional` usage |
 
 ### Security (OWASP Top 10)

@@ -3,7 +3,7 @@ name: developer
 model: sonnet
 description: Backend developer - implements Kotlin/Spring services and Telegram bots following Architect's design exactly. USE PROACTIVELY for implementation.
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
-permissionMode: default
+permissionMode: acceptEdits
 skills: kotlin-spring-patterns, kotlin-spring-boot, ktgbotapi, ktgbotapi-patterns, jooq-patterns, ktor-client
 ---
 
@@ -110,7 +110,7 @@ fun confirmKeyboard(id: String) = inlineKeyboard {
 
 ### Kotlin
 - Use `?.let{}`, `when`, data classes
-- Avoid `!!` - use `.single()`, `.firstOrNull()`
+- Instead of not-null assertion, use `.single()` or `.firstOrNull()`
 - Use `@Transactional(propagation = Propagation.NEVER)` on services
 - Return `Pair<Result, Boolean>` for idempotent ops
 
