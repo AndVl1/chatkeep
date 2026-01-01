@@ -197,7 +197,7 @@ when (status) {
     EnvironmentStatus.FAILED -> throw IllegalStateException("Cannot start failed env")
 }
 
-// Avoid !! - use alternatives
+// Avoid !! operator, prefer these alternatives:
 repository.findById(id).single()      // throws if not exactly one
 repository.findById(id).firstOrNull() // returns null if none
 
