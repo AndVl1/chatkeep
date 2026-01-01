@@ -54,6 +54,7 @@ class AdminCommandHandler(
                 /ban [duration] - Ban a user
                 /unban - Unban a user
                 /kick - Kick a user
+                /cleanservice <on|off> - Auto-delete join/leave messages
                 """.trimIndent()
             )
         }

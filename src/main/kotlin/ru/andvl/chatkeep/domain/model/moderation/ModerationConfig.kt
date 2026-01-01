@@ -31,6 +31,9 @@ data class ModerationConfig(
     @Column("log_channel_id")
     val logChannelId: Long? = null,
 
+    @Column("clean_service_enabled")
+    val cleanServiceEnabled: Boolean = false,
+
     @Column("created_at")
     val createdAt: Instant = Instant.now(),
 
