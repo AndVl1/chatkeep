@@ -42,13 +42,60 @@ suspend fun main() {
 
 ### Commands
 
+**CRITICAL: Understanding `requireOnlyCommandInMessage` parameter**
+
+By default, `onCommand` has `requireOnlyCommandInMessage = true`, meaning it ONLY triggers when the message contains JUST the command with no additional text.
+
 ```kotlin
+// DEFAULT BEHAVIOR - triggers ONLY for "/start" (no extra text)
 onCommand("start") { message -> }
-onCommand("help", "info") { message -> }           // multiple
-onCommand(Regex("set_.*")) { message -> }          // regex
-onCommandWithArgs("echo") { message, args -> }     // with args
-onDeepLink { message, deepLink -> }                // t.me/bot?start=payload
+
+// This will NOT trigger for "/start hello" or "/warn @username"!
 ```
+
+**For commands with arguments, you MUST use one of these approaches:**
+
+```kotlin
+// APPROACH 1: Set requireOnlyCommandInMessage = false
+// Triggers for "/mute @username reason" - you parse args manually
+onCommand("mute", requireOnlyCommandInMessage = false) { message ->
+    val text = (message.content as TextContent).text
+    val args = text.split(" ").drop(1)  // skip command
+}
+
+// APPROACH 2: Use onCommandWithArgs (recommended for simple args)
+// Automatically sets requireOnlyCommandInMessage = false and parses args
+onCommandWithArgs("echo") { message, args ->
+    // args = arrayOf("hello", "world") for "/echo hello world"
+    reply(message, args.joinToString(" "))
+}
+
+// APPROACH 3: Use onCommandWithNamedArgs for key=value format
+onCommandWithNamedArgs("config") { message, args ->
+    // args = listOf("key" to "value") for "/config key=value"
+}
+```
+
+**Common patterns:**
+
+```kotlin
+onCommand("start") { message -> }                          // no args expected
+onCommand("help", "info") { message -> }                   // multiple commands, no args
+onCommand(Regex("set_.*")) { message -> }                  // regex pattern
+onCommand("warn", requireOnlyCommandInMessage = false) { } // manual arg parsing
+onCommandWithArgs("echo") { message, args -> }             // auto arg parsing
+onDeepLink { message, deepLink -> }                        // t.me/bot?start=payload
+onUnhandledCommand { message -> }                          // fallback for unknown commands
+```
+
+**When to use which:**
+
+| Use Case | Method |
+|----------|--------|
+| Simple command, no args (`/start`, `/help`) | `onCommand("start")` |
+| Command with args, custom parsing | `onCommand("cmd", requireOnlyCommandInMessage = false)` |
+| Command with simple space-separated args | `onCommandWithArgs("echo")` |
+| Command with `key=value` args | `onCommandWithNamedArgs("config")` |
 
 ### Text
 
