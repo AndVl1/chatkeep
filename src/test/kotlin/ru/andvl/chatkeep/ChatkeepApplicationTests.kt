@@ -5,10 +5,12 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.context.annotation.Import
 import org.springframework.test.context.ActiveProfiles
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import ru.andvl.chatkeep.config.TestConfiguration
 import ru.andvl.chatkeep.domain.model.ChatSettings
 import ru.andvl.chatkeep.infrastructure.repository.ChatSettingsRepository
 import ru.andvl.chatkeep.infrastructure.repository.MessageRepository
@@ -23,6 +25,7 @@ import kotlin.test.assertTrue
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("test")
+@Import(TestConfiguration::class)
 class ChatkeepApplicationTests {
 
     companion object {

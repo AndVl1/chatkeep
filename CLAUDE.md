@@ -122,6 +122,24 @@ Use `withContext(Dispatchers.IO)` when calling blocking Spring Data operations f
 ### Error Handling
 Catch exceptions in handlers, log errors, don't crash the bot.
 
+## Moderation Features Reference
+
+When implementing or improving moderation features, use **MissRose (Rose Bot)** as the primary reference:
+- **Repository**: https://github.com/MRK-YT/Rose-Bot
+- **Documentation**: Use DeepWiki MCP to query the repository for implementation details
+
+Rose Bot is a mature Telegram moderation bot with well-designed features including:
+- User warnings and bans
+- Blocklist/filter management
+- Anti-spam and anti-flood
+- Welcome messages
+- Admin management
+
+To get implementation details, use:
+```
+mcp__deepwiki__ask_question with repoName="MRK-YT/Rose-Bot"
+```
+
 ## Git Workflow
 
 **IMPORTANT: ALL features and fixes MUST be developed in separate branches.**

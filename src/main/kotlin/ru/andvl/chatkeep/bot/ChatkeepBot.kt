@@ -1,13 +1,12 @@
 package ru.andvl.chatkeep.bot
 
-import dev.inmo.tgbotapi.bot.ktor.telegramBot
+import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.extensions.behaviour_builder.buildBehaviourWithLongPolling
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
 import jakarta.annotation.PostConstruct
@@ -17,8 +16,7 @@ import kotlinx.coroutines.cancel
 
 @Component
 class ChatkeepBot(
-    @Value("\${telegram.bot.token}")
-    private val botToken: String,
+    private val bot: TelegramBot,
     private val handlers: List<Handler>
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -31,8 +29,6 @@ class ChatkeepBot(
 
         botJob = scope.launch {
             try {
-                val bot = telegramBot(botToken)
-
                 bot.buildBehaviourWithLongPolling {
                     handlers.forEach { handler ->
                         with(handler) { register() }
