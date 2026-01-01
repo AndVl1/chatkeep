@@ -1,11 +1,8 @@
 package ru.andvl.chatkeep.bot.handlers.moderation
 
-import dev.inmo.tgbotapi.extensions.api.chat.get.getChat
 import dev.inmo.tgbotapi.extensions.api.send.reply
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
-import dev.inmo.tgbotapi.types.Username
-import dev.inmo.tgbotapi.types.chat.ExtendedPrivateChat
 import dev.inmo.tgbotapi.types.chat.GroupChat
 import dev.inmo.tgbotapi.types.chat.SupergroupChat
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
@@ -23,6 +20,7 @@ import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.moderation.PunishmentService
+import ru.andvl.chatkeep.domain.service.moderation.UsernameCacheService
 import ru.andvl.chatkeep.domain.service.moderation.WarningService
 import kotlin.time.Duration.Companion.hours
 
@@ -30,7 +28,8 @@ import kotlin.time.Duration.Companion.hours
 class ModerationCommandHandler(
     private val adminCacheService: AdminCacheService,
     private val warningService: WarningService,
-    private val punishmentService: PunishmentService
+    private val punishmentService: PunishmentService,
+    private val usernameCacheService: UsernameCacheService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -78,16 +77,19 @@ class ModerationCommandHandler(
         var targetUserId = extraction.userId
         val arguments = extraction.arguments
 
-        // If no user ID found but we have a username, try to resolve it via API
+        // If no user ID found but we have a username, try to resolve it from cache
         if (targetUserId == null && extraction.username != null) {
-            val resolved = resolveUsername(extraction.username)
+            val resolved = withContext(Dispatchers.IO) {
+                usernameCacheService.resolveUsername(extraction.username)
+            }
             if (resolved != null) {
                 targetUserId = resolved
             } else {
                 reply(
                     message,
                     "Could not find user @${extraction.username}. " +
-                        "Reply to their message or use their numeric ID instead."
+                        "The user must have sent a message in this chat first. " +
+                        "Alternatively, reply to their message or use their numeric ID."
                 )
                 return
             }
@@ -114,23 +116,6 @@ class ModerationCommandHandler(
         }
 
         block(ModerationContext(chatId, adminId, targetUserId, arguments))
-    }
-
-    /**
-     * Attempts to resolve a username to a user ID via Telegram API.
-     * This works for users who have interacted with the bot or are in a common chat.
-     *
-     * @param username The username without @ prefix
-     * @return The user ID if found, null otherwise
-     */
-    private suspend fun BehaviourContext.resolveUsername(username: String): Long? {
-        return try {
-            val chat = getChat(Username("@$username"))
-            (chat as? ExtendedPrivateChat)?.id?.chatId?.long
-        } catch (e: Exception) {
-            logger.debug("Failed to resolve username @$username: ${e.message}")
-            null
-        }
     }
 
     override suspend fun BehaviourContext.register() {

@@ -12,11 +12,13 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.domain.service.MessageService
+import ru.andvl.chatkeep.domain.service.moderation.UsernameCacheService
 import java.time.Instant
 
 @Component
 class GroupMessageHandler(
-    private val messageService: MessageService
+    private val messageService: MessageService,
+    private val usernameCacheService: UsernameCacheService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -34,16 +36,29 @@ class GroupMessageHandler(
 
             withContext(Dispatchers.IO) {
                 try {
+                    val userId = user.id.chatId.long
+                    val username = user.username?.withoutAt
+
                     messageService.saveMessage(
                         telegramMessageId = message.messageId.long,
                         chatId = message.chat.id.chatId.long,
-                        userId = user.id.chatId.long,
-                        username = user.username?.withoutAt,
+                        userId = userId,
+                        username = username,
                         firstName = user.firstName,
                         lastName = user.lastName,
                         text = textContent.text,
                         messageDate = Instant.ofEpochSecond(message.date.unixMillisLong / 1000)
                     )
+
+                    // Cache username -> userId mapping for @username resolution
+                    if (username != null) {
+                        usernameCacheService.cacheUsername(
+                            username = username,
+                            userId = userId,
+                            firstName = user.firstName,
+                            lastName = user.lastName
+                        )
+                    }
                 } catch (e: Exception) {
                     logger.error("Failed to save message: ${e.message}", e)
                 }
