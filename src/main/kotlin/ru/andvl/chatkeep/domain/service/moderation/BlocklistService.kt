@@ -1,0 +1,140 @@
+package ru.andvl.chatkeep.domain.service.moderation
+
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Service
+import ru.andvl.chatkeep.domain.model.moderation.BlocklistPattern
+import ru.andvl.chatkeep.domain.model.moderation.MatchType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
+import ru.andvl.chatkeep.infrastructure.repository.moderation.BlocklistPatternRepository
+import ru.andvl.chatkeep.infrastructure.repository.moderation.ModerationConfigRepository
+import kotlin.time.Duration.Companion.hours
+
+@Service
+class BlocklistService(
+    private val blocklistPatternRepository: BlocklistPatternRepository,
+    private val moderationConfigRepository: ModerationConfigRepository
+) {
+
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    data class BlocklistMatch(
+        val pattern: BlocklistPattern,
+        val action: PunishmentType,
+        val durationHours: Int?
+    )
+
+    fun checkMessage(chatId: Long, text: String): BlocklistMatch? {
+        val patterns = blocklistPatternRepository.findByChatIdOrGlobal(chatId)
+        val normalizedText = text.lowercase()
+
+        // Find all matches and return highest severity
+        val matches = patterns.mapNotNull { pattern ->
+            if (matchesPattern(normalizedText, pattern)) {
+                BlocklistMatch(
+                    pattern = pattern,
+                    action = PunishmentType.valueOf(pattern.action),
+                    durationHours = pattern.actionDurationHours
+                )
+            } else {
+                null
+            }
+        }
+
+        // Return highest severity match (patterns already ordered by severity DESC)
+        val match = matches.firstOrNull()
+        if (match != null) {
+            logger.info("Message matched blocklist: pattern='${match.pattern.pattern}', action=${match.action}")
+        }
+
+        return match
+    }
+
+    private fun matchesPattern(text: String, pattern: BlocklistPattern): Boolean {
+        val patternText = pattern.pattern.lowercase()
+
+        return when (MatchType.valueOf(pattern.matchType)) {
+            MatchType.EXACT -> text.contains(patternText)
+            MatchType.WILDCARD -> {
+                // Safety check: limit wildcards to prevent ReDoS
+                val wildcardCount = patternText.count { it == '*' || it == '?' }
+                if (wildcardCount > 5) {
+                    logger.warn("Pattern has too many wildcards, skipping: $patternText")
+                    return false
+                }
+
+                // Build regex by escaping non-wildcard parts and converting wildcards
+                val regexPattern = buildString {
+                    var i = 0
+                    while (i < patternText.length) {
+                        when (patternText[i]) {
+                            '*' -> append(".*")
+                            '?' -> append(".")
+                            else -> {
+                                // Escape regex special characters
+                                val char = patternText[i]
+                                if (char in """\.[]{}()|^$+""") {
+                                    append('\\')
+                                }
+                                append(char)
+                            }
+                        }
+                        i++
+                    }
+                }
+
+                try {
+                    Regex(regexPattern).containsMatchIn(text)
+                } catch (e: Exception) {
+                    logger.warn("Invalid pattern: $patternText", e)
+                    false
+                }
+            }
+        }
+    }
+
+    fun addPattern(
+        chatId: Long?,
+        pattern: String,
+        matchType: MatchType,
+        action: PunishmentType,
+        durationHours: Int?,
+        severity: Int
+    ): BlocklistPattern {
+        val blocklistPattern = BlocklistPattern(
+            chatId = chatId,
+            pattern = pattern,
+            matchType = matchType.name,
+            action = action.name,
+            actionDurationHours = durationHours,
+            severity = severity
+        )
+
+        val saved = blocklistPatternRepository.save(blocklistPattern)
+        logger.info("Added blocklist pattern: chatId=$chatId, pattern='$pattern', action=$action")
+        return saved
+    }
+
+    fun removePattern(chatId: Long, pattern: String) {
+        blocklistPatternRepository.deleteByChatIdAndPattern(chatId, pattern)
+        logger.info("Removed blocklist pattern: chatId=$chatId, pattern='$pattern'")
+    }
+
+    fun listPatterns(chatId: Long): List<BlocklistPattern> {
+        return blocklistPatternRepository.findByChatId(chatId)
+    }
+
+    fun listGlobalPatterns(): List<BlocklistPattern> {
+        return blocklistPatternRepository.findGlobalPatterns()
+    }
+
+    fun getDefaultAction(chatId: Long): PunishmentType {
+        val config = moderationConfigRepository.findByChatId(chatId)
+        val actionName = config?.defaultBlocklistAction ?: "WARN"
+        return try {
+            PunishmentType.valueOf(actionName)
+        } catch (e: IllegalArgumentException) {
+            logger.warn("Invalid default action '$actionName' for chat $chatId, falling back to WARN")
+            PunishmentType.WARN
+        }
+    }
+}

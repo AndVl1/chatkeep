@@ -18,6 +18,9 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
 
+admin-logs:
+  path: ${ADMIN_LOGS_PATH:/tmp/chatkeep/admin-logs}
+
 management:
   endpoints:
     web:

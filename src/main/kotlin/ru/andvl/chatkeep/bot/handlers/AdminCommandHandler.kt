@@ -35,11 +35,25 @@ class AdminCommandHandler(
 
                 I collect messages from group chats where I'm added.
 
-                Commands:
+                Admin Commands (Private Chat):
                 /mychats - List chats where you're admin
                 /stats <chat_id> - Get statistics for a chat
                 /enable <chat_id> - Enable message collection
                 /disable <chat_id> - Disable message collection
+                /connect <chat_id> - Connect to a chat for management
+                /disconnect - Disconnect from current chat
+                /addblock <pattern> <action> - Add blocklist pattern
+                /delblock <pattern> - Remove blocklist pattern
+                /blocklist - List blocklist patterns
+
+                Moderation Commands (Group Chat):
+                /warn - Warn a user (reply or user_id)
+                /unwarn - Remove user warnings
+                /mute [duration] - Mute a user (e.g. 1h, 24h)
+                /unmute - Unmute a user
+                /ban [duration] - Ban a user
+                /unban - Unban a user
+                /kick - Kick a user
                 """.trimIndent()
             )
         }
