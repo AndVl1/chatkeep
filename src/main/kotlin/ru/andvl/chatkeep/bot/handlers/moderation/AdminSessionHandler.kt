@@ -30,12 +30,10 @@ class AdminSessionHandler(
         }
 
         onCommand("connect", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
-            logger.info("Received /connect command from chat ${message.chat.id}")
             handleConnect(message)
         }
 
         onCommand("disconnect", initialFilter = privateFilter) { message ->
-            logger.info("Received /disconnect command from chat ${message.chat.id}")
             handleDisconnect(message)
         }
     }
@@ -43,40 +41,31 @@ class AdminSessionHandler(
     private suspend fun BehaviourContext.handleConnect(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
         try {
             val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
-                logger.warn("/connect: Cannot extract user ID from message type ${message::class.simpleName}")
+                logger.warn("/connect: Cannot extract user ID from message")
                 return
             }
 
             val textContent = message.content as? TextContent
             val args = textContent?.text?.split(" ")?.drop(1) ?: emptyList()
-            logger.info("/connect: userId=$userId, args=$args, textContent=${textContent?.text}")
             val chatId = args.firstOrNull()?.toLongOrNull()
 
             if (chatId == null) {
-                logger.info("/connect: chatId is null, sending usage message")
                 reply(message, "Usage: /connect <chat_id>")
-                logger.info("/connect: usage message sent")
                 return
             }
 
-            logger.info("/connect: checking admin status for userId=$userId in chatId=$chatId")
-            // Verify user is admin in target chat
             val isAdmin = withContext(Dispatchers.IO) {
                 adminCacheService.isAdmin(userId, chatId)
             }
-            logger.info("/connect: isAdmin=$isAdmin")
 
             if (!isAdmin) {
                 reply(message, "You are not an admin in this chat.")
                 return
             }
 
-            // Get chat info
-            logger.info("/connect: getting chat statistics")
             val stats = withContext(Dispatchers.IO) {
                 adminService.getStatistics(chatId)
             }
-            logger.info("/connect: stats=$stats")
 
             if (stats == null) {
                 reply(message, "Chat not found or I'm not added to it.")
@@ -90,20 +79,13 @@ class AdminSessionHandler(
             reply(message, "Connected to: ${stats.chatTitle ?: "Chat $chatId"}\n\nAll moderation commands will now apply to this chat.")
             logger.info("Admin session connected: userId=$userId, chatId=$chatId")
         } catch (e: Exception) {
-            logger.error("/connect: Exception occurred", e)
-            try {
-                reply(message, "Error: ${e.message}")
-            } catch (replyError: Exception) {
-                logger.error("/connect: Failed to send error reply", replyError)
-            }
+            logger.error("/connect: Failed for user in chat ${message.chat.id}", e)
+            reply(message, "An error occurred. Please try again.")
         }
     }
 
     private suspend fun BehaviourContext.handleDisconnect(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
-            logger.warn("/disconnect: Cannot extract user ID from message type ${message::class.simpleName}")
-            return
-        }
+        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
 
         val session = withContext(Dispatchers.IO) {
             adminSessionService.getSession(userId)

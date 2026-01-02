@@ -34,7 +34,6 @@ class AdminLogCommandHandler(
         }
 
         onCommand("viewlogs", requireOnlyCommandInMessage = false, initialFilter = privateChatFilter) { message ->
-            logger.info("Received /viewlogs command from chat ${message.chat.id}")
             handleViewLogs(message)
         }
     }
