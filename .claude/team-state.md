@@ -1,51 +1,44 @@
 # TEAM STATE
 
 ## Classification
-- Type: BUG_FIX
-- Complexity: MEDIUM
-- Workflow: STANDARD (5 phases)
+- Type: FEATURE (test coverage)
+- Complexity: QUICK
+- Workflow: LIGHTWEIGHT (3 phases)
 
 ## Task
-Fix bug where command handlers that expect arguments are registered WITHOUT `requireOnlyCommandInMessage = false`.
-
-## Bug Pattern
-In KTgBotAPI, `onCommand("cmd")` only triggers when message is exactly "/cmd".
-Commands that accept arguments MUST use `requireOnlyCommandInMessage = false`.
+Add test coverage for curly brace syntax parsing in `/addblock` command.
 
 ## Progress
 - [x] Phase 1: Discovery - COMPLETED
-- [x] Phase 2: Exploration - COMPLETED
-- [x] Phase 3: Questions - COMPLETED
 - [x] Phase 5: Implementation - COMPLETED
-- [x] Phase 6: Review - COMPLETED (build + tests pass)
-- [x] Phase 7: Summary - COMPLETED
+- [x] Phase 6: Review - COMPLETED
 
-## Files Modified (4 files)
+## Files Created
+1. **AddBlockParser.kt** - Extracted parsing utility
+   - Parses `/addblock <pattern> {action [duration]}` syntax
+   - Uses sealed class Result for type-safe success/failure
+   - Validates pattern length, action type, duration format
 
-1. **BlocklistManagementHandler.kt**
-   - `/addblock` - added `requireOnlyCommandInMessage = false`
-   - `/delblock` - added `requireOnlyCommandInMessage = false`
+2. **AddBlockParserTest.kt** - 51 comprehensive tests
+   - Pattern-only parsing (no braces)
+   - Action in braces (no duration)
+   - Action with duration in braces
+   - Error cases (empty, unknown action, too long)
+   - Edge cases (unicode, special chars, multiple braces)
+   - Real-world examples matching Rose bot syntax
 
-2. **AdminLogCommandHandler.kt**
-   - `/viewlogs` - added `requireOnlyCommandInMessage = false`
-
-3. **AdminSessionHandler.kt**
-   - `/connect` - added `requireOnlyCommandInMessage = false`
-
-4. **AdminCommandHandler.kt**
-   - `/stats` - added `requireOnlyCommandInMessage = false`
-   - `/enable` - added `requireOnlyCommandInMessage = false`
-   - `/disable` - added `requireOnlyCommandInMessage = false`
+## Files Modified
+1. **BlocklistManagementHandler.kt** - Refactored to use AddBlockParser
 
 ## Commit
-`d6d2112` fix: add requireOnlyCommandInMessage=false to commands that accept arguments
+`94bc568` test: add comprehensive tests for curly brace parsing in /addblock
+
+## Build Status
+- Build: PASS
+- Tests: ALL PASSING (51 new tests)
 
 ## Branch
 fix/command-argument-parsing
 
-## Build Status
-- Build: PASS
-- Tests: ALL PASSING
-
 ## Feature Complete
-Ready for PR to main.
+Ready for merge to main.
