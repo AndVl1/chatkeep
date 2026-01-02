@@ -23,6 +23,11 @@ class BlocklistService(
         val durationHours: Int?
     )
 
+    data class AddPatternResult(
+        val pattern: BlocklistPattern,
+        val isUpdate: Boolean
+    )
+
     fun checkMessage(chatId: Long, text: String): BlocklistMatch? {
         val patterns = blocklistPatternRepository.findByChatIdOrGlobal(chatId)
         val normalizedText = text.lowercase()
@@ -99,19 +104,35 @@ class BlocklistService(
         action: PunishmentType,
         durationHours: Int?,
         severity: Int
-    ): BlocklistPattern {
-        val blocklistPattern = BlocklistPattern(
-            chatId = chatId,
-            pattern = pattern,
-            matchType = matchType.name,
-            action = action.name,
-            actionDurationHours = durationHours,
-            severity = severity
-        )
+    ): AddPatternResult {
+        // Check if pattern already exists for this chat - update instead of creating duplicate
+        val existing = chatId?.let { blocklistPatternRepository.findByChatIdAndPattern(it, pattern) }
+
+        val blocklistPattern = if (existing != null) {
+            // Update existing pattern
+            existing.copy(
+                matchType = matchType.name,
+                action = action.name,
+                actionDurationHours = durationHours,
+                severity = severity
+            )
+        } else {
+            // Create new pattern
+            BlocklistPattern(
+                chatId = chatId,
+                pattern = pattern,
+                matchType = matchType.name,
+                action = action.name,
+                actionDurationHours = durationHours,
+                severity = severity
+            )
+        }
 
         val saved = blocklistPatternRepository.save(blocklistPattern)
-        logger.info("Added blocklist pattern: chatId=$chatId, pattern='$pattern', action=$action")
-        return saved
+        val isUpdate = existing != null
+        val operation = if (isUpdate) "Updated" else "Added"
+        logger.info("$operation blocklist pattern: chatId=$chatId, pattern='$pattern', action=$action")
+        return AddPatternResult(saved, isUpdate)
     }
 
     fun removePattern(chatId: Long, pattern: String) {

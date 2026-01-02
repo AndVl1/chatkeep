@@ -125,13 +125,14 @@ class BlocklistManagementHandler(
                 MatchType.EXACT
             }
 
-            withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 blocklistService.addPattern(chatId, pattern, matchType, action, duration, 0)
             }
 
             val prefix = adminSessionService.formatReplyPrefix(session)
-            reply(message, "$prefix\n\nAdded blocklist pattern:\nPattern: $pattern\nAction: $action")
-            logger.info("Blocklist pattern added: chatId=$chatId, pattern='$pattern', action=$action")
+            val operation = if (result.isUpdate) "Updated" else "Added"
+            reply(message, "$prefix\n\n$operation blocklist pattern:\nPattern: $pattern\nAction: $action")
+            logger.info("Blocklist pattern ${operation.lowercase()}: chatId=$chatId, pattern='$pattern', action=$action")
         } catch (e: Exception) {
             logger.error("/addblock: Failed", e)
             reply(message, "An error occurred. Please try again.")
