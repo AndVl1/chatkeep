@@ -1,8 +1,11 @@
 package ru.andvl.chatkeep.bot.handlers.moderation
 
 import dev.inmo.tgbotapi.extensions.api.send.reply
+import dev.inmo.tgbotapi.extensions.api.send.send
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
+import dev.inmo.tgbotapi.types.ChatId
+import dev.inmo.tgbotapi.types.RawChatId
 import dev.inmo.tgbotapi.types.chat.ExtendedGroupChat
 import dev.inmo.tgbotapi.types.chat.GroupChat
 import dev.inmo.tgbotapi.types.chat.SupergroupChat
@@ -23,6 +26,8 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.moderation.PunishmentService
 import ru.andvl.chatkeep.domain.service.moderation.UsernameCacheService
 import ru.andvl.chatkeep.domain.service.moderation.WarningService
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.hours
 
 @Component
@@ -165,16 +170,42 @@ class ModerationCommandHandler(
             // args[0:] is the reason (user ID already extracted)
             val reason = ctx.args.takeIf { it.isNotEmpty() }?.joinToString(" ")
 
-            withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 warningService.issueWarning(ctx.chatId, ctx.targetUserId, ctx.adminId, reason, ctx.chatTitle)
-                val activeWarnings = warningService.getActiveWarningCount(ctx.chatId, ctx.targetUserId)
+            }
 
-                // Check threshold
-                val thresholdAction = warningService.checkThreshold(ctx.chatId, ctx.targetUserId)
-                if (thresholdAction != null) {
-                    val durationHours = warningService.getThresholdDurationHours(ctx.chatId)
-                    val duration = durationHours?.hours
+            // Format expiry time
+            val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                .withZone(ZoneId.of("Europe/Moscow"))
+            val expiresAtFormatted = formatter.format(result.expiresAt)
 
+            // Check threshold
+            val thresholdAction = withContext(Dispatchers.IO) {
+                warningService.checkThreshold(ctx.chatId, ctx.targetUserId)
+            }
+
+            // Build notification message
+            val notificationMessage = buildString {
+                appendLine("⚠️ Предупреждение")
+                appendLine()
+                if (reason != null) {
+                    appendLine("Причина: $reason")
+                }
+                appendLine("Варнов: ${result.activeCount}/${result.maxWarnings}")
+                appendLine("Истекает: $expiresAtFormatted")
+                appendLine("При ${result.maxWarnings} варнах: ${result.thresholdAction.name.lowercase()}")
+            }
+
+            // Send notification to chat
+            send(ChatId(RawChatId(ctx.chatId)), notificationMessage)
+
+            if (thresholdAction != null) {
+                val durationHours = withContext(Dispatchers.IO) {
+                    warningService.getThresholdDurationHours(ctx.chatId)
+                }
+                val duration = durationHours?.hours
+
+                withContext(Dispatchers.IO) {
                     punishmentService.executePunishment(
                         chatId = ctx.chatId,
                         userId = ctx.targetUserId,
@@ -185,11 +216,9 @@ class ModerationCommandHandler(
                         source = PunishmentSource.THRESHOLD,
                         chatTitle = ctx.chatTitle
                     )
-
-                    reply(message, "User warned. Warning threshold reached - applied ${thresholdAction.name.lowercase()}.")
-                } else {
-                    reply(message, "User warned. Active warnings: $activeWarnings")
                 }
+
+                reply(message, "Warning threshold reached - applied ${thresholdAction.name.lowercase()}.")
             }
         }
     }
