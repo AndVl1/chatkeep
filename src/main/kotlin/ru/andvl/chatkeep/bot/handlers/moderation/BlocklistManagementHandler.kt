@@ -1,11 +1,16 @@
 package ru.andvl.chatkeep.bot.handlers.moderation
 
 import dev.inmo.tgbotapi.extensions.api.send.reply
+import dev.inmo.tgbotapi.extensions.api.send.media.sendDocument
+import dev.inmo.tgbotapi.extensions.api.send.sendTextMessage
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
+import dev.inmo.tgbotapi.requests.abstracts.asMultipartFile
 import dev.inmo.tgbotapi.types.chat.PrivateChat
 import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.types.message.content.TextContent
+import dev.inmo.tgbotapi.utils.buildEntities
+import dev.inmo.tgbotapi.utils.expandableBlockquote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -25,6 +30,11 @@ class BlocklistManagementHandler(
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
+
+    companion object {
+        // Telegram message limit is 4096 chars, leave buffer for prefix
+        private const val MAX_MESSAGE_LENGTH = 3800
+    }
 
     override suspend fun BehaviourContext.register() {
         val privateFilter = { msg: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*> ->
@@ -204,8 +214,9 @@ class BlocklistManagementHandler(
             blocklistService.listPatterns(chatId)
         }
 
+        val prefix = adminSessionService.formatReplyPrefix(session)
+
         if (patterns.isEmpty()) {
-            val prefix = adminSessionService.formatReplyPrefix(session)
             reply(message, "$prefix\n\nNo blocklist patterns configured.")
             return
         }
@@ -215,7 +226,27 @@ class BlocklistManagementHandler(
             "- ${pattern.pattern} -> ${pattern.action}$durationText [severity: ${pattern.severity}]"
         }
 
-        val prefix = adminSessionService.formatReplyPrefix(session)
-        reply(message, "$prefix\n\nBlocklist patterns:\n$patternList")
+        val headerText = "$prefix\n\nBlocklist patterns (${patterns.size}):\n"
+        val fullMessage = headerText + patternList
+
+        if (fullMessage.length <= MAX_MESSAGE_LENGTH) {
+            // Fits in one message - use expandable blockquote for better UX
+            val entities = buildEntities {
+                +prefix
+                +"\n\nBlocklist patterns (${patterns.size}):\n"
+                expandableBlockquote(patternList)
+            }
+            sendTextMessage(message.chat, entities = entities)
+        } else {
+            // Too long - send as .txt file
+            val fileContent = patternList.toByteArray(Charsets.UTF_8)
+            val fileName = "blocklist_${chatId}.txt"
+            sendDocument(
+                chatId = message.chat.id,
+                document = fileContent.asMultipartFile(fileName),
+                text = "$prefix\n\nBlocklist contains ${patterns.size} patterns (too many to display in message)."
+            )
+            logger.info("Sent blocklist as file for chatId=$chatId, patterns=${patterns.size}")
+        }
     }
 }

@@ -2,6 +2,7 @@ package ru.andvl.chatkeep.domain.service.moderation
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import ru.andvl.chatkeep.bot.util.RoseImportParser
 import ru.andvl.chatkeep.domain.model.moderation.BlocklistPattern
 import ru.andvl.chatkeep.domain.model.moderation.MatchType
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
@@ -26,6 +27,12 @@ class BlocklistService(
     data class AddPatternResult(
         val pattern: BlocklistPattern,
         val isUpdate: Boolean
+    )
+
+    data class ImportResult(
+        val added: Int,
+        val updated: Int,
+        val skipped: Int
     )
 
     fun checkMessage(chatId: Long, text: String): BlocklistMatch? {
@@ -157,5 +164,30 @@ class BlocklistService(
             logger.warn("Invalid default action '$actionName' for chat $chatId, falling back to WARN")
             PunishmentType.WARN
         }
+    }
+
+    fun importPatterns(chatId: Long, items: List<RoseImportParser.ImportItem>): ImportResult {
+        var added = 0
+        var updated = 0
+
+        items.forEach { item ->
+            val result = addPattern(
+                chatId = chatId,
+                pattern = item.pattern,
+                matchType = item.matchType,
+                action = item.action,
+                durationHours = item.durationHours,
+                severity = item.severity
+            )
+
+            if (result.isUpdate) {
+                updated++
+            } else {
+                added++
+            }
+        }
+
+        logger.info("Imported patterns: chatId=$chatId, added=$added, updated=$updated")
+        return ImportResult(added, updated, 0)
     }
 }
