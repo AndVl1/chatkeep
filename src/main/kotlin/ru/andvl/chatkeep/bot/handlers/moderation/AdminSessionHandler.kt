@@ -41,47 +41,62 @@ class AdminSessionHandler(
     }
 
     private suspend fun BehaviourContext.handleConnect(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
-            logger.warn("/connect: Cannot extract user ID from message type ${message::class.simpleName}")
-            return
+        try {
+            val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
+                logger.warn("/connect: Cannot extract user ID from message type ${message::class.simpleName}")
+                return
+            }
+
+            val textContent = message.content as? TextContent
+            val args = textContent?.text?.split(" ")?.drop(1) ?: emptyList()
+            logger.info("/connect: userId=$userId, args=$args, textContent=${textContent?.text}")
+            val chatId = args.firstOrNull()?.toLongOrNull()
+
+            if (chatId == null) {
+                logger.info("/connect: chatId is null, sending usage message")
+                reply(message, "Usage: /connect <chat_id>")
+                logger.info("/connect: usage message sent")
+                return
+            }
+
+            logger.info("/connect: checking admin status for userId=$userId in chatId=$chatId")
+            // Verify user is admin in target chat
+            val isAdmin = withContext(Dispatchers.IO) {
+                adminCacheService.isAdmin(userId, chatId)
+            }
+            logger.info("/connect: isAdmin=$isAdmin")
+
+            if (!isAdmin) {
+                reply(message, "You are not an admin in this chat.")
+                return
+            }
+
+            // Get chat info
+            logger.info("/connect: getting chat statistics")
+            val stats = withContext(Dispatchers.IO) {
+                adminService.getStatistics(chatId)
+            }
+            logger.info("/connect: stats=$stats")
+
+            if (stats == null) {
+                reply(message, "Chat not found or I'm not added to it.")
+                return
+            }
+
+            withContext(Dispatchers.IO) {
+                adminSessionService.connect(userId, chatId, stats.chatTitle)
+            }
+
+            reply(message, "Connected to: ${stats.chatTitle ?: "Chat $chatId"}\n\nAll moderation commands will now apply to this chat.")
+            logger.info("Admin session connected: userId=$userId, chatId=$chatId")
+        } catch (e: Exception) {
+            logger.error("/connect: Exception occurred", e)
+            try {
+                reply(message, "Error: ${e.message}")
+            } catch (replyError: Exception) {
+                logger.error("/connect: Failed to send error reply", replyError)
+            }
         }
-
-        val textContent = message.content as? TextContent
-        val args = textContent?.text?.split(" ")?.drop(1) ?: emptyList()
-        logger.debug("/connect: userId=$userId, args=$args")
-        val chatId = args.firstOrNull()?.toLongOrNull()
-
-        if (chatId == null) {
-            reply(message, "Usage: /connect <chat_id>")
-            return
-        }
-
-        // Verify user is admin in target chat
-        val isAdmin = withContext(Dispatchers.IO) {
-            adminCacheService.isAdmin(userId, chatId)
-        }
-
-        if (!isAdmin) {
-            reply(message, "You are not an admin in this chat.")
-            return
-        }
-
-        // Get chat info
-        val stats = withContext(Dispatchers.IO) {
-            adminService.getStatistics(chatId)
-        }
-
-        if (stats == null) {
-            reply(message, "Chat not found or I'm not added to it.")
-            return
-        }
-
-        withContext(Dispatchers.IO) {
-            adminSessionService.connect(userId, chatId, stats.chatTitle)
-        }
-
-        reply(message, "Connected to: ${stats.chatTitle ?: "Chat $chatId"}\n\nAll moderation commands will now apply to this chat.")
-        logger.info("Admin session connected: userId=$userId, chatId=$chatId")
     }
 
     private suspend fun BehaviourContext.handleDisconnect(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {

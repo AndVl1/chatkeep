@@ -48,18 +48,22 @@ class BlocklistManagementHandler(
     }
 
     private suspend fun BehaviourContext.handleAddBlock(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
-            logger.warn("/addblock: Cannot extract user ID from message type ${message::class.simpleName}")
-            return
-        }
+        try {
+            val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
+                logger.warn("/addblock: Cannot extract user ID from message type ${message::class.simpleName}")
+                return
+            }
+            logger.info("/addblock: userId=$userId")
 
-        val session = withContext(Dispatchers.IO) {
-            adminSessionService.getSession(userId)
-        } ?: run {
-            logger.debug("/addblock: No session for userId=$userId")
-            reply(message, "You must be connected to a chat first. Use /connect <chat_id>")
-            return
-        }
+            val session = withContext(Dispatchers.IO) {
+                adminSessionService.getSession(userId)
+            } ?: run {
+                logger.info("/addblock: No session for userId=$userId, sending connect message")
+                reply(message, "You must be connected to a chat first. Use /connect <chat_id>")
+                logger.info("/addblock: connect message sent")
+                return
+            }
+            logger.info("/addblock: session found for chatId=${session.connectedChatId}")
 
         val chatId = session.connectedChatId
 
@@ -169,6 +173,14 @@ class BlocklistManagementHandler(
         val prefix = adminSessionService.formatReplyPrefix(session)
         reply(message, "$prefix\n\nAdded blocklist pattern:\nPattern: $pattern\nAction: $action\nSeverity: $severity")
         logger.info("Blocklist pattern added: chatId=$chatId, pattern='$pattern', action=$action")
+        } catch (e: Exception) {
+            logger.error("/addblock: Exception occurred", e)
+            try {
+                reply(message, "Error: ${e.message}")
+            } catch (replyError: Exception) {
+                logger.error("/addblock: Failed to send error reply", replyError)
+            }
+        }
     }
 
     private suspend fun BehaviourContext.handleDelBlock(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
