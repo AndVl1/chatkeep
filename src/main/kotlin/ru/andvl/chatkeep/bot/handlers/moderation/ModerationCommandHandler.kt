@@ -1,19 +1,27 @@
 package ru.andvl.chatkeep.bot.handlers.moderation
 
+import dev.inmo.tgbotapi.extensions.api.delete
 import dev.inmo.tgbotapi.extensions.api.send.reply
 import dev.inmo.tgbotapi.extensions.api.send.send
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.RawChatId
+import dev.inmo.tgbotapi.types.buttons.InlineKeyboardButtons.CallbackDataInlineKeyboardButton
+import dev.inmo.tgbotapi.types.buttons.InlineKeyboardMarkup
 import dev.inmo.tgbotapi.types.chat.ExtendedGroupChat
 import dev.inmo.tgbotapi.types.chat.GroupChat
 import dev.inmo.tgbotapi.types.chat.SupergroupChat
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
 import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.types.message.content.TextContent
+import dev.inmo.tgbotapi.utils.matrix
+import dev.inmo.tgbotapi.utils.row
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.seconds
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
@@ -196,8 +204,35 @@ class ModerationCommandHandler(
                 appendLine("При ${result.maxWarnings} варнах: ${result.thresholdAction.name.lowercase()}")
             }
 
-            // Send notification to chat
-            send(ChatId(RawChatId(ctx.chatId)), notificationMessage)
+            // Create inline keyboard with delete button
+            val keyboard = InlineKeyboardMarkup(
+                keyboard = matrix {
+                    row {
+                        CallbackDataInlineKeyboardButton(
+                            "Удалить варн (только админ)",
+                            "warn_del:${ctx.chatId}:${ctx.targetUserId}"
+                        )
+                    }
+                }
+            )
+
+            // Send notification to chat with inline keyboard
+            val sentMessage = send(
+                ChatId(RawChatId(ctx.chatId)),
+                notificationMessage,
+                replyMarkup = keyboard
+            )
+
+            // Launch coroutine for auto-delete after 60 seconds
+            launch {
+                delay(60.seconds)
+                try {
+                    delete(sentMessage)
+                    logger.debug("Auto-deleted warning notification in chat ${ctx.chatId}")
+                } catch (e: Exception) {
+                    logger.warn("Failed to auto-delete warning notification in chat ${ctx.chatId}: ${e.message}")
+                }
+            }
 
             if (thresholdAction != null) {
                 val durationHours = withContext(Dispatchers.IO) {
