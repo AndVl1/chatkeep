@@ -76,7 +76,19 @@ class AdminSessionHandler(
                 adminSessionService.connect(userId, chatId, stats.chatTitle)
             }
 
-            reply(message, "Connected to: ${stats.chatTitle ?: "Chat $chatId"}\n\nAll moderation commands will now apply to this chat.")
+            val commandsHelp = """
+                Connected to: ${stats.chatTitle ?: "Chat $chatId"}
+
+                Available commands:
+                • /addblock <pattern> {action} - Add blocklist pattern
+                • /delblock <pattern> - Remove pattern
+                • /blocklist - List patterns
+                • /cleanservice <on|off> - Service message cleanup
+                • /import_rose - Import Rose Bot settings (attach file)
+                • /disconnect - Disconnect from chat
+            """.trimIndent()
+
+            reply(message, commandsHelp)
             logger.info("Admin session connected: userId=$userId, chatId=$chatId")
         } catch (e: Exception) {
             logger.error("/connect: Failed for user in chat ${message.chat.id}", e)
