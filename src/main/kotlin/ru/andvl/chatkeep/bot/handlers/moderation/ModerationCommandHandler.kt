@@ -1,16 +1,27 @@
 package ru.andvl.chatkeep.bot.handlers.moderation
 
+import dev.inmo.tgbotapi.extensions.api.delete
 import dev.inmo.tgbotapi.extensions.api.send.reply
+import dev.inmo.tgbotapi.extensions.api.send.send
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
+import dev.inmo.tgbotapi.types.ChatId
+import dev.inmo.tgbotapi.types.RawChatId
+import dev.inmo.tgbotapi.types.buttons.InlineKeyboardButtons.CallbackDataInlineKeyboardButton
+import dev.inmo.tgbotapi.types.buttons.InlineKeyboardMarkup
 import dev.inmo.tgbotapi.types.chat.ExtendedGroupChat
 import dev.inmo.tgbotapi.types.chat.GroupChat
 import dev.inmo.tgbotapi.types.chat.SupergroupChat
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
 import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.types.message.content.TextContent
+import dev.inmo.tgbotapi.utils.matrix
+import dev.inmo.tgbotapi.utils.row
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.seconds
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
@@ -23,6 +34,8 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.moderation.PunishmentService
 import ru.andvl.chatkeep.domain.service.moderation.UsernameCacheService
 import ru.andvl.chatkeep.domain.service.moderation.WarningService
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.hours
 
 @Component
@@ -165,16 +178,69 @@ class ModerationCommandHandler(
             // args[0:] is the reason (user ID already extracted)
             val reason = ctx.args.takeIf { it.isNotEmpty() }?.joinToString(" ")
 
-            withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 warningService.issueWarning(ctx.chatId, ctx.targetUserId, ctx.adminId, reason, ctx.chatTitle)
-                val activeWarnings = warningService.getActiveWarningCount(ctx.chatId, ctx.targetUserId)
+            }
 
-                // Check threshold
-                val thresholdAction = warningService.checkThreshold(ctx.chatId, ctx.targetUserId)
-                if (thresholdAction != null) {
-                    val durationHours = warningService.getThresholdDurationHours(ctx.chatId)
-                    val duration = durationHours?.hours
+            // Format expiry time
+            val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                .withZone(ZoneId.of("Europe/Moscow"))
+            val expiresAtFormatted = formatter.format(result.expiresAt)
 
+            // Check threshold
+            val thresholdAction = withContext(Dispatchers.IO) {
+                warningService.checkThreshold(ctx.chatId, ctx.targetUserId)
+            }
+
+            // Build notification message
+            val notificationMessage = buildString {
+                appendLine("⚠️ Предупреждение")
+                appendLine()
+                if (reason != null) {
+                    appendLine("Причина: $reason")
+                }
+                appendLine("Варнов: ${result.activeCount}/${result.maxWarnings}")
+                appendLine("Истекает: $expiresAtFormatted")
+                appendLine("При ${result.maxWarnings} варнах: ${result.thresholdAction.name.lowercase()}")
+            }
+
+            // Create inline keyboard with delete button
+            val keyboard = InlineKeyboardMarkup(
+                keyboard = matrix {
+                    row {
+                        CallbackDataInlineKeyboardButton(
+                            "Удалить варн (только админ)",
+                            "warn_del:${ctx.chatId}:${ctx.targetUserId}"
+                        )
+                    }
+                }
+            )
+
+            // Send notification to chat with inline keyboard
+            val sentMessage = send(
+                ChatId(RawChatId(ctx.chatId)),
+                notificationMessage,
+                replyMarkup = keyboard
+            )
+
+            // Launch coroutine for auto-delete after 60 seconds
+            launch {
+                delay(60.seconds)
+                try {
+                    delete(sentMessage)
+                    logger.debug("Auto-deleted warning notification in chat ${ctx.chatId}")
+                } catch (e: Exception) {
+                    logger.warn("Failed to auto-delete warning notification in chat ${ctx.chatId}: ${e.message}")
+                }
+            }
+
+            if (thresholdAction != null) {
+                val durationHours = withContext(Dispatchers.IO) {
+                    warningService.getThresholdDurationHours(ctx.chatId)
+                }
+                val duration = durationHours?.hours
+
+                withContext(Dispatchers.IO) {
                     punishmentService.executePunishment(
                         chatId = ctx.chatId,
                         userId = ctx.targetUserId,
@@ -185,11 +251,9 @@ class ModerationCommandHandler(
                         source = PunishmentSource.THRESHOLD,
                         chatTitle = ctx.chatTitle
                     )
-
-                    reply(message, "User warned. Warning threshold reached - applied ${thresholdAction.name.lowercase()}.")
-                } else {
-                    reply(message, "User warned. Active warnings: $activeWarnings")
                 }
+
+                reply(message, "Warning threshold reached - applied ${thresholdAction.name.lowercase()}.")
             }
         }
     }

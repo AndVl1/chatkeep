@@ -21,15 +21,32 @@ class WarningService(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * Result of issuing a warning, containing all data needed for notification.
+     */
+    data class WarningResult(
+        val warning: Warning,
+        val activeCount: Int,
+        val maxWarnings: Int,
+        val expiresAt: Instant,
+        val thresholdAction: PunishmentType
+    )
+
     fun issueWarning(
         chatId: Long,
         userId: Long,
         issuedById: Long,
         reason: String?,
         chatTitle: String? = null
-    ): Warning {
+    ): WarningResult {
         val config = moderationConfigRepository.findByChatId(chatId)
         val ttlHours = config?.warningTtlHours ?: 24
+        val maxWarnings = config?.maxWarnings ?: 3
+        val thresholdAction = try {
+            PunishmentType.valueOf(config?.thresholdAction ?: "MUTE")
+        } catch (e: IllegalArgumentException) {
+            PunishmentType.MUTE
+        }
 
         val expiresAt = Instant.now().plusSeconds(ttlHours.hours.inWholeSeconds)
         val warning = Warning(
@@ -54,7 +71,16 @@ class WarningService(
             chatTitle = chatTitle
         )
 
-        return saved
+        // Get active count after saving
+        val activeCount = getActiveWarningCount(chatId, userId)
+
+        return WarningResult(
+            warning = saved,
+            activeCount = activeCount,
+            maxWarnings = maxWarnings,
+            expiresAt = expiresAt,
+            thresholdAction = thresholdAction
+        )
     }
 
     @Transactional

@@ -57,6 +57,7 @@ class WarningServiceTest {
 
         val warningSlot = slot<Warning>()
         every { warningRepository.save(capture(warningSlot)) } answers { firstArg() }
+        every { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) } returns 1
 
         // When
         val before = Instant.now()
@@ -65,6 +66,9 @@ class WarningServiceTest {
 
         // Then
         assertNotNull(result)
+        assertEquals(1, result.activeCount)
+        assertEquals(3, result.maxWarnings)
+        assertEquals(PunishmentType.MUTE, result.thresholdAction)
         verify { warningRepository.save(any()) }
 
         val savedWarning = warningSlot.captured
@@ -89,9 +93,10 @@ class WarningServiceTest {
 
         val warningSlot = slot<Warning>()
         every { warningRepository.save(capture(warningSlot)) } answers { firstArg() }
+        every { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) } returns 1
 
         // When
-        service.issueWarning(chatId, userId, issuedById, null)
+        val result = service.issueWarning(chatId, userId, issuedById, null)
 
         // Then
         val savedWarning = warningSlot.captured
@@ -101,12 +106,17 @@ class WarningServiceTest {
         // Should be close to default TTL (24 hours)
         assert(savedWarning.expiresAt.isAfter(Instant.now().plusSeconds(23.hours.inWholeSeconds)))
         assert(savedWarning.expiresAt.isBefore(expectedExpiration.plusSeconds(1.hours.inWholeSeconds)))
+
+        // Verify defaults when no config
+        assertEquals(3, result.maxWarnings)
+        assertEquals(PunishmentType.MUTE, result.thresholdAction)
     }
 
     @Test
     fun `issueWarning should support custom TTL from config`() {
         // Given
         val chatId = 123L
+        val userId = 456L
         val customTtl = 72 // 3 days
 
         val config = createConfig(chatId, warningTtlHours = customTtl)
@@ -114,9 +124,10 @@ class WarningServiceTest {
 
         val warningSlot = slot<Warning>()
         every { warningRepository.save(capture(warningSlot)) } answers { firstArg() }
+        every { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) } returns 1
 
         // When
-        service.issueWarning(chatId, 456L, 789L, null)
+        service.issueWarning(chatId, userId, 789L, null)
 
         // Then
         val savedWarning = warningSlot.captured
@@ -380,15 +391,17 @@ class WarningServiceTest {
     fun `issueWarning should handle null reason`() {
         // Given
         val chatId = 123L
+        val userId = 456L
 
         val config = createConfig(chatId)
         every { moderationConfigRepository.findByChatId(chatId) } returns config
 
         val warningSlot = slot<Warning>()
         every { warningRepository.save(capture(warningSlot)) } answers { firstArg() }
+        every { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) } returns 1
 
         // When
-        service.issueWarning(chatId, 456L, 789L, null)
+        service.issueWarning(chatId, userId, 789L, null)
 
         // Then
         assertNull(warningSlot.captured.reason)
