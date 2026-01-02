@@ -33,7 +33,7 @@ class AdminLogCommandHandler(
             msg.chat is PrivateChat
         }
 
-        onCommand("viewlogs", initialFilter = privateChatFilter) { message ->
+        onCommand("viewlogs", requireOnlyCommandInMessage = false, initialFilter = privateChatFilter) { message ->
             handleViewLogs(message)
         }
     }

@@ -29,7 +29,7 @@ class AdminSessionHandler(
             msg.chat is PrivateChat
         }
 
-        onCommand("connect", initialFilter = privateFilter) { message ->
+        onCommand("connect", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
             handleConnect(message)
         }
 

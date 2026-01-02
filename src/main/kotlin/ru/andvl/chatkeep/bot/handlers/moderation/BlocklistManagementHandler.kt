@@ -31,11 +31,11 @@ class BlocklistManagementHandler(
             msg.chat is PrivateChat
         }
 
-        onCommand("addblock", initialFilter = privateFilter) { message ->
+        onCommand("addblock", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
             handleAddBlock(message)
         }
 
-        onCommand("delblock", initialFilter = privateFilter) { message ->
+        onCommand("delblock", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
             handleDelBlock(message)
         }
 
