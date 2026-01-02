@@ -32,24 +32,31 @@ class BlocklistManagementHandler(
         }
 
         onCommand("addblock", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
+            logger.info("Received /addblock command from chat ${message.chat.id}")
             handleAddBlock(message)
         }
 
         onCommand("delblock", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
+            logger.info("Received /delblock command from chat ${message.chat.id}")
             handleDelBlock(message)
         }
 
         onCommand("blocklist", initialFilter = privateFilter) { message ->
+            logger.info("Received /blocklist command from chat ${message.chat.id}")
             handleBlocklist(message)
         }
     }
 
     private suspend fun BehaviourContext.handleAddBlock(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
+        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
+            logger.warn("/addblock: Cannot extract user ID from message type ${message::class.simpleName}")
+            return
+        }
 
         val session = withContext(Dispatchers.IO) {
             adminSessionService.getSession(userId)
         } ?: run {
+            logger.debug("/addblock: No session for userId=$userId")
             reply(message, "You must be connected to a chat first. Use /connect <chat_id>")
             return
         }
@@ -165,7 +172,10 @@ class BlocklistManagementHandler(
     }
 
     private suspend fun BehaviourContext.handleDelBlock(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
+        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
+            logger.warn("/delblock: Cannot extract user ID from message type ${message::class.simpleName}")
+            return
+        }
 
         val session = withContext(Dispatchers.IO) {
             adminSessionService.getSession(userId)
@@ -205,7 +215,10 @@ class BlocklistManagementHandler(
     }
 
     private suspend fun BehaviourContext.handleBlocklist(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
+        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
+            logger.warn("/blocklist: Cannot extract user ID from message type ${message::class.simpleName}")
+            return
+        }
 
         val session = withContext(Dispatchers.IO) {
             adminSessionService.getSession(userId)

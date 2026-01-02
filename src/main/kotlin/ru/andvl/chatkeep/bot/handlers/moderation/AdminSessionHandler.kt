@@ -30,19 +30,25 @@ class AdminSessionHandler(
         }
 
         onCommand("connect", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
+            logger.info("Received /connect command from chat ${message.chat.id}")
             handleConnect(message)
         }
 
         onCommand("disconnect", initialFilter = privateFilter) { message ->
+            logger.info("Received /disconnect command from chat ${message.chat.id}")
             handleDisconnect(message)
         }
     }
 
     private suspend fun BehaviourContext.handleConnect(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
+        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
+            logger.warn("/connect: Cannot extract user ID from message type ${message::class.simpleName}")
+            return
+        }
 
         val textContent = message.content as? TextContent
         val args = textContent?.text?.split(" ")?.drop(1) ?: emptyList()
+        logger.debug("/connect: userId=$userId, args=$args")
         val chatId = args.firstOrNull()?.toLongOrNull()
 
         if (chatId == null) {
@@ -79,7 +85,10 @@ class AdminSessionHandler(
     }
 
     private suspend fun BehaviourContext.handleDisconnect(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
+        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: run {
+            logger.warn("/disconnect: Cannot extract user ID from message type ${message::class.simpleName}")
+            return
+        }
 
         val session = withContext(Dispatchers.IO) {
             adminSessionService.getSession(userId)
