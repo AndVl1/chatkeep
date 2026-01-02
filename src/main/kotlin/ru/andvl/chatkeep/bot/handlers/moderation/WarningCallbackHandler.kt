@@ -42,9 +42,9 @@ class WarningCallbackHandler(
 
             val clickerId = query.user.id.chatId.long
 
-            // Check if clicker is admin
+            // Check if clicker is admin (forceRefresh=true for security - SEC-003)
             val isAdmin = withContext(Dispatchers.IO) {
-                adminCacheService.isAdmin(clickerId, chatId)
+                adminCacheService.isAdmin(clickerId, chatId, forceRefresh = true)
             }
 
             if (!isAdmin) {
@@ -54,8 +54,14 @@ class WarningCallbackHandler(
             }
 
             // Remove warnings from database
-            withContext(Dispatchers.IO) {
-                warningService.removeWarnings(chatId, targetUserId, clickerId)
+            try {
+                withContext(Dispatchers.IO) {
+                    warningService.removeWarnings(chatId, targetUserId, clickerId)
+                }
+            } catch (e: Exception) {
+                answer(query, "Ошибка удаления варна из базы", showAlert = true)
+                logger.error("Failed to remove warnings for user $targetUserId in chat $chatId: ${e.message}", e)
+                return@onMessageDataCallbackQuery
             }
 
             // Delete the warning notification message
@@ -64,8 +70,9 @@ class WarningCallbackHandler(
                 answer(query, "Варн удален")
                 logger.info("Warning deleted by admin $clickerId in chat $chatId for user $targetUserId")
             } catch (e: Exception) {
-                answer(query, "Не удалось удалить сообщение", showAlert = true)
-                logger.warn("Failed to delete warning message in chat $chatId: ${e.message}")
+                // Warning was removed from DB, but message deletion failed - still success
+                answer(query, "Варн удален")
+                logger.warn("Warning removed but message deletion failed in chat $chatId: ${e.message}")
             }
         }
     }
