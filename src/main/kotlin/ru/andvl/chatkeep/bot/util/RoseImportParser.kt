@@ -1,14 +1,16 @@
 package ru.andvl.chatkeep.bot.util
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
+import tools.jackson.databind.ObjectMapper
 import ru.andvl.chatkeep.domain.model.moderation.MatchType
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 
 object RoseImportParser {
 
+    private val logger = LoggerFactory.getLogger(javaClass)
     private const val MAX_PATTERN_LENGTH = 500
-    private val objectMapper: ObjectMapper = ObjectMapper()
+    private const val MAX_PATTERN_COUNT = 1000
 
     data class ImportItem(
         val pattern: String,
@@ -44,7 +46,7 @@ object RoseImportParser {
         val reason: String?
     )
 
-    fun parse(jsonContent: String): ImportResult {
+    fun parse(jsonContent: String, objectMapper: ObjectMapper): ImportResult {
         val items = mutableListOf<ImportItem>()
         var skipped = 0
 
@@ -52,7 +54,16 @@ object RoseImportParser {
             val export = objectMapper.readValue(jsonContent, RoseExport::class.java)
             val filters = export.data?.blocklists?.filters ?: emptyList()
 
-            for (filter in filters) {
+            logger.info("Parsing Rose export with ${filters.size} filters")
+
+            for ((index, filter) in filters.withIndex()) {
+                // Limit total patterns to prevent database flooding
+                if (items.size >= MAX_PATTERN_COUNT) {
+                    skipped += (filters.size - index)
+                    logger.warn("Pattern count limit reached ($MAX_PATTERN_COUNT), skipping remaining ${filters.size - index} patterns")
+                    break
+                }
+
                 val pattern = filter.name?.trim()
                 if (pattern.isNullOrEmpty()) {
                     skipped++
@@ -60,6 +71,7 @@ object RoseImportParser {
                 }
 
                 if (pattern.length > MAX_PATTERN_LENGTH) {
+                    logger.debug("Pattern too long (${pattern.length} > $MAX_PATTERN_LENGTH), skipping: ${pattern.take(50)}...")
                     skipped++
                     continue
                 }
@@ -79,8 +91,10 @@ object RoseImportParser {
                     )
                 )
             }
+
+            logger.info("Parsed ${items.size} patterns, skipped $skipped")
         } catch (e: Exception) {
-            // If parsing fails, return empty result with all skipped
+            logger.error("Failed to parse Rose export JSON", e)
             return ImportResult(emptyList(), skipped)
         }
 

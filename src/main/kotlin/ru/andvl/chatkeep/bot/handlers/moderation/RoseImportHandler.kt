@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
 import ru.andvl.chatkeep.bot.handlers.Handler
 import ru.andvl.chatkeep.bot.util.RoseImportParser
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
@@ -22,10 +23,15 @@ import ru.andvl.chatkeep.domain.service.moderation.BlocklistService
 class RoseImportHandler(
     private val blocklistService: BlocklistService,
     private val adminSessionService: AdminSessionService,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val objectMapper: ObjectMapper
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
+
+    companion object {
+        private const val MAX_FILE_SIZE_BYTES = 1_000_000 // 1MB
+    }
 
     override suspend fun BehaviourContext.register() {
         val privateFilter = { msg: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*> ->
@@ -73,10 +79,18 @@ class RoseImportHandler(
                 return
             }
 
+            // Check file size before downloading
+            val fileSize = document.fileSize ?: 0
+            if (fileSize > MAX_FILE_SIZE_BYTES) {
+                reply(message, "File too large. Maximum size is 1MB.")
+                logger.warn("Rejected Rose import: file too large (${fileSize} bytes)")
+                return
+            }
+
             val fileBytes = downloadFile(document)
             val fileContent = String(fileBytes)
 
-            val parseResult = RoseImportParser.parse(fileContent)
+            val parseResult = RoseImportParser.parse(fileContent, objectMapper)
 
             if (parseResult.items.isEmpty() && parseResult.skippedCount == 0) {
                 val prefix = adminSessionService.formatReplyPrefix(session)
