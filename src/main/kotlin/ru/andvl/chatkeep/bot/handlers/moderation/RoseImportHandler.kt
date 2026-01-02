@@ -3,11 +3,11 @@ package ru.andvl.chatkeep.bot.handlers.moderation
 import dev.inmo.tgbotapi.extensions.api.files.downloadFile
 import dev.inmo.tgbotapi.extensions.api.send.reply
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
-import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
-import dev.inmo.tgbotapi.requests.abstracts.asMultipartFile
+import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onDocument
 import dev.inmo.tgbotapi.types.chat.PrivateChat
 import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.types.message.content.DocumentContent
+import dev.inmo.tgbotapi.types.message.textsources.BotCommandTextSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -34,16 +34,25 @@ class RoseImportHandler(
     }
 
     override suspend fun BehaviourContext.register() {
-        val privateFilter = { msg: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*> ->
-            msg.chat is PrivateChat
-        }
-
-        onCommand("import_rose", initialFilter = privateFilter) { message ->
+        // Use onDocument to handle file attachments with /import_rose command in caption
+        onDocument(
+            initialFilter = { message ->
+                message.chat is PrivateChat && hasImportRoseCommand(message.content)
+            }
+        ) { message ->
             handleImportRose(message)
         }
     }
 
-    private suspend fun BehaviourContext.handleImportRose(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
+    private fun hasImportRoseCommand(content: DocumentContent): Boolean {
+        // Check if caption contains /import_rose command
+        return content.textSources
+            ?.filterIsInstance<BotCommandTextSource>()
+            ?.any { it.command == "import_rose" }
+            ?: false
+    }
+
+    private suspend fun BehaviourContext.handleImportRose(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<DocumentContent>) {
         try {
             val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
 
@@ -65,12 +74,7 @@ class RoseImportHandler(
                 return
             }
 
-            val documentContent = message.content as? DocumentContent
-            if (documentContent == null) {
-                reply(message, "Please attach a Rose Bot export file (.txt or .json) with the /import_rose command")
-                return
-            }
-
+            val documentContent = message.content
             val document = documentContent.media
             val fileName = document.fileName?.lowercase() ?: ""
 
