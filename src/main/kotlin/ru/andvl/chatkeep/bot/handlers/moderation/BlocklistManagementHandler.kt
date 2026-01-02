@@ -11,8 +11,8 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
+import ru.andvl.chatkeep.bot.util.AddBlockParser
 import ru.andvl.chatkeep.domain.model.moderation.MatchType
-import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.moderation.AdminSessionService
 import ru.andvl.chatkeep.domain.service.moderation.BlocklistService
@@ -88,46 +88,35 @@ class BlocklistManagementHandler(
                 return
             }
 
-            // Parse pattern and optional {action duration} block
-            val braceMatch = Regex("""\{([^}]+)\}""").find(fullText)
+            // Parse pattern and optional {action duration} block using AddBlockParser
+            val parseResult = AddBlockParser.parse(fullText)
+
             val pattern: String
-            val action: PunishmentType
-            var duration: Int? = null
+            val action: ru.andvl.chatkeep.domain.model.moderation.PunishmentType
+            val duration: Int?
 
-            if (braceMatch != null) {
-                pattern = fullText.substring(0, braceMatch.range.first).trim()
-                val braceContent = braceMatch.groupValues[1].trim().split(Regex("\\s+"))
-                val actionStr = braceContent.firstOrNull()?.uppercase() ?: ""
+            when (parseResult) {
+                is AddBlockParser.Result.Success -> {
+                    val parsed = parseResult.parsed
+                    pattern = parsed.pattern
+                    duration = parsed.durationHours
 
-                action = try {
-                    PunishmentType.valueOf(actionStr)
-                } catch (e: Exception) {
-                    val sessionPrefix = adminSessionService.formatReplyPrefix(session)
-                    reply(message, "$sessionPrefix\n\nUnknown action: $actionStr\nValid actions: nothing, warn, mute, ban, kick")
-                    return
-                }
-
-                if (braceContent.size > 1) {
-                    duration = ru.andvl.chatkeep.bot.util.DurationParser.parse(braceContent[1])?.let {
-                        ru.andvl.chatkeep.bot.util.DurationParser.toHours(it)
+                    // If action is null (no braces), use default from service
+                    action = parsed.action ?: withContext(Dispatchers.IO) {
+                        blocklistService.getDefaultAction(chatId)
                     }
                 }
-            } else {
-                pattern = fullText.trim()
-                action = withContext(Dispatchers.IO) {
-                    blocklistService.getDefaultAction(chatId)
+                is AddBlockParser.Result.Failure -> {
+                    val sessionPrefix = adminSessionService.formatReplyPrefix(session)
+                    val errorMessage = when (val error = parseResult.error) {
+                        is AddBlockParser.ParseError.EmptyInput -> "Pattern cannot be empty."
+                        is AddBlockParser.ParseError.EmptyPattern -> "Pattern cannot be empty."
+                        is AddBlockParser.ParseError.PatternTooLong -> "Pattern too long. Maximum ${error.maxLength} characters."
+                        is AddBlockParser.ParseError.UnknownAction -> "Unknown action: ${error.actionStr}\nValid actions: nothing, warn, mute, ban, kick"
+                    }
+                    reply(message, "$sessionPrefix\n\n$errorMessage")
+                    return
                 }
-            }
-
-            if (pattern.isEmpty()) {
-                val sessionPrefix = adminSessionService.formatReplyPrefix(session)
-                reply(message, "$sessionPrefix\n\nPattern cannot be empty.")
-                return
-            }
-            if (pattern.length > 100) {
-                val sessionPrefix = adminSessionService.formatReplyPrefix(session)
-                reply(message, "$sessionPrefix\n\nPattern too long. Maximum 100 characters.")
-                return
             }
 
             val matchType = if (pattern.contains("*") || pattern.contains("?")) {
