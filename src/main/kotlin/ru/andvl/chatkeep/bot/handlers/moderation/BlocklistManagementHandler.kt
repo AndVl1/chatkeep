@@ -78,87 +78,80 @@ class BlocklistManagementHandler(
         }
 
         val textContent = message.content as? TextContent
-        val args = textContent?.text?.split(" ")?.drop(1) ?: emptyList()
+        val fullText = textContent?.text?.substringAfter("/addblock")?.trim() ?: ""
 
-        if (args.isEmpty()) {
+        if (fullText.isEmpty()) {
             reply(
                 message,
                 """
-                Usage: /addblock <pattern> [action] [duration] [severity]
+                Usage: /addblock <pattern> {action} {duration}
 
-                Example: /addblock *spam*
-                Example: /addblock *spam* warn
-                Example: /addblock badword mute 1h 5
+                Examples:
+                /addblock spam
+                /addblock *spam* {warn}
+                /addblock badword {mute 1h}
+                /addblock scam {ban}
 
                 Actions: nothing, warn, mute, ban, kick
                 - nothing: just delete message, no punishment
                 - If action not specified, uses chat's default action
 
-                Duration: 1h, 24h, 7d (optional)
-                Severity: 0-10 (higher = priority, optional)
+                Duration (inside braces): 1h, 24h, 7d
                 """.trimIndent()
             )
             return
         }
 
-        val pattern = args[0]
+        // Parse pattern and optional {action duration} block
+        // Format: pattern {action duration}
+        val braceMatch = Regex("""\{([^}]+)\}""").find(fullText)
+        val pattern: String
+        val action: PunishmentType
+        var duration: Int? = null
 
-        // Validate pattern length
+        if (braceMatch != null) {
+            // Extract pattern (everything before the brace)
+            pattern = fullText.substring(0, braceMatch.range.first).trim()
+
+            // Parse content inside braces: "action" or "action duration"
+            val braceContent = braceMatch.groupValues[1].trim().split(Regex("\\s+"))
+            val actionStr = braceContent.firstOrNull()?.uppercase() ?: ""
+
+            action = try {
+                PunishmentType.valueOf(actionStr)
+            } catch (e: Exception) {
+                val sessionPrefix = adminSessionService.formatReplyPrefix(session)
+                reply(message, "$sessionPrefix\n\nUnknown action: $actionStr\nValid actions: nothing, warn, mute, ban, kick")
+                return
+            }
+
+            // Parse duration if present (second element in braces)
+            if (braceContent.size > 1) {
+                duration = ru.andvl.chatkeep.bot.util.DurationParser.parse(braceContent[1])?.let {
+                    ru.andvl.chatkeep.bot.util.DurationParser.toHours(it)
+                }
+            }
+        } else {
+            // No braces - just pattern, use default action
+            pattern = fullText.trim()
+            action = withContext(Dispatchers.IO) {
+                blocklistService.getDefaultAction(chatId)
+            }
+        }
+
+        // Validate pattern
+        if (pattern.isEmpty()) {
+            val sessionPrefix = adminSessionService.formatReplyPrefix(session)
+            reply(message, "$sessionPrefix\n\nPattern cannot be empty.")
+            return
+        }
         if (pattern.length > 100) {
             val sessionPrefix = adminSessionService.formatReplyPrefix(session)
             reply(message, "$sessionPrefix\n\nPattern too long. Maximum 100 characters.")
             return
         }
-        if (pattern.isBlank()) {
-            val sessionPrefix = adminSessionService.formatReplyPrefix(session)
-            reply(message, "$sessionPrefix\n\nPattern cannot be empty.")
-            return
-        }
 
-        // Action is optional - use default from config if not specified
-        val action: PunishmentType
-        val durationArgIndex: Int
-        val severityArgIndex: Int
-
-        if (args.size > 1) {
-            // Check if second arg is an action or a duration/severity
-            val possibleAction = args[1].uppercase()
-            val parsedAction = try {
-                PunishmentType.valueOf(possibleAction)
-            } catch (e: Exception) {
-                null
-            }
-
-            if (parsedAction != null) {
-                action = parsedAction
-                durationArgIndex = 2
-                severityArgIndex = 3
-            } else {
-                // Second arg is not an action, use default
-                action = withContext(Dispatchers.IO) {
-                    blocklistService.getDefaultAction(chatId)
-                }
-                durationArgIndex = 1
-                severityArgIndex = 2
-            }
-        } else {
-            // Only pattern provided, use default action
-            action = withContext(Dispatchers.IO) {
-                blocklistService.getDefaultAction(chatId)
-            }
-            durationArgIndex = -1
-            severityArgIndex = -1
-        }
-
-        val duration = if (args.size > durationArgIndex && durationArgIndex >= 0) {
-            ru.andvl.chatkeep.bot.util.DurationParser.parse(args[durationArgIndex])?.let {
-                ru.andvl.chatkeep.bot.util.DurationParser.toHours(it)
-            }
-        } else null
-
-        val severity = if (args.size > severityArgIndex && severityArgIndex >= 0) {
-            args[severityArgIndex].toIntOrNull() ?: 0
-        } else 0
+        val severity = 0
 
         val matchType = if (pattern.contains("*") || pattern.contains("?")) {
             MatchType.WILDCARD
