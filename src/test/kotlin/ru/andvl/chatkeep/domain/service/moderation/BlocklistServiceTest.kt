@@ -15,8 +15,10 @@ import ru.andvl.chatkeep.infrastructure.repository.moderation.BlocklistPatternRe
 import ru.andvl.chatkeep.infrastructure.repository.moderation.ModerationConfigRepository
 import java.time.Instant
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Unit tests for BlocklistService.
@@ -345,6 +347,7 @@ class BlocklistServiceTest {
         val pattern = "spam"
         val savedPattern = createPattern(pattern, MatchType.EXACT, chatId = chatId, severity = 5)
 
+        every { repository.findByChatIdAndPattern(chatId, pattern) } returns null
         every { repository.save(any()) } returns savedPattern
 
         // When
@@ -364,6 +367,7 @@ class BlocklistServiceTest {
             it.matchType == MatchType.EXACT.name
         }) }
         assertNotNull(result)
+        assertFalse(result.isUpdate)
     }
 
     @Test
@@ -372,6 +376,7 @@ class BlocklistServiceTest {
         val pattern = "global-spam"
         val savedPattern = createPattern(pattern, MatchType.EXACT, chatId = null, severity = 10)
 
+        // null chatId skips findByChatIdAndPattern
         every { repository.save(any()) } returns savedPattern
 
         // When
@@ -387,6 +392,47 @@ class BlocklistServiceTest {
         // Then
         verify { repository.save(match { it.chatId == null && it.pattern == pattern }) }
         assertNotNull(result)
+        assertFalse(result.isUpdate)
+    }
+
+    @Test
+    fun `addPattern should update existing pattern instead of creating duplicate`() {
+        // Given
+        val chatId = 123L
+        val pattern = "spam"
+        val existingPattern = createPattern(
+            pattern,
+            MatchType.EXACT,
+            chatId = chatId,
+            severity = 0,
+            action = PunishmentType.WARN
+        )
+        val updatedPattern = existingPattern.copy(
+            action = PunishmentType.BAN.name,
+            severity = 5
+        )
+
+        every { repository.findByChatIdAndPattern(chatId, pattern) } returns existingPattern
+        every { repository.save(any()) } returns updatedPattern
+
+        // When
+        val result = service.addPattern(
+            chatId = chatId,
+            pattern = pattern,
+            matchType = MatchType.EXACT,
+            action = PunishmentType.BAN,
+            durationHours = 24,
+            severity = 5
+        )
+
+        // Then
+        verify { repository.save(match {
+            it.id == existingPattern.id &&
+            it.action == PunishmentType.BAN.name &&
+            it.severity == 5
+        }) }
+        assertNotNull(result)
+        assertTrue(result.isUpdate)
     }
 
     @Test

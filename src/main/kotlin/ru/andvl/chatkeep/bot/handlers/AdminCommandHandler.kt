@@ -118,7 +118,7 @@ class AdminCommandHandler(
             logger.info("/mychats: Response sent successfully")
         }
 
-        onCommand("stats", initialFilter = { it.chat is PrivateChat }) { message ->
+        onCommand("stats", requireOnlyCommandInMessage = false, initialFilter = { it.chat is PrivateChat }) { message ->
             val textContent = message.content as? TextContent ?: return@onCommand
             val args = textContent.text.split(" ").drop(1)
             val chatId = args.firstOrNull()?.toLongOrNull()
@@ -161,11 +161,11 @@ class AdminCommandHandler(
             )
         }
 
-        onCommand("enable", initialFilter = { it.chat is PrivateChat }) { message ->
+        onCommand("enable", requireOnlyCommandInMessage = false, initialFilter = { it.chat is PrivateChat }) { message ->
             handleToggleCollection(message, true)
         }
 
-        onCommand("disable", initialFilter = { it.chat is PrivateChat }) { message ->
+        onCommand("disable", requireOnlyCommandInMessage = false, initialFilter = { it.chat is PrivateChat }) { message ->
             handleToggleCollection(message, false)
         }
     }

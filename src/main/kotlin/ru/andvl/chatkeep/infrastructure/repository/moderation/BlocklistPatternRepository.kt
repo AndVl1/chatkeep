@@ -16,6 +16,9 @@ interface BlocklistPatternRepository : CrudRepository<BlocklistPattern, Long> {
     @Query("SELECT * FROM blocklist_patterns WHERE chat_id = :chatId")
     fun findByChatId(chatId: Long): List<BlocklistPattern>
 
+    @Query("SELECT * FROM blocklist_patterns WHERE chat_id = :chatId AND pattern = :pattern")
+    fun findByChatIdAndPattern(chatId: Long, pattern: String): BlocklistPattern?
+
     @Query("SELECT * FROM blocklist_patterns WHERE chat_id IS NULL")
     fun findGlobalPatterns(): List<BlocklistPattern>
 

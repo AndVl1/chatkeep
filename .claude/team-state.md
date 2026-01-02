@@ -1,60 +1,44 @@
 # TEAM STATE
 
 ## Classification
-- Type: FEATURE
-- Complexity: MEDIUM
-- Workflow: STANDARD
+- Type: FEATURE (test coverage)
+- Complexity: QUICK
+- Workflow: LIGHTWEIGHT (3 phases)
 
-## Task: Channel Logging for /cleanservice
-
-Add channel logging for the cleanservice feature (service message deletion) following the same pattern as other moderation commands (mute, ban, warn, etc.).
-
-When admin toggles `/cleanservice on` or `/cleanservice off`, the action is logged to the linked logging channel.
+## Task
+Add test coverage for curly brace syntax parsing in `/addblock` command.
 
 ## Progress
 - [x] Phase 1: Discovery - COMPLETED
-- [x] Phase 2: Exploration - COMPLETED
-- [x] Phase 3: Questions - COMPLETED
-- [x] Phase 4: Architecture - COMPLETED
 - [x] Phase 5: Implementation - COMPLETED
-- [x] Phase 6: Quality Review - COMPLETED
-- [x] Phase 7: Summary - COMPLETED
+- [x] Phase 6: Review - COMPLETED
 
-## Files Modified (4 files)
+## Files Created
+1. **AddBlockParser.kt** - Extracted parsing utility
+   - Parses `/addblock <pattern> {action [duration]}` syntax
+   - Uses sealed class Result for type-safe success/failure
+   - Validates pattern length, action type, duration format
 
-1. **ActionType.kt** - Added `CLEAN_SERVICE_ON`, `CLEAN_SERVICE_OFF`
-2. **ModerationLogEntry.kt** - Made `userId` nullable for config-only actions
-3. **TelegramLogChannelAdapter.kt** - Added hashtags `#CLEANSERVICE_ON`, `#CLEANSERVICE_OFF`, skip User/Duration/Reason for config actions
-4. **CleanServiceCommandHandler.kt** - Inject LogChannelService, call after toggle
+2. **AddBlockParserTest.kt** - 51 comprehensive tests
+   - Pattern-only parsing (no braces)
+   - Action in braces (no duration)
+   - Action with duration in braces
+   - Error cases (empty, unknown action, too long)
+   - Edge cases (unicode, special chars, multiple braces)
+   - Real-world examples matching Rose bot syntax
 
-## Commits (7 new commits for logging)
+## Files Modified
+1. **BlocklistManagementHandler.kt** - Refactored to use AddBlockParser
 
-1. `c569f90` feat: add CLEAN_SERVICE_ON/OFF action types
-2. `37d676e` feat: make userId nullable in ModerationLogEntry for config actions
-3. `d3cac49` feat: add support for CLEAN_SERVICE logging in TelegramLogChannelAdapter
-4. `de2f457` feat: add channel logging for cleanservice on/off command
-5. `bf10933` fix: use withoutAt for username extraction
-6. `50d1f88` test: add logChannelService mock to CleanServiceCommandHandler test
-7. `0886cae` refactor: simplify channel logging in CleanServiceCommandHandler
+## Commit
+`94bc568` test: add comprehensive tests for curly brace parsing in /addblock
 
-## Quality Review Results
-
-- **Code Review**: APPROVED (minor issues fixed)
-- **QA**: APPROVED (6 new tests added, 23 total passing)
-- **Build**: PASS
-- **Tests**: ALL PASSING
-
-## Log Message Format
-
-```
-Chat: My Group
-#CLEANSERVICE_ON
-
-Admin: Ivan (@admin)
-```
+## Build Status
+- Build: PASS
+- Tests: ALL PASSING (51 new tests)
 
 ## Branch
-feat/service-message-deletion
+fix/command-argument-parsing
 
 ## Feature Complete
-Ready for PR to main.
+Ready for merge to main.

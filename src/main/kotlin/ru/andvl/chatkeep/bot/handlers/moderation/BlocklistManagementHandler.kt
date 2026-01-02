@@ -11,8 +11,8 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
+import ru.andvl.chatkeep.bot.util.AddBlockParser
 import ru.andvl.chatkeep.domain.model.moderation.MatchType
-import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.moderation.AdminSessionService
 import ru.andvl.chatkeep.domain.service.moderation.BlocklistService
@@ -31,11 +31,11 @@ class BlocklistManagementHandler(
             msg.chat is PrivateChat
         }
 
-        onCommand("addblock", initialFilter = privateFilter) { message ->
+        onCommand("addblock", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
             handleAddBlock(message)
         }
 
-        onCommand("delblock", initialFilter = privateFilter) { message ->
+        onCommand("delblock", requireOnlyCommandInMessage = false, initialFilter = privateFilter) { message ->
             handleDelBlock(message)
         }
 
@@ -45,123 +45,98 @@ class BlocklistManagementHandler(
     }
 
     private suspend fun BehaviourContext.handleAddBlock(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
-        val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
+        try {
+            val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return
 
-        val session = withContext(Dispatchers.IO) {
-            adminSessionService.getSession(userId)
-        } ?: run {
-            reply(message, "You must be connected to a chat first. Use /connect <chat_id>")
-            return
-        }
-
-        val chatId = session.connectedChatId
-
-        // Verify admin status
-        val isAdmin = withContext(Dispatchers.IO) {
-            adminCacheService.isAdmin(userId, chatId)
-        }
-
-        if (!isAdmin) {
-            reply(message, "You are not an admin in the connected chat.")
-            return
-        }
-
-        val textContent = message.content as? TextContent
-        val args = textContent?.text?.split(" ")?.drop(1) ?: emptyList()
-
-        if (args.isEmpty()) {
-            reply(
-                message,
-                """
-                Usage: /addblock <pattern> [action] [duration] [severity]
-
-                Example: /addblock *spam*
-                Example: /addblock *spam* warn
-                Example: /addblock badword mute 1h 5
-
-                Actions: nothing, warn, mute, ban, kick
-                - nothing: just delete message, no punishment
-                - If action not specified, uses chat's default action
-
-                Duration: 1h, 24h, 7d (optional)
-                Severity: 0-10 (higher = priority, optional)
-                """.trimIndent()
-            )
-            return
-        }
-
-        val pattern = args[0]
-
-        // Validate pattern length
-        if (pattern.length > 100) {
-            val sessionPrefix = adminSessionService.formatReplyPrefix(session)
-            reply(message, "$sessionPrefix\n\nPattern too long. Maximum 100 characters.")
-            return
-        }
-        if (pattern.isBlank()) {
-            val sessionPrefix = adminSessionService.formatReplyPrefix(session)
-            reply(message, "$sessionPrefix\n\nPattern cannot be empty.")
-            return
-        }
-
-        // Action is optional - use default from config if not specified
-        val action: PunishmentType
-        val durationArgIndex: Int
-        val severityArgIndex: Int
-
-        if (args.size > 1) {
-            // Check if second arg is an action or a duration/severity
-            val possibleAction = args[1].uppercase()
-            val parsedAction = try {
-                PunishmentType.valueOf(possibleAction)
-            } catch (e: Exception) {
-                null
+            val session = withContext(Dispatchers.IO) {
+                adminSessionService.getSession(userId)
+            } ?: run {
+                reply(message, "You must be connected to a chat first. Use /connect <chat_id>")
+                return
             }
 
-            if (parsedAction != null) {
-                action = parsedAction
-                durationArgIndex = 2
-                severityArgIndex = 3
-            } else {
-                // Second arg is not an action, use default
-                action = withContext(Dispatchers.IO) {
-                    blocklistService.getDefaultAction(chatId)
+            val chatId = session.connectedChatId
+
+            val isAdmin = withContext(Dispatchers.IO) {
+                adminCacheService.isAdmin(userId, chatId)
+            }
+
+            if (!isAdmin) {
+                reply(message, "You are not an admin in the connected chat.")
+                return
+            }
+
+            val textContent = message.content as? TextContent
+            val fullText = textContent?.text?.substringAfter("/addblock")?.trim() ?: ""
+
+            if (fullText.isEmpty()) {
+                reply(
+                    message,
+                    """
+                    Usage: /addblock <pattern> {action duration}
+
+                    Examples:
+                    /addblock spam
+                    /addblock *spam* {warn}
+                    /addblock badword {mute 1h}
+                    /addblock scam {ban}
+
+                    Actions: nothing, warn, mute, ban, kick
+                    Duration (inside braces): 1h, 24h, 7d
+                    """.trimIndent()
+                )
+                return
+            }
+
+            // Parse pattern and optional {action duration} block using AddBlockParser
+            val parseResult = AddBlockParser.parse(fullText)
+
+            val pattern: String
+            val action: ru.andvl.chatkeep.domain.model.moderation.PunishmentType
+            val duration: Int?
+
+            when (parseResult) {
+                is AddBlockParser.Result.Success -> {
+                    val parsed = parseResult.parsed
+                    pattern = parsed.pattern
+                    duration = parsed.durationHours
+
+                    // If action is null (no braces), use default from service
+                    action = parsed.action ?: withContext(Dispatchers.IO) {
+                        blocklistService.getDefaultAction(chatId)
+                    }
                 }
-                durationArgIndex = 1
-                severityArgIndex = 2
+                is AddBlockParser.Result.Failure -> {
+                    val sessionPrefix = adminSessionService.formatReplyPrefix(session)
+                    val errorMessage = when (val error = parseResult.error) {
+                        is AddBlockParser.ParseError.EmptyInput -> "Pattern cannot be empty."
+                        is AddBlockParser.ParseError.EmptyPattern -> "Pattern cannot be empty."
+                        is AddBlockParser.ParseError.PatternTooLong -> "Pattern too long. Maximum ${error.maxLength} characters."
+                        is AddBlockParser.ParseError.UnknownAction -> "Unknown action: ${error.actionStr}\nValid actions: nothing, warn, mute, ban, kick"
+                    }
+                    reply(message, "$sessionPrefix\n\n$errorMessage")
+                    return
+                }
             }
-        } else {
-            // Only pattern provided, use default action
-            action = withContext(Dispatchers.IO) {
-                blocklistService.getDefaultAction(chatId)
+
+            val matchType = if (pattern.contains("*") || pattern.contains("?")) {
+                MatchType.WILDCARD
+            } else {
+                MatchType.EXACT
             }
-            durationArgIndex = -1
-            severityArgIndex = -1
-        }
 
-        val duration = if (args.size > durationArgIndex && durationArgIndex >= 0) {
-            ru.andvl.chatkeep.bot.util.DurationParser.parse(args[durationArgIndex])?.let {
-                ru.andvl.chatkeep.bot.util.DurationParser.toHours(it)
+            val result = withContext(Dispatchers.IO) {
+                blocklistService.addPattern(chatId, pattern, matchType, action, duration, 0)
             }
-        } else null
 
-        val severity = if (args.size > severityArgIndex && severityArgIndex >= 0) {
-            args[severityArgIndex].toIntOrNull() ?: 0
-        } else 0
-
-        val matchType = if (pattern.contains("*") || pattern.contains("?")) {
-            MatchType.WILDCARD
-        } else {
-            MatchType.EXACT
+            val prefix = adminSessionService.formatReplyPrefix(session)
+            val operation = if (result.isUpdate) "Updated" else "Added"
+            reply(message, "$prefix\n\n$operation blocklist pattern:\nPattern: $pattern\nAction: $action")
+            logger.info("Blocklist pattern ${operation.lowercase()}: chatId=$chatId, pattern='$pattern', action=$action")
+        } catch (e: Exception) {
+            logger.error("/addblock: Failed", e)
+            reply(message, "An error occurred. Please try again.")
         }
-
-        withContext(Dispatchers.IO) {
-            blocklistService.addPattern(chatId, pattern, matchType, action, duration, severity)
-        }
-
-        val prefix = adminSessionService.formatReplyPrefix(session)
-        reply(message, "$prefix\n\nAdded blocklist pattern:\nPattern: $pattern\nAction: $action\nSeverity: $severity")
-        logger.info("Blocklist pattern added: chatId=$chatId, pattern='$pattern', action=$action")
     }
 
     private suspend fun BehaviourContext.handleDelBlock(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<*>) {
