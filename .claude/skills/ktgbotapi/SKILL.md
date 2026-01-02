@@ -88,15 +88,6 @@ onDeepLink { message, deepLink -> }                        // t.me/bot?start=pay
 onUnhandledCommand { message -> }                          // fallback for unknown commands
 ```
 
-**When to use which:**
-
-| Use Case | Method |
-|----------|--------|
-| Simple command, no args (`/start`, `/help`) | `onCommand("start")` |
-| Command with args, custom parsing | `onCommand("cmd", requireOnlyCommandInMessage = false)` |
-| Command with simple space-separated args | `onCommandWithArgs("echo")` |
-| Command with `key=value` args | `onCommandWithNamedArgs("config")` |
-
 ### Text
 
 ```kotlin

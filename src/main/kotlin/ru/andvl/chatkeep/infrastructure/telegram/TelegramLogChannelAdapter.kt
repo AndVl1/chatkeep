@@ -72,17 +72,23 @@ class TelegramLogChannelAdapter(
             // Admin info
             appendLine("<b>Admin:</b> ${entry.formatAdminMention()}")
 
-            // User info
-            appendLine("<b>User:</b> ${entry.formatUserMention()}")
-
-            // Duration (for mute/ban)
-            entry.formatDuration()?.let { duration ->
-                appendLine("<b>Duration:</b> $duration")
+            // User info (only for user-targeted actions)
+            if (entry.userId != null) {
+                appendLine("<b>User:</b> ${entry.formatUserMention()}")
             }
 
-            // Reason
-            val reason = entry.reason ?: "No reason provided"
-            appendLine("<b>Reason:</b> $reason")
+            // Duration (for mute/ban)
+            if (entry.actionType in listOf(ActionType.MUTE, ActionType.BAN)) {
+                entry.formatDuration()?.let { duration ->
+                    appendLine("<b>Duration:</b> $duration")
+                }
+            }
+
+            // Reason (skip for config-only actions)
+            if (entry.actionType !in listOf(ActionType.CLEAN_SERVICE_ON, ActionType.CLEAN_SERVICE_OFF)) {
+                val reason = entry.reason ?: "No reason provided"
+                appendLine("<b>Reason:</b> $reason")
+            }
 
             // Source (if not manual)
             if (entry.source != PunishmentSource.MANUAL) {
@@ -114,6 +120,8 @@ class TelegramLogChannelAdapter(
             ActionType.BAN -> "#BANNED"
             ActionType.UNBAN -> "#UNBANNED"
             ActionType.KICK -> "#KICKED"
+            ActionType.CLEAN_SERVICE_ON -> "#CLEANSERVICE_ON"
+            ActionType.CLEAN_SERVICE_OFF -> "#CLEANSERVICE_OFF"
         }
     }
 

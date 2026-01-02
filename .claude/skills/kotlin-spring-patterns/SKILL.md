@@ -144,5 +144,5 @@ throw ConflictRestException("Entity already exists")
 
 - Use `?.let{}` for optional operations
 - Use `when` for exhaustive matching
-- Avoid `!!` - use `.single()`, `.firstOrNull()` instead
+- Instead of not-null assertion, use `.single()` or `.firstOrNull()`
 - Return `Pair<Result, Boolean>` for idempotent operations
