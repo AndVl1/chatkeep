@@ -55,7 +55,7 @@ class RoseImportParserTest {
         val item = result.items.first()
         assertEquals("spam", item.pattern)
         assertEquals(PunishmentType.BAN, item.action)
-        assertEquals(null, item.durationHours)
+        assertEquals(null, item.durationMinutes)
         assertEquals(5, item.severity) // BAN = severity 5
         assertEquals(MatchType.EXACT, item.matchType)
     }
@@ -144,7 +144,7 @@ class RoseImportParserTest {
 
         // Then
         assertEquals(PunishmentType.WARN, result.items.first().action)
-        assertEquals(null, result.items.first().durationHours)
+        assertEquals(null, result.items.first().durationMinutes)
     }
 
     @Test
@@ -217,18 +217,19 @@ class RoseImportParserTest {
 
     @ParameterizedTest
     @CsvSource(
-        "'{tmute 1h}',   1",
-        "'{tmute 2h}',   2",
-        "'{tmute 24h}',  24",
-        "'{tmute 1d}',   24",
-        "'{tmute 7d}',   168",
-        "'{tmute 30m}',  0",     // 30 minutes = 0 hours (truncated)
-        "'{tmute 90m}',  1",     // 90 minutes = 1 hour
+        "'{tmute 1h}',   60",
+        "'{tmute 2h}',   120",
+        "'{tmute 24h}',  1440",
+        "'{tmute 1d}',   1440",
+        "'{tmute 7d}',   10080",
+        "'{tmute 30m}',  30",
+        "'{tmute 5m}',   5",      // The bug fix - 5 minutes should be 5, not 0
+        "'{tmute 90m}',  90",
         delimiter = ','
     )
     fun `parse should extract duration from tmute action`(
         roseAction: String,
-        expectedHours: Int
+        expectedMinutes: Int
     ) {
         // Given
         val json = """
@@ -248,7 +249,7 @@ class RoseImportParserTest {
 
         // Then
         assertEquals(PunishmentType.MUTE, result.items.first().action)
-        assertEquals(expectedHours, result.items.first().durationHours)
+        assertEquals(expectedMinutes, result.items.first().durationMinutes)
     }
 
     @Test
@@ -271,7 +272,7 @@ class RoseImportParserTest {
 
         // Then
         assertEquals(PunishmentType.MUTE, result.items.first().action)
-        assertEquals(null, result.items.first().durationHours)
+        assertEquals(null, result.items.first().durationMinutes)
     }
 
     @Test
@@ -294,7 +295,7 @@ class RoseImportParserTest {
 
         // Then
         assertEquals(PunishmentType.MUTE, result.items.first().action)
-        assertEquals(null, result.items.first().durationHours)
+        assertEquals(null, result.items.first().durationMinutes)
     }
 
     @Test
@@ -321,7 +322,7 @@ class RoseImportParserTest {
         // Then
         assertEquals(4, result.items.size)
         result.items.forEach { item ->
-            assertEquals(null, item.durationHours, "Non-tmute actions should have null duration")
+            assertEquals(null, item.durationMinutes, "Non-tmute actions should have null duration")
         }
     }
 
@@ -867,12 +868,12 @@ class RoseImportParserTest {
         val flood = result.items.find { it.pattern == "flood" }
         assertNotNull(flood)
         assertEquals(PunishmentType.MUTE, flood.action)
-        assertEquals(1, flood.durationHours)
+        assertEquals(60, flood.durationMinutes)  // 1h = 60 minutes
 
         val caps = result.items.find { it.pattern == "caps*lock" }
         assertNotNull(caps)
         assertEquals(PunishmentType.MUTE, caps.action)
-        assertEquals(0, caps.durationHours) // 30m truncates to 0 hours
+        assertEquals(30, caps.durationMinutes)  // 30m = 30 minutes
 
         val ignored = result.items.find { it.pattern == "ignored" }
         assertNotNull(ignored)

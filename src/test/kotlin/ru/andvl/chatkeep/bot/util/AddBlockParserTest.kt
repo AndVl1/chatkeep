@@ -39,7 +39,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals("spam", result.parsed.pattern)
             assertNull(result.parsed.action)
-            assertNull(result.parsed.durationHours)
+            assertNull(result.parsed.durationMinutes)
         }
 
         @Test
@@ -114,7 +114,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals(expectedPattern, result.parsed.pattern)
             assertEquals(PunishmentType.valueOf(expectedAction), result.parsed.action)
-            assertNull(result.parsed.durationHours)
+            assertNull(result.parsed.durationMinutes)
         }
 
         @Test
@@ -174,18 +174,19 @@ class AddBlockParserTest {
 
         @ParameterizedTest
         @CsvSource(
-            "spam {mute 1h}, spam, MUTE, 1",
-            "spam {mute 2h}, spam, MUTE, 2",
-            "spam {mute 24h}, spam, MUTE, 24",
-            "spam {ban 7d}, spam, BAN, 168",    // 7 * 24 = 168 hours
-            "spam {mute 1d}, spam, MUTE, 24",   // 1 * 24 = 24 hours
-            "spam {mute 30m}, spam, MUTE, 0"    // 30 minutes = 0 hours (truncated)
+            "spam {mute 1h}, spam, MUTE, 60",
+            "spam {mute 2h}, spam, MUTE, 120",
+            "spam {mute 24h}, spam, MUTE, 1440",
+            "spam {ban 7d}, spam, BAN, 10080",   // 7 * 24 * 60 = 10080 minutes
+            "spam {mute 1d}, spam, MUTE, 1440",  // 1 * 24 * 60 = 1440 minutes
+            "spam {mute 30m}, spam, MUTE, 30",   // 30 minutes
+            "spam {mute 5m}, spam, MUTE, 5"      // 5 minutes - the bug fix!
         )
         fun `parse pattern with action and duration`(
             input: String,
             expectedPattern: String,
             expectedAction: String,
-            expectedHours: Int
+            expectedMinutes: Int
         ) {
             // When
             val result = AddBlockParser.parse(input)
@@ -194,7 +195,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals(expectedPattern, result.parsed.pattern)
             assertEquals(PunishmentType.valueOf(expectedAction), result.parsed.action)
-            assertEquals(expectedHours, result.parsed.durationHours)
+            assertEquals(expectedMinutes, result.parsed.durationMinutes)
         }
 
         @Test
@@ -207,7 +208,7 @@ class AddBlockParserTest {
 
             // Then
             assertIs<AddBlockParser.Result.Success>(result)
-            assertEquals(1, result.parsed.durationHours)
+            assertEquals(60, result.parsed.durationMinutes)
         }
 
         @Test
@@ -222,7 +223,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals("spam", result.parsed.pattern)
             assertEquals(PunishmentType.MUTE, result.parsed.action)
-            assertNull(result.parsed.durationHours) // Invalid duration -> null
+            assertNull(result.parsed.durationMinutes) // Invalid duration -> null
         }
 
         @Test
@@ -237,7 +238,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals("spam", result.parsed.pattern)
             assertEquals(PunishmentType.MUTE, result.parsed.action)
-            assertEquals(1, result.parsed.durationHours)
+            assertEquals(60, result.parsed.durationMinutes)
         }
 
         @Test
@@ -252,7 +253,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals("*bad*word*", result.parsed.pattern)
             assertEquals(PunishmentType.BAN, result.parsed.action)
-            assertEquals(168, result.parsed.durationHours) // 7 * 24
+            assertEquals(10080, result.parsed.durationMinutes) // 7 * 24 * 60
         }
     }
 
@@ -528,7 +529,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals("spam", result.parsed.pattern)
             assertEquals(PunishmentType.MUTE, result.parsed.action)
-            assertEquals(999 * 24, result.parsed.durationHours)
+            assertEquals(999 * 24 * 60, result.parsed.durationMinutes)  // 1438560 minutes
         }
     }
 
@@ -560,7 +561,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals("badword", result.parsed.pattern)
             assertEquals(PunishmentType.MUTE, result.parsed.action)
-            assertEquals(1, result.parsed.durationHours)
+            assertEquals(60, result.parsed.durationMinutes)
         }
 
         @Test
@@ -579,7 +580,7 @@ class AddBlockParserTest {
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals("*free*money*", result.parsed.pattern)
             assertEquals(PunishmentType.BAN, result.parsed.action)
-            assertEquals(168, result.parsed.durationHours)
+            assertEquals(10080, result.parsed.durationMinutes)  // 7 * 24 * 60
         }
 
         @Test
@@ -588,6 +589,73 @@ class AddBlockParserTest {
 
             assertIs<AddBlockParser.Result.Success>(result)
             assertEquals("*t.me/joinchat*", result.parsed.pattern)
+            assertEquals(PunishmentType.BAN, result.parsed.action)
+        }
+    }
+
+    @Nested
+    inner class EmojiPatternTests {
+
+        @Test
+        fun `parse single emoji pattern`() {
+            val result = AddBlockParser.parse("🔥")
+
+            assertIs<AddBlockParser.Result.Success>(result)
+            assertEquals("🔥", result.parsed.pattern)
+            assertNull(result.parsed.action)
+        }
+
+        @Test
+        fun `parse emoji with action`() {
+            val result = AddBlockParser.parse("🔥 {warn}")
+
+            assertIs<AddBlockParser.Result.Success>(result)
+            assertEquals("🔥", result.parsed.pattern)
+            assertEquals(PunishmentType.WARN, result.parsed.action)
+        }
+
+        @Test
+        fun `parse emoji with wildcards`() {
+            val result = AddBlockParser.parse("*🔥*")
+
+            assertIs<AddBlockParser.Result.Success>(result)
+            assertEquals("*🔥*", result.parsed.pattern)
+        }
+
+        @Test
+        fun `parse composite emoji (flag)`() {
+            val result = AddBlockParser.parse("🇷🇺 {ban}")
+
+            assertIs<AddBlockParser.Result.Success>(result)
+            assertEquals("🇷🇺", result.parsed.pattern)
+            assertEquals(PunishmentType.BAN, result.parsed.action)
+        }
+
+        @Test
+        fun `parse multiple emojis pattern`() {
+            val result = AddBlockParser.parse("🔥👍🎉 {warn}")
+
+            assertIs<AddBlockParser.Result.Success>(result)
+            assertEquals("🔥👍🎉", result.parsed.pattern)
+            assertEquals(PunishmentType.WARN, result.parsed.action)
+        }
+
+        @Test
+        fun `parse text with emoji`() {
+            val result = AddBlockParser.parse("spam🔥 {mute 1h}")
+
+            assertIs<AddBlockParser.Result.Success>(result)
+            assertEquals("spam🔥", result.parsed.pattern)
+            assertEquals(PunishmentType.MUTE, result.parsed.action)
+            assertEquals(60, result.parsed.durationMinutes)
+        }
+
+        @Test
+        fun `parse emoji with wildcard pattern`() {
+            val result = AddBlockParser.parse("*🔥* {ban}")
+
+            assertIs<AddBlockParser.Result.Success>(result)
+            assertEquals("*🔥*", result.parsed.pattern)
             assertEquals(PunishmentType.BAN, result.parsed.action)
         }
     }

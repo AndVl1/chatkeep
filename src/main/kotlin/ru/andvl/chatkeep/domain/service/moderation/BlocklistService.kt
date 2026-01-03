@@ -8,7 +8,6 @@ import ru.andvl.chatkeep.domain.model.moderation.MatchType
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 import ru.andvl.chatkeep.infrastructure.repository.moderation.BlocklistPatternRepository
 import ru.andvl.chatkeep.infrastructure.repository.moderation.ModerationConfigRepository
-import kotlin.time.Duration.Companion.hours
 
 @Service
 class BlocklistService(
@@ -21,7 +20,7 @@ class BlocklistService(
     data class BlocklistMatch(
         val pattern: BlocklistPattern,
         val action: PunishmentType,
-        val durationHours: Int?
+        val durationMinutes: Int?
     )
 
     data class AddPatternResult(
@@ -45,7 +44,7 @@ class BlocklistService(
                 BlocklistMatch(
                     pattern = pattern,
                     action = PunishmentType.valueOf(pattern.action),
-                    durationHours = pattern.actionDurationHours
+                    durationMinutes = pattern.actionDurationMinutes
                 )
             } else {
                 null
@@ -75,22 +74,23 @@ class BlocklistService(
                 }
 
                 // Build regex by escaping non-wildcard parts and converting wildcards
+                // Use codePoints() to correctly handle emojis (multi-byte Unicode characters)
                 val regexPattern = buildString {
-                    var i = 0
-                    while (i < patternText.length) {
-                        when (patternText[i]) {
-                            '*' -> append(".*")
-                            '?' -> append(".")
+                    patternText.codePoints().forEach { codePoint ->
+                        val char = codePoint.toChar()
+                        when {
+                            codePoint == '*'.code -> append(".*")
+                            codePoint == '?'.code -> append(".")
                             else -> {
-                                // Escape regex special characters
-                                val char = patternText[i]
-                                if (char in """\.[]{}()|^$+""") {
+                                // For multi-byte characters (emojis), convert codepoint to string
+                                val str = String(Character.toChars(codePoint))
+                                // Escape regex special characters (only applies to single-byte chars)
+                                if (str.length == 1 && str[0] in """\.[]{}()|^$+""") {
                                     append('\\')
                                 }
-                                append(char)
+                                append(str)
                             }
                         }
-                        i++
                     }
                 }
 
@@ -109,7 +109,7 @@ class BlocklistService(
         pattern: String,
         matchType: MatchType,
         action: PunishmentType,
-        durationHours: Int?,
+        durationMinutes: Int?,
         severity: Int
     ): AddPatternResult {
         // Check if pattern already exists for this chat - update instead of creating duplicate
@@ -120,7 +120,7 @@ class BlocklistService(
             existing.copy(
                 matchType = matchType.name,
                 action = action.name,
-                actionDurationHours = durationHours,
+                actionDurationMinutes = durationMinutes,
                 severity = severity
             )
         } else {
@@ -130,7 +130,7 @@ class BlocklistService(
                 pattern = pattern,
                 matchType = matchType.name,
                 action = action.name,
-                actionDurationHours = durationHours,
+                actionDurationMinutes = durationMinutes,
                 severity = severity
             )
         }
@@ -176,7 +176,7 @@ class BlocklistService(
                 pattern = item.pattern,
                 matchType = item.matchType,
                 action = item.action,
-                durationHours = item.durationHours,
+                durationMinutes = item.durationMinutes,
                 severity = item.severity
             )
 

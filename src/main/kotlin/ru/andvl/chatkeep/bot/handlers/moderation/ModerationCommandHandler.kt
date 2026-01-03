@@ -36,7 +36,7 @@ import ru.andvl.chatkeep.domain.service.moderation.UsernameCacheService
 import ru.andvl.chatkeep.domain.service.moderation.WarningService
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 @Component
 class ModerationCommandHandler(
@@ -178,19 +178,23 @@ class ModerationCommandHandler(
             // args[0:] is the reason (user ID already extracted)
             val reason = ctx.args.takeIf { it.isNotEmpty() }?.joinToString(" ")
 
-            val result = withContext(Dispatchers.IO) {
-                warningService.issueWarning(ctx.chatId, ctx.targetUserId, ctx.adminId, reason, ctx.chatTitle)
+            // Use atomic issueWarningWithThreshold to prevent race conditions
+            // when multiple /warn commands are issued concurrently
+            val thresholdResult = withContext(Dispatchers.IO) {
+                warningService.issueWarningWithThreshold(
+                    ctx.chatId,
+                    ctx.targetUserId,
+                    ctx.adminId,
+                    reason,
+                    ctx.chatTitle
+                )
             }
+            val result = thresholdResult.warningResult
 
             // Format expiry time
             val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
                 .withZone(ZoneId.of("Europe/Moscow"))
             val expiresAtFormatted = formatter.format(result.expiresAt)
-
-            // Check threshold
-            val thresholdAction = withContext(Dispatchers.IO) {
-                warningService.checkThreshold(ctx.chatId, ctx.targetUserId)
-            }
 
             // Build notification message
             val notificationMessage = buildString {
@@ -223,7 +227,7 @@ class ModerationCommandHandler(
                 replyMarkup = keyboard
             )
 
-            // Launch coroutine for auto-delete after 60 seconds
+            // Auto-delete after delay (launch runs in BehaviourContext scope, doesn't block)
             launch {
                 delay(60.seconds)
                 try {
@@ -234,18 +238,16 @@ class ModerationCommandHandler(
                 }
             }
 
-            if (thresholdAction != null) {
-                val durationHours = withContext(Dispatchers.IO) {
-                    warningService.getThresholdDurationHours(ctx.chatId)
-                }
-                val duration = durationHours?.hours
+            // Execute threshold punishment if triggered (atomically determined above)
+            if (thresholdResult.thresholdTriggered && thresholdResult.thresholdAction != null) {
+                val duration = thresholdResult.thresholdDurationMinutes?.minutes
 
                 withContext(Dispatchers.IO) {
                     punishmentService.executePunishment(
                         chatId = ctx.chatId,
                         userId = ctx.targetUserId,
                         issuedById = ctx.adminId,
-                        type = thresholdAction,
+                        type = thresholdResult.thresholdAction,
                         duration = duration,
                         reason = "Warning threshold reached",
                         source = PunishmentSource.THRESHOLD,
@@ -253,7 +255,7 @@ class ModerationCommandHandler(
                     )
                 }
 
-                reply(message, "Warning threshold reached - applied ${thresholdAction.name.lowercase()}.")
+                reply(message, "Warning threshold reached - applied ${thresholdResult.thresholdAction.name.lowercase()}.")
             }
         }
     }

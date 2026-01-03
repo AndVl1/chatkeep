@@ -226,7 +226,7 @@ class ModerationConfigRepositoryTest {
             maxWarnings = 5,
             warningTtlHours = 48,
             thresholdAction = "BAN",
-            thresholdDurationHours = 72,
+            thresholdDurationMinutes = 4320,  // 72 hours in minutes
             defaultBlocklistAction = "DELETE",
             logChannelId = -987654L,
             cleanServiceEnabled = false
@@ -243,7 +243,7 @@ class ModerationConfigRepositoryTest {
         assertEquals(5, found.maxWarnings)
         assertEquals(48, found.warningTtlHours)
         assertEquals("BAN", found.thresholdAction)
-        assertEquals(72, found.thresholdDurationHours)
+        assertEquals(4320, found.thresholdDurationMinutes)
         assertEquals("DELETE", found.defaultBlocklistAction)
         assertEquals(-987654L, found.logChannelId)
     }

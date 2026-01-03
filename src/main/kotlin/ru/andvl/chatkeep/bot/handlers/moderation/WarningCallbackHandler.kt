@@ -9,12 +9,12 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
-import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
+import ru.andvl.chatkeep.bot.util.CallbackParseHelper
 import ru.andvl.chatkeep.domain.service.moderation.WarningService
 
 @Component
 class WarningCallbackHandler(
-    private val adminCacheService: AdminCacheService,
+    private val callbackParseHelper: CallbackParseHelper,
     private val warningService: WarningService
 ) : Handler {
 
@@ -22,45 +22,18 @@ class WarningCallbackHandler(
 
     override suspend fun BehaviourContext.register() {
         onMessageDataCallbackQuery(Regex("warn_del:.*")) { query ->
-            val data = query.data
-            val parts = data.split(":")
-
-            if (parts.size != 3) {
-                answer(query, "Неверный формат данных", showAlert = true)
-                logger.warn("Invalid callback data format: $data")
-                return@onMessageDataCallbackQuery
-            }
-
-            val chatId = parts[1].toLongOrNull()
-            val targetUserId = parts[2].toLongOrNull()
-
-            if (chatId == null || targetUserId == null) {
-                answer(query, "Ошибка обработки данных", showAlert = true)
-                logger.warn("Invalid chatId or targetUserId in callback: $data")
-                return@onMessageDataCallbackQuery
-            }
-
-            val clickerId = query.user.id.chatId.long
-
-            // Check if clicker is admin (forceRefresh=true for security - SEC-003)
-            val isAdmin = withContext(Dispatchers.IO) {
-                adminCacheService.isAdmin(clickerId, chatId, forceRefresh = true)
-            }
-
-            if (!isAdmin) {
-                answer(query, "Только администратор может удалить это сообщение", showAlert = true)
-                logger.debug("Non-admin user $clickerId attempted to delete warning in chat $chatId")
-                return@onMessageDataCallbackQuery
-            }
+            // Parse and verify admin (3 parts: prefix:chatId:userId)
+            val parsed = callbackParseHelper.parseAndVerifyAdmin(this, query, expectedParts = 3)
+                ?: return@onMessageDataCallbackQuery
 
             // Remove warnings from database
             try {
                 withContext(Dispatchers.IO) {
-                    warningService.removeWarnings(chatId, targetUserId, clickerId)
+                    warningService.removeWarnings(parsed.chatId, parsed.targetUserId, parsed.clickerId)
                 }
             } catch (e: Exception) {
                 answer(query, "Ошибка удаления варна из базы", showAlert = true)
-                logger.error("Failed to remove warnings for user $targetUserId in chat $chatId: ${e.message}", e)
+                logger.error("Failed to remove warnings for user ${parsed.targetUserId} in chat ${parsed.chatId}: ${e.message}", e)
                 return@onMessageDataCallbackQuery
             }
 
@@ -68,11 +41,11 @@ class WarningCallbackHandler(
             try {
                 delete(query.message)
                 answer(query, "Варн удален")
-                logger.info("Warning deleted by admin $clickerId in chat $chatId for user $targetUserId")
+                logger.info("Warning deleted by admin ${parsed.clickerId} in chat ${parsed.chatId} for user ${parsed.targetUserId}")
             } catch (e: Exception) {
                 // Warning was removed from DB, but message deletion failed - still success
                 answer(query, "Варн удален")
-                logger.warn("Warning removed but message deletion failed in chat $chatId: ${e.message}")
+                logger.warn("Warning removed but message deletion failed in chat ${parsed.chatId}: ${e.message}")
             }
         }
     }

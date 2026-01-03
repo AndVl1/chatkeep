@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import ru.andvl.chatkeep.bot.util.CallbackParseHelper
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.moderation.WarningService
 import kotlin.test.assertTrue
@@ -31,14 +32,16 @@ import kotlin.test.assertTrue
 class WarningCallbackHandlerTest {
 
     private lateinit var adminCacheService: AdminCacheService
+    private lateinit var callbackParseHelper: CallbackParseHelper
     private lateinit var warningService: WarningService
     private lateinit var handler: WarningCallbackHandler
 
     @BeforeEach
     fun setup() {
         adminCacheService = mockk()
+        callbackParseHelper = CallbackParseHelper(adminCacheService)
         warningService = mockk()
-        handler = WarningCallbackHandler(adminCacheService, warningService)
+        handler = WarningCallbackHandler(callbackParseHelper, warningService)
     }
 
     // CALLBACK DATA VALIDATION TESTS

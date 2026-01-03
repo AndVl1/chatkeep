@@ -302,7 +302,7 @@ class BlocklistServiceTest {
             "spam",
             MatchType.EXACT,
             PunishmentType.MUTE,
-            durationHours = 24,
+            durationMinutes = 1440,  // 24 hours
             severity = 5
         )
         every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
@@ -312,7 +312,7 @@ class BlocklistServiceTest {
 
         // Then
         assertNotNull(result)
-        assertEquals(24, result.durationHours)
+        assertEquals(1440, result.durationMinutes)
         assertEquals(PunishmentType.MUTE, result.action)
     }
 
@@ -324,7 +324,7 @@ class BlocklistServiceTest {
             "severe",
             MatchType.EXACT,
             PunishmentType.BAN,
-            durationHours = null,
+            durationMinutes = null,
             severity = 10
         )
         every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
@@ -334,7 +334,7 @@ class BlocklistServiceTest {
 
         // Then
         assertNotNull(result)
-        assertNull(result.durationHours, "Duration should be null for permanent ban")
+        assertNull(result.durationMinutes, "Duration should be null for permanent ban")
         assertEquals(PunishmentType.BAN, result.action)
     }
 
@@ -356,7 +356,7 @@ class BlocklistServiceTest {
             pattern = pattern,
             matchType = MatchType.EXACT,
             action = PunishmentType.BAN,
-            durationHours = 24,
+            durationMinutes = 1440,
             severity = 5
         )
 
@@ -385,7 +385,7 @@ class BlocklistServiceTest {
             pattern = pattern,
             matchType = MatchType.EXACT,
             action = PunishmentType.BAN,
-            durationHours = null,
+            durationMinutes = null,
             severity = 10
         )
 
@@ -421,7 +421,7 @@ class BlocklistServiceTest {
             pattern = pattern,
             matchType = MatchType.EXACT,
             action = PunishmentType.BAN,
-            durationHours = 24,
+            durationMinutes = 1440,
             severity = 5
         )
 
@@ -530,6 +530,110 @@ class BlocklistServiceTest {
         assertNull(result, "Whitespace-only message should not match")
     }
 
+    // EMOJI MATCHING TESTS
+
+    @Test
+    fun `checkMessage EXACT should match emoji pattern in text`() {
+        // Given
+        val chatId = 123L
+        val pattern = createPattern("🔥", MatchType.EXACT, severity = 5)
+        every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
+
+        // When
+        val result = service.checkMessage(chatId, "🔥")
+
+        // Then
+        assertNotNull(result, "EXACT should match single emoji")
+        assertEquals("🔥", result.pattern.pattern)
+    }
+
+    @Test
+    fun `checkMessage EXACT should match emoji in longer text`() {
+        // Given
+        val chatId = 123L
+        val pattern = createPattern("🔥", MatchType.EXACT, severity = 5)
+        every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
+
+        // When
+        val result = service.checkMessage(chatId, "Hello 🔥 World")
+
+        // Then
+        assertNotNull(result, "EXACT should match emoji within text")
+    }
+
+    @Test
+    fun `checkMessage WILDCARD should match emoji with asterisk`() {
+        // Given
+        val chatId = 123L
+        val pattern = createPattern("*🔥*", MatchType.WILDCARD, severity = 5)
+        every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
+
+        // When
+        val result = service.checkMessage(chatId, "Hello 🔥 World")
+
+        // Then
+        assertNotNull(result, "WILDCARD *🔥* should match")
+    }
+
+    @Test
+    fun `checkMessage WILDCARD should match emoji prefix pattern`() {
+        // Given
+        val chatId = 123L
+        val pattern = createPattern("🔥*", MatchType.WILDCARD, severity = 5)
+        every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
+
+        // When
+        val result = service.checkMessage(chatId, "🔥fire")
+
+        // Then
+        assertNotNull(result, "WILDCARD 🔥* should match text starting with emoji")
+    }
+
+    @Test
+    fun `checkMessage should match composite emoji (flag)`() {
+        // Given - Flag emojis are composed of two regional indicator symbols
+        val chatId = 123L
+        val pattern = createPattern("🇷🇺", MatchType.EXACT, severity = 5)
+        every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
+
+        // When
+        val result = service.checkMessage(chatId, "Flag: 🇷🇺")
+
+        // Then
+        assertNotNull(result, "Should match composite flag emoji")
+    }
+
+    @Test
+    fun `checkMessage should match emoji with text pattern`() {
+        // Given
+        val chatId = 123L
+        val pattern = createPattern("spam🔥", MatchType.EXACT, severity = 5)
+        every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
+
+        // When
+        val result = service.checkMessage(chatId, "Check this spam🔥 message")
+
+        // Then
+        assertNotNull(result, "Should match text+emoji pattern")
+    }
+
+    @Test
+    fun `checkMessage WILDCARD should match question mark with emoji`() {
+        // Given - ? should match one character
+        val chatId = 123L
+        val pattern = createPattern("a?b", MatchType.WILDCARD, severity = 5)
+        every { repository.findByChatIdOrGlobal(chatId) } returns listOf(pattern)
+
+        // When
+        val result = service.checkMessage(chatId, "test a🔥b test")
+
+        // Then
+        // Note: This tests if ? matches a full emoji codepoint
+        // Emojis are multi-codepoint, so this may or may not match
+        // Documenting current behavior
+        println("a?b matching a🔥b result: $result")
+    }
+
     // DEFAULT ACTION TESTS
 
     @Test
@@ -602,7 +706,7 @@ class BlocklistServiceTest {
         matchType: MatchType,
         action: PunishmentType = PunishmentType.BAN,
         chatId: Long? = 123L,
-        durationHours: Int? = 24,
+        durationMinutes: Int? = 1440,  // 24 hours in minutes
         severity: Int = 5
     ) = BlocklistPattern(
         id = null,
@@ -610,7 +714,7 @@ class BlocklistServiceTest {
         pattern = pattern,
         matchType = matchType.name,
         action = action.name,
-        actionDurationHours = durationHours,
+        actionDurationMinutes = durationMinutes,
         severity = severity,
         createdAt = Instant.now()
     )

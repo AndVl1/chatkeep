@@ -15,7 +15,7 @@ object RoseImportParser {
     data class ImportItem(
         val pattern: String,
         val action: PunishmentType,
-        val durationHours: Int?,
+        val durationMinutes: Int?,
         val severity: Int,
         val matchType: MatchType
     )
@@ -85,7 +85,7 @@ object RoseImportParser {
                     ImportItem(
                         pattern = pattern,
                         action = action,
-                        durationHours = duration,
+                        durationMinutes = duration,
                         severity = severity,
                         matchType = matchType
                     )
@@ -135,7 +135,7 @@ object RoseImportParser {
 
     private fun parseDuration(durationStr: String): Int? {
         val duration = DurationParser.parse(durationStr) ?: return null
-        return DurationParser.toHours(duration)
+        return DurationParser.toMinutes(duration)
     }
 
     private fun calculateSeverity(action: PunishmentType): Int {
