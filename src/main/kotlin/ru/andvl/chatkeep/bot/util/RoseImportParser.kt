@@ -1,8 +1,10 @@
 package ru.andvl.chatkeep.bot.util
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
 import org.slf4j.LoggerFactory
 import tools.jackson.databind.ObjectMapper
+import ru.andvl.chatkeep.domain.model.locks.LockType
 import ru.andvl.chatkeep.domain.model.moderation.MatchType
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 
@@ -25,6 +27,12 @@ object RoseImportParser {
         val skippedCount: Int
     )
 
+    data class LocksImportResult(
+        val lockedCount: Int,
+        val allowlistedUrlCount: Int,
+        val lockWarns: Boolean
+    )
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     private data class RoseExport(
         val data: RoseData?
@@ -32,7 +40,8 @@ object RoseImportParser {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private data class RoseData(
-        val blocklists: RoseBlocklists?
+        val blocklists: RoseBlocklists?,
+        val locks: RoseLocks?
     )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -44,6 +53,26 @@ object RoseImportParser {
     private data class RoseFilter(
         val name: String?,
         val reason: String?
+    )
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class RoseLocks(
+        val locks: Map<String, RoseLockConfig> = emptyMap(),
+        @JsonProperty("allowlisted_url")
+        val allowlistedUrl: List<RoseAllowlistedUrl> = emptyList(),
+        @JsonProperty("lock_warns")
+        val lockWarns: Boolean = false
+    )
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class RoseLockConfig(
+        val locked: Boolean = false,
+        val reason: String = ""
+    )
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class RoseAllowlistedUrl(
+        val url: String = ""
     )
 
     fun parse(jsonContent: String, objectMapper: ObjectMapper): ImportResult {
@@ -153,6 +182,62 @@ object RoseImportParser {
             MatchType.WILDCARD
         } else {
             MatchType.EXACT
+        }
+    }
+
+    fun parseLocks(jsonContent: String, objectMapper: ObjectMapper): RoseLocks? {
+        return try {
+            val export = objectMapper.readValue(jsonContent, RoseExport::class.java)
+            export.data?.locks
+        } catch (e: Exception) {
+            logger.error("Failed to parse Rose locks from JSON", e)
+            null
+        }
+    }
+
+    private fun mapRoseLockType(roseName: String): LockType? {
+        return when (roseName.lowercase()) {
+            "photo" -> LockType.PHOTO
+            "video" -> LockType.VIDEO
+            "audio" -> LockType.AUDIO
+            "voice" -> LockType.VOICE
+            "document" -> LockType.DOCUMENT
+            "sticker" -> LockType.STICKER
+            "gif" -> LockType.GIF
+            "videonote" -> LockType.VIDEONOTE
+            "contact" -> LockType.CONTACT
+            "location" -> LockType.LOCATION
+            "venue" -> LockType.VENUE
+            "dice", "emojigame" -> LockType.DICE
+            "poll" -> LockType.POLL
+            "game" -> LockType.GAME
+            "forward" -> LockType.FORWARD
+            "forwarduser" -> LockType.FORWARDUSER
+            "forwardchannel" -> LockType.FORWARDCHANNEL
+            "forwardbot" -> LockType.FORWARDBOT
+            "url" -> LockType.URL
+            "button" -> LockType.BUTTON
+            "invitelink", "invite" -> LockType.INVITE
+            "text" -> LockType.TEXT
+            "command" -> LockType.COMMANDS
+            "email" -> LockType.EMAIL
+            "phone" -> LockType.PHONE
+            "spoiler" -> LockType.SPOILER
+            "mention" -> LockType.MENTION
+            "hashtag" -> LockType.HASHTAG
+            "cashtag" -> LockType.CASHTAG
+            "emoji", "emojicustom" -> LockType.EMOJI
+            "inline" -> LockType.INLINE
+            "rtl" -> LockType.RTLCHAR
+            "anonchannel" -> LockType.ANONCHANNEL
+            "comment" -> LockType.COMMENT
+            "album" -> LockType.ALBUM
+            "topic" -> LockType.TOPIC
+            "premium", "stickerpremium" -> LockType.PREMIUM
+            else -> {
+                logger.debug("Unknown Rose lock type: $roseName")
+                null
+            }
         }
     }
 }

@@ -20,6 +20,7 @@ import ru.andvl.chatkeep.domain.service.moderation.BlocklistService
 @Component
 class RoseImportHandler(
     private val blocklistService: BlocklistService,
+    private val lockSettingsService: ru.andvl.chatkeep.domain.service.locks.LockSettingsService,
     private val sessionAuthHelper: SessionAuthHelper,
     private val objectMapper: ObjectMapper
 ) : Handler {
@@ -49,6 +50,96 @@ class RoseImportHandler(
             ?: false
     }
 
+    private fun importLocks(chatId: Long, roseLocks: RoseImportParser.RoseLocks): RoseImportParser.LocksImportResult {
+        var lockedCount = 0
+
+        // Import lock settings
+        for ((roseName, config) in roseLocks.locks) {
+            if (!config.locked) continue
+
+            val lockType = mapRoseLockType(roseName) ?: continue
+
+            lockSettingsService.setLock(
+                chatId = chatId,
+                lockType = lockType,
+                locked = true,
+                reason = config.reason.takeIf { it.isNotBlank() }
+            )
+            lockedCount++
+        }
+
+        // Import allowlisted URLs
+        var allowlistedUrlCount = 0
+        for (urlEntry in roseLocks.allowlistedUrl) {
+            val url = urlEntry.url.trim()
+            if (url.isNotEmpty()) {
+                lockSettingsService.addToAllowlist(
+                    chatId = chatId,
+                    type = ru.andvl.chatkeep.domain.model.locks.AllowlistType.URL,
+                    pattern = url
+                )
+                allowlistedUrlCount++
+            }
+        }
+
+        // Set lock_warns
+        lockSettingsService.setLockWarns(chatId, roseLocks.lockWarns)
+
+        logger.info("Imported locks for chat $chatId: $lockedCount locks enabled, $allowlistedUrlCount URLs allowlisted, lockWarns=${roseLocks.lockWarns}")
+
+        return RoseImportParser.LocksImportResult(
+            lockedCount = lockedCount,
+            allowlistedUrlCount = allowlistedUrlCount,
+            lockWarns = roseLocks.lockWarns
+        )
+    }
+
+    private fun mapRoseLockType(roseName: String): ru.andvl.chatkeep.domain.model.locks.LockType? {
+        return when (roseName.lowercase()) {
+            "photo" -> ru.andvl.chatkeep.domain.model.locks.LockType.PHOTO
+            "video" -> ru.andvl.chatkeep.domain.model.locks.LockType.VIDEO
+            "audio" -> ru.andvl.chatkeep.domain.model.locks.LockType.AUDIO
+            "voice" -> ru.andvl.chatkeep.domain.model.locks.LockType.VOICE
+            "document" -> ru.andvl.chatkeep.domain.model.locks.LockType.DOCUMENT
+            "sticker" -> ru.andvl.chatkeep.domain.model.locks.LockType.STICKER
+            "gif" -> ru.andvl.chatkeep.domain.model.locks.LockType.GIF
+            "videonote" -> ru.andvl.chatkeep.domain.model.locks.LockType.VIDEONOTE
+            "contact" -> ru.andvl.chatkeep.domain.model.locks.LockType.CONTACT
+            "location" -> ru.andvl.chatkeep.domain.model.locks.LockType.LOCATION
+            "venue" -> ru.andvl.chatkeep.domain.model.locks.LockType.VENUE
+            "dice", "emojigame" -> ru.andvl.chatkeep.domain.model.locks.LockType.DICE
+            "poll" -> ru.andvl.chatkeep.domain.model.locks.LockType.POLL
+            "game" -> ru.andvl.chatkeep.domain.model.locks.LockType.GAME
+            "forward" -> ru.andvl.chatkeep.domain.model.locks.LockType.FORWARD
+            "forwarduser" -> ru.andvl.chatkeep.domain.model.locks.LockType.FORWARDUSER
+            "forwardchannel" -> ru.andvl.chatkeep.domain.model.locks.LockType.FORWARDCHANNEL
+            "forwardbot" -> ru.andvl.chatkeep.domain.model.locks.LockType.FORWARDBOT
+            "url" -> ru.andvl.chatkeep.domain.model.locks.LockType.URL
+            "button" -> ru.andvl.chatkeep.domain.model.locks.LockType.BUTTON
+            "invitelink", "invite" -> ru.andvl.chatkeep.domain.model.locks.LockType.INVITE
+            "text" -> ru.andvl.chatkeep.domain.model.locks.LockType.TEXT
+            "command" -> ru.andvl.chatkeep.domain.model.locks.LockType.COMMANDS
+            "email" -> ru.andvl.chatkeep.domain.model.locks.LockType.EMAIL
+            "phone" -> ru.andvl.chatkeep.domain.model.locks.LockType.PHONE
+            "spoiler" -> ru.andvl.chatkeep.domain.model.locks.LockType.SPOILER
+            "mention" -> ru.andvl.chatkeep.domain.model.locks.LockType.MENTION
+            "hashtag" -> ru.andvl.chatkeep.domain.model.locks.LockType.HASHTAG
+            "cashtag" -> ru.andvl.chatkeep.domain.model.locks.LockType.CASHTAG
+            "emoji", "emojicustom" -> ru.andvl.chatkeep.domain.model.locks.LockType.EMOJI
+            "inline" -> ru.andvl.chatkeep.domain.model.locks.LockType.INLINE
+            "rtl" -> ru.andvl.chatkeep.domain.model.locks.LockType.RTLCHAR
+            "anonchannel" -> ru.andvl.chatkeep.domain.model.locks.LockType.ANONCHANNEL
+            "comment" -> ru.andvl.chatkeep.domain.model.locks.LockType.COMMENT
+            "album" -> ru.andvl.chatkeep.domain.model.locks.LockType.ALBUM
+            "topic" -> ru.andvl.chatkeep.domain.model.locks.LockType.TOPIC
+            "premium", "stickerpremium" -> ru.andvl.chatkeep.domain.model.locks.LockType.PREMIUM
+            else -> {
+                logger.debug("Unknown Rose lock type: $roseName")
+                null
+            }
+        }
+    }
+
     private suspend fun BehaviourContext.handleImportRose(message: dev.inmo.tgbotapi.types.message.abstracts.CommonMessage<DocumentContent>) {
         sessionAuthHelper.withSessionAuth(this, message) { ctx ->
             try {
@@ -73,16 +164,28 @@ class RoseImportHandler(
                 val fileBytes = downloadFile(document)
                 val fileContent = String(fileBytes)
 
+                // Parse blocklists
                 val parseResult = RoseImportParser.parse(fileContent, objectMapper)
 
-                if (parseResult.items.isEmpty() && parseResult.skippedCount == 0) {
+                // Parse locks
+                val roseLocks = RoseImportParser.parseLocks(fileContent, objectMapper)
+
+                if (parseResult.items.isEmpty() && parseResult.skippedCount == 0 && roseLocks == null) {
                     val prefix = sessionAuthHelper.formatReplyPrefix(ctx.session)
-                    reply(message, "$prefix\n\nNo blocklist patterns found in the file or file format is invalid.")
+                    reply(message, "$prefix\n\nNo blocklist patterns or locks found in the file or file format is invalid.")
                     return@withSessionAuth
                 }
 
+                // Import blocklists
                 val importResult = withContext(Dispatchers.IO) {
                     blocklistService.importPatterns(ctx.chatId, parseResult.items)
+                }
+
+                // Import locks
+                val locksResult = roseLocks?.let { locks ->
+                    withContext(Dispatchers.IO) {
+                        importLocks(ctx.chatId, locks)
+                    }
                 }
 
                 val prefix = sessionAuthHelper.formatReplyPrefix(ctx.session)
@@ -91,7 +194,7 @@ class RoseImportHandler(
 
                 val resultMessage = buildString {
                     append("$prefix\n\n")
-                    append("Imported $total patterns")
+                    append("Imported $total blocklist patterns")
                     if (importResult.updated > 0) {
                         append(" (${importResult.updated} updated, ${importResult.added} new)")
                     }
@@ -99,10 +202,20 @@ class RoseImportHandler(
                         append(", $skippedTotal skipped")
                     }
                     append(".")
+
+                    locksResult?.let { result ->
+                        append("\n\nLocks: ${result.lockedCount} enabled")
+                        if (result.allowlistedUrlCount > 0) {
+                            append(", ${result.allowlistedUrlCount} allowlisted URLs")
+                        }
+                        if (result.lockWarns) {
+                            append(" (lock warns enabled)")
+                        }
+                    }
                 }
 
                 reply(message, resultMessage)
-                logger.info("Rose import completed: chatId=${ctx.chatId}, added=${importResult.added}, updated=${importResult.updated}, skipped=$skippedTotal")
+                logger.info("Rose import completed: chatId=${ctx.chatId}, patterns_added=${importResult.added}, patterns_updated=${importResult.updated}, patterns_skipped=$skippedTotal, locks=${locksResult?.lockedCount ?: 0}")
             } catch (e: Exception) {
                 logger.error("/import_rose: Failed", e)
                 reply(message, "An error occurred while importing. Please check the file format and try again.")

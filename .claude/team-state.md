@@ -1,63 +1,83 @@
-# TEAM STATE - Main Coordinator
-
-## Overview
-Two features developed on branch: `feat/connect-selection-channel-replies`
-
-## Feature Branches (Virtual)
-- Feature 1: Connect Group Selection → `.claude/feature1-connect-selection.md`
-- Feature 2: Channel Post Auto-replies → `.claude/feature2-channel-replies.md`
+# TEAM STATE
 
 ## Classification
-- Type: FEATURE (both)
-- Complexity: MEDIUM (Feature 1) + COMPLEX (Feature 2)
-- Workflow: PARALLEL STANDARD + FULL
+- Type: FEATURE
+- Complexity: COMPLEX
+- Workflow: FULL 7-PHASE
+
+## Task
+Implement locks system like MissRose with 47 lock types, extensible architecture, and Rose import support.
 
 ## Progress
-- [x] Phase 0: Classification - COMPLETED
-- [x] Phase 1: Discovery - COMPLETED (branch created, understanding confirmed)
-- [x] Phase 2: Exploration - COMPLETED (parallel agents explored codebase)
-- [x] Phase 3: Questions - COMPLETED (requirements clarified)
-- [x] Phase 4: Architecture - COMPLETED (designs approved)
-- [x] Phase 5: Implementation - COMPLETED (9 commits)
-- [x] Phase 6: Review - COMPLETED (code review + security + tests)
-- [x] Phase 7: Summary - COMPLETED (PR ready)
+- [x] Phase 1: Discovery - COMPLETED
+- [x] Phase 2: Exploration - COMPLETED
+- [x] Phase 3: Questions - COMPLETED
+- [x] Phase 4: Architecture - COMPLETED
+- [x] Phase 5: Implementation - COMPLETED
+- [x] Phase 6: Review - COMPLETED
+- [x] Phase 7: Summary - COMPLETED
+
+## Phase 1 Output
+- Found 47 lock types in Rose export
+- Lock structure: { locked: boolean, reason: string }
+- Additional features: allowlisted_url, lock_warns
+- Commands needed: /lock, /unlock, /locks, /locktypes
+
+## Phase 2 Output
+- Rose Bot uses LOCK_TYPES (content delete) and RESTRICTION_TYPES (permissions)
+- Codebase pattern: Handler interface + onText/onContentMessage triggers
+- Admin exemption via AdminCacheService.isAdmin()
+- RoseImportParser parses JSON with data classes
+- DB: Spring Data JDBC with @Table entities
+
+## Phase 3 Output (Clarified Requirements)
+- Scope: ALL 47 lock types at once
+- Action: delete + warn (lock_warns support)
+- Allowlist: implement URL/command whitelist
+- Exemptions: admins, bots, linked channel posts
+- Commands: both in-group AND via session
+- Extensibility: future exemptions (user_id, specific bots, sticker packs)
 
 ## Key Decisions
-1. Both features on single branch (logical grouping)
-2. Parallel exploration and architecture design
-3. Sequential implementation (Feature 1 first - simpler, sets foundation)
-4. Extract KeyboardUtils for DRY code
-5. Add input validation for security (URLs, text lengths, button limits)
+- Extensible architecture for future development
+- Import from Rose JSON config
+- All 47 lock types from start
+- Delete + warn on violation
 
-## Files Created
-- `KeyboardUtils.kt` - shared keyboard building
-- `ConnectCallbackHandler.kt` - connect selection callbacks
-- `V8__add_channel_reply_settings.sql` - migration
-- `ChannelReplySettings.kt`, `MediaType.kt`, `ReplyButton.kt` - models
-- `ChannelReplySettingsRepository.kt` - repository
-- `ChannelReplyService.kt`, `MediaGroupCacheService.kt` - services
-- `ChannelPostHandler.kt`, `ChannelReplyConfigHandler.kt` - handlers
-- `KeyboardUtilsTest.kt`, `ChannelReplyServiceTest.kt` - tests (52 new)
+## Files Identified
+- BlocklistFilterHandler.kt - message filtering pattern
+- RoseImportParser.kt - import parsing pattern
+- BlocklistPattern.kt - entity pattern
+- Handler.kt - handler interface
+- PunishmentService.kt - action execution
 
-## Files Modified
-- `AdminSessionHandler.kt` - keyboard selection + help text
-- `AdminSessionService.kt` - @Transactional
-- `MediaGroupCacheServiceTest.kt` - TTL tests
+## Chosen Approach
+**Approach B: Extensible** (User choice)
+- Plugin architecture with LockDetector interface
+- 47 LockDetector implementations (one per lock type)
+- Extensible exemption system
+- Tables: lock_settings (JSONB), lock_exemptions, lock_allowlist
+- ~60 new files
+- Maximum extensibility for future development
 
-## Commits (9 total)
-1. feat: add interactive group selection for /connect command
-2. feat: add V8 migration for channel reply settings
-3. feat: add channel reply domain models
-4. feat: add channel reply repository
-5. feat: add channel reply services
-6. feat: add channel reply handlers
-7. refactor: extract DRY keyboard utils and fix code review issues
-8. fix: add input validation and security improvements
-9. test: add unit tests for connect selection and channel replies
+## Phase 5 Output (Implementation)
+- Created 49 lock detectors for all LockType enum values
+- Implemented LockCommandsHandler with /lock, /unlock, /locks, /locktypes, /lockwarns
+- Implemented LockEnforcementHandler for message filtering
+- Added LockSettingsService for settings management
+- Added RoseImportHandler integration for locks import
+- Created database migration V9__add_locks_feature.sql with 3 tables:
+  - lock_settings (JSONB for lock config)
+  - lock_exemptions (user/bot/channel exemptions)
+  - lock_allowlist (URL/domain/command whitelist)
 
-## Status
-✅ COMPLETED - PR ready at:
-https://github.com/AndVl1/chatkeep/pull/new/feat/connect-selection-channel-replies
+## Phase 6 Output (Review)
+Code review identified and fixed:
+- ANONCHANNEL lock exemption conflict (channel posts now blocked when ANONCHANNEL enabled)
+- LinkLockDetector missing allowlist support (added URL/domain allowlist)
+- Case-sensitive command allowlist (now case-insensitive)
+- N+1 query in exemption checking (optimized to single fetch)
+- Removed redundant database index
 
 ## Recovery
-Task completed. No recovery needed.
+Feature complete. All phases done.
