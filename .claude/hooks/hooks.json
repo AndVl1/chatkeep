@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '🚀 Dream Team v2.0 Ready | 8 agents | Opus+Sonnet+Haiku'",
+            "command": "echo '🚀 Dream Team v2.0 Ready | 9 agents | Opus+Sonnet+Haiku | State sync enabled'",
             "timeout": 5
           }
         ]
@@ -21,6 +21,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STATE_FILE='.claude/team-state.md'; if [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 300 ]; then echo '⚠️ STATE REMINDER: Agent completed. Update .claude/team-state.md with phase results before proceeding.'; fi; fi",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -30,6 +40,16 @@
           {
             "type": "command",
             "command": "if echo \"$FILE_PATH\" | grep -qE '\\.env|\\.secret|credentials'; then echo 'BLOCK: Sensitive file' && exit 1; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STATE_FILE='.claude/team-state.md'; if [ ! -f \"$STATE_FILE\" ]; then echo '⚠️ STATE SYNC WARNING: No .claude/team-state.md found. Create state file before launching agents!'; elif [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 600 ]; then echo \"⚠️ STATE SYNC WARNING: team-state.md not updated for $((AGE / 60)) minutes. Update state before launching more agents!\"; fi; fi",
             "timeout": 5
           }
         ]
@@ -51,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"Session ended: $(date '+%Y-%m-%d %H:%M:%S')\" >> .claude/sessions.log 2>/dev/null || true",
+            "command": "STATE_FILE='.claude/team-state.md'; if [ -f \"$STATE_FILE\" ]; then echo '📋 Final state:' && grep -E '^- \\[' \"$STATE_FILE\" | head -10; fi; echo \"Session ended: $(date '+%Y-%m-%d %H:%M:%S')\" >> .claude/sessions.log 2>/dev/null || true",
             "timeout": 5
           }
         ]

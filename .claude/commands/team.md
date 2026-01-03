@@ -503,6 +503,60 @@ Mark phases complete, add key outputs.
 
 ---
 
+## STATE SYNCHRONIZATION PROTOCOL (MANDATORY)
+
+**CRITICAL: You CANNOT proceed to the next phase without updating the state file first.**
+
+### Phase Transition Checklist
+
+Before transitioning from Phase N to Phase N+1, you MUST:
+
+1. **UPDATE STATE FILE** - Edit `.claude/team-state.md`:
+   - Mark current phase as `[x] Phase N: Name - COMPLETED`
+   - Mark next phase as `[ ] Phase N+1: Name - IN PROGRESS`
+   - Add key findings/decisions to appropriate sections
+   - Update "Recovery" section with current context
+
+2. **VERIFY UPDATE** - Read the state file back to confirm changes saved
+
+3. **ANNOUNCE TRANSITION** - Tell user: "Phase N completed. State file updated. Moving to Phase N+1."
+
+### State Update Template
+
+After each phase, add this to state file:
+
+```markdown
+## Phase N Output
+- Key finding 1
+- Key finding 2
+- Files identified: [list]
+- Decisions made: [list]
+```
+
+### Enforcement Rules
+
+| Violation | Consequence |
+|-----------|-------------|
+| Starting Phase N+1 without updating state | STOP. Go back and update state first. |
+| Launching agents without state file existing | STOP. Create state file first. |
+| State shows Phase 2 but you're in Phase 5 | STOP. Update all intermediate phases. |
+| Forgetting to mark phase COMPLETED | Hook will warn you. Update before proceeding. |
+
+### Recovery Protocol
+
+If state file is out of sync:
+1. Read current state file
+2. Compare with actual progress (git log, files created)
+3. Update state to reflect reality
+4. Continue from corrected state
+
+### Hook Integration
+
+A PreToolUse hook validates state consistency before Task tool calls.
+If validation fails, you will see: `⚠️ STATE SYNC WARNING: Update .claude/team-state.md before proceeding`
+
+---
+
 ## EXECUTION START
 
 **Task**: $ARGUMENTS
