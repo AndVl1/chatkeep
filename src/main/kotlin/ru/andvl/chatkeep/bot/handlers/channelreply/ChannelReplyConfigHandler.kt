@@ -23,6 +23,21 @@ class ChannelReplyConfigHandler(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    companion object {
+        private const val MAX_TEXT_LENGTH = 4096
+        private const val MAX_BUTTON_TEXT_LENGTH = 64
+        private const val MAX_BUTTONS = 10
+    }
+
+    private fun isValidUrl(url: String): Boolean {
+        return try {
+            val uri = java.net.URI(url)
+            uri.scheme?.lowercase() in listOf("http", "https", "tg")
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     override suspend fun BehaviourContext.register() {
         val privateFilter = { msg: CommonMessage<*> -> msg.chat is PrivateChat }
 
@@ -79,6 +94,15 @@ class ChannelReplyConfigHandler(
             }
 
             val replyText = args[0]
+
+            if (replyText.length > MAX_TEXT_LENGTH) {
+                reply(message, buildString {
+                    appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
+                    appendLine()
+                    append("Текст слишком длинный. Максимум $MAX_TEXT_LENGTH символов.")
+                })
+                return@withSessionAuth
+            }
 
             withContext(Dispatchers.IO) {
                 channelReplyService.setText(ctx.chatId, replyText)
@@ -164,11 +188,41 @@ class ChannelReplyConfigHandler(
             val buttonText = args[0]
             val buttonUrl = args[1]
 
+            // Validate button text length
+            if (buttonText.length > MAX_BUTTON_TEXT_LENGTH) {
+                reply(message, buildString {
+                    appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
+                    appendLine()
+                    append("Текст кнопки слишком длинный. Максимум $MAX_BUTTON_TEXT_LENGTH символов.")
+                })
+                return@withSessionAuth
+            }
+
+            // Validate URL
+            if (!isValidUrl(buttonUrl)) {
+                reply(message, buildString {
+                    appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
+                    appendLine()
+                    append("Неверный URL. Разрешены только http://, https://, tg:// ссылки.")
+                })
+                return@withSessionAuth
+            }
+
             // Get existing buttons
             val settings = withContext(Dispatchers.IO) {
                 channelReplyService.getSettings(ctx.chatId)
             }
             val existingButtons = channelReplyService.parseButtons(settings?.buttonsJson).toMutableList()
+
+            // Check button count limit
+            if (existingButtons.size >= MAX_BUTTONS) {
+                reply(message, buildString {
+                    appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
+                    appendLine()
+                    append("Максимум $MAX_BUTTONS кнопок. Используйте /clearbuttons для очистки.")
+                })
+                return@withSessionAuth
+            }
 
             // Add new button
             existingButtons.add(ReplyButton(buttonText, buttonUrl))

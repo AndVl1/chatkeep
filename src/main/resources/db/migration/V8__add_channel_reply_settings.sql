@@ -9,5 +9,3 @@ CREATE TABLE channel_reply_settings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
-CREATE INDEX idx_channel_reply_chat_id ON channel_reply_settings(chat_id);
