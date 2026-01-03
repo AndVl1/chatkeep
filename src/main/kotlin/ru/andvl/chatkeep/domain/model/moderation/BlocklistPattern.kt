@@ -22,8 +22,8 @@ data class BlocklistPattern(
     @Column("action")
     val action: String,
 
-    @Column("action_duration_hours")
-    val actionDurationHours: Int?,
+    @Column("action_duration_minutes")
+    val actionDurationMinutes: Int?,
 
     @Column("severity")
     val severity: Int = 0,

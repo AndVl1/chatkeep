@@ -28,12 +28,33 @@ object DurationParser {
 
     fun toSeconds(duration: Duration): Long = duration.inWholeSeconds
 
+    fun toMinutes(duration: Duration): Int {
+        val minutes = duration.inWholeMinutes
+        return when {
+            minutes > Int.MAX_VALUE -> Int.MAX_VALUE
+            minutes < 0 -> 0
+            else -> minutes.toInt()
+        }
+    }
+
     fun toHours(duration: Duration): Int {
         val hours = duration.inWholeHours
         return when {
             hours > Int.MAX_VALUE -> Int.MAX_VALUE
             hours < 0 -> 0
             else -> hours.toInt()
+        }
+    }
+
+    /**
+     * Format duration for display.
+     * Returns human-readable string like "5m", "1h", "2d".
+     */
+    fun formatMinutes(minutes: Int): String {
+        return when {
+            minutes >= 1440 && minutes % 1440 == 0 -> "${minutes / 1440}d"
+            minutes >= 60 && minutes % 60 == 0 -> "${minutes / 60}h"
+            else -> "${minutes}m"
         }
     }
 }

@@ -22,8 +22,8 @@ data class ModerationConfig(
     @Column("threshold_action")
     val thresholdAction: String = "MUTE",
 
-    @Column("threshold_duration_hours")
-    val thresholdDurationHours: Int? = 24,
+    @Column("threshold_duration_minutes")
+    val thresholdDurationMinutes: Int? = 1440,
 
     @Column("default_blocklist_action")
     val defaultBlocklistAction: String = "WARN",

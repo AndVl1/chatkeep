@@ -10,9 +10,9 @@ import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
  * Examples:
  * - /addblock spam                    -> pattern="spam", action=null (use default), duration=null
  * - /addblock *spam* {warn}           -> pattern="*spam*", action=WARN, duration=null
- * - /addblock badword {mute 1h}       -> pattern="badword", action=MUTE, duration=1
+ * - /addblock badword {mute 1h}       -> pattern="badword", action=MUTE, duration=60
  * - /addblock scam {ban}              -> pattern="scam", action=BAN, duration=null
- * - /addblock test {mute 7d}          -> pattern="test", action=MUTE, duration=168 (7*24)
+ * - /addblock test {mute 7d}          -> pattern="test", action=MUTE, duration=10080 (7*24*60)
  */
 object AddBlockParser {
 
@@ -24,7 +24,7 @@ object AddBlockParser {
     data class ParseResult(
         val pattern: String,
         val action: PunishmentType?,
-        val durationHours: Int?
+        val durationMinutes: Int?
     )
 
     /**
@@ -62,7 +62,7 @@ object AddBlockParser {
 
         val pattern: String
         val action: PunishmentType?
-        var durationHours: Int? = null
+        var durationMinutes: Int? = null
 
         if (braceMatch != null) {
             // Extract pattern (everything before the braces)
@@ -80,8 +80,8 @@ object AddBlockParser {
 
             // Parse optional duration
             if (braceContent.size > 1) {
-                durationHours = DurationParser.parse(braceContent[1])?.let {
-                    DurationParser.toHours(it)
+                durationMinutes = DurationParser.parse(braceContent[1])?.let {
+                    DurationParser.toMinutes(it)
                 }
             }
         } else {
@@ -98,6 +98,6 @@ object AddBlockParser {
             return Result.Failure(ParseError.PatternTooLong(pattern.length))
         }
 
-        return Result.Success(ParseResult(pattern, action, durationHours))
+        return Result.Success(ParseResult(pattern, action, durationMinutes))
     }
 }

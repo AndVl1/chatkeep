@@ -406,7 +406,7 @@ class CleanServiceCommandHandlerTest {
         maxWarnings = 3,
         warningTtlHours = 24,
         thresholdAction = "MUTE",
-        thresholdDurationHours = 24,
+        thresholdDurationMinutes = 1440,
         defaultBlocklistAction = "WARN",
         logChannelId = null,
         cleanServiceEnabled = cleanServiceEnabled,
