@@ -27,6 +27,7 @@ class ChannelReplyConfigHandler(
         private const val MAX_TEXT_LENGTH = 4096
         private const val MAX_BUTTON_TEXT_LENGTH = 64
         private const val MAX_BUTTONS = 10
+        private const val DISABLED_REMINDER = "\n\nNote: Auto-reply is currently DISABLED. Use /replyenable to activate it."
     }
 
     private fun isValidUrl(url: String): Boolean {
@@ -61,14 +62,7 @@ class ChannelReplyConfigHandler(
             handleClearButtons(message)
         }
 
-        // TODO: Media support - requires ktgbotapi API updates
-        // onCommand("replymedia", initialFilter = privateFilter) { message ->
-        //     handleReplyMedia(message)
-        // }
-
-        // onCommand("clearmedia", initialFilter = privateFilter) { message ->
-        //     handleClearMedia(message)
-        // }
+        // Note: /replymedia and /clearmedia are handled in ReplyMediaHandler
 
         onCommand("replyenable", initialFilter = privateFilter) { message ->
             handleReplyEnable(message)
@@ -108,10 +102,18 @@ class ChannelReplyConfigHandler(
                 channelReplyService.setText(ctx.chatId, replyText)
             }
 
+            // Check if auto-reply is enabled
+            val settings = withContext(Dispatchers.IO) {
+                channelReplyService.getSettings(ctx.chatId)
+            }
+
             reply(message, buildString {
                 appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
                 appendLine()
                 append("Channel reply text set.")
+                if (settings?.enabled != true) {
+                    append(DISABLED_REMINDER)
+                }
             })
 
             logger.info("Set channel reply text for chat ${ctx.chatId} by user ${ctx.userId}")
@@ -166,6 +168,9 @@ class ChannelReplyConfigHandler(
                     }
                 } else {
                     appendLine("Buttons: None")
+                }
+                if (!settings.enabled) {
+                    append(DISABLED_REMINDER)
                 }
             })
         }
@@ -231,10 +236,16 @@ class ChannelReplyConfigHandler(
                 channelReplyService.setButtons(ctx.chatId, existingButtons)
             }
 
+            // Check if auto-reply is enabled
+            val isEnabled = settings?.enabled == true
+
             reply(message, buildString {
                 appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
                 appendLine()
                 append("Button added. Total buttons: ${existingButtons.size}")
+                if (!isEnabled) {
+                    append(DISABLED_REMINDER)
+                }
             })
 
             logger.info("Added channel reply button for chat ${ctx.chatId} by user ${ctx.userId}")
@@ -247,26 +258,23 @@ class ChannelReplyConfigHandler(
                 channelReplyService.clearButtons(ctx.chatId)
             }
 
+            // Check if auto-reply is enabled
+            val settings = withContext(Dispatchers.IO) {
+                channelReplyService.getSettings(ctx.chatId)
+            }
+
             reply(message, buildString {
                 appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
                 appendLine()
                 append("All buttons cleared.")
+                if (settings?.enabled != true) {
+                    append(DISABLED_REMINDER)
+                }
             })
 
             logger.info("Cleared channel reply buttons for chat ${ctx.chatId} by user ${ctx.userId}")
         }
     }
-
-    // TODO: Implement when ktgbotapi reply API is clearer
-    /*
-    private suspend fun BehaviourContext.handleReplyMedia(message: CommonMessage<*>) {
-        // Implementation commented out - needs ktgbotapi v22 reply handling
-    }
-
-    private suspend fun BehaviourContext.handleClearMedia(message: CommonMessage<*>) {
-        // Implementation commented out - needs ktgbotapi v22 reply handling
-    }
-    */
 
     private suspend fun BehaviourContext.handleReplyEnable(message: CommonMessage<*>) {
         sessionAuthHelper.withSessionAuth(this, message) { ctx ->
