@@ -17,6 +17,7 @@ import ru.andvl.chatkeep.domain.model.locks.LockType
 import ru.andvl.chatkeep.infrastructure.repository.locks.LockAllowlistRepository
 import ru.andvl.chatkeep.infrastructure.repository.locks.LockExemptionRepository
 import ru.andvl.chatkeep.infrastructure.repository.locks.LockSettingsRepository
+import java.util.Optional
 import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 import kotlin.test.assertEquals
@@ -60,7 +61,7 @@ class LockSettingsServiceTest {
         val lockType = LockType.PHOTO
         val reason = "No photos allowed"
 
-        every { lockSettingsRepository.findByChatId(chatId) } returns null
+        every { lockSettingsRepository.findById(chatId) } returns Optional.empty()
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -96,7 +97,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = """{"PHOTO":{"locked":true,"reason":"No photos"}}"""
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns existingSettings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(existingSettings)
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -128,7 +129,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = """{"PHOTO":{"locked":true,"reason":"test"},"VIDEO":{"locked":true}}"""
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns existingSettings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(existingSettings)
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -155,7 +156,7 @@ class LockSettingsServiceTest {
         val chatId = 123L
         val lockType = LockType.STICKER
 
-        every { lockSettingsRepository.findByChatId(chatId) } returns null
+        every { lockSettingsRepository.findById(chatId) } returns Optional.empty()
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -185,7 +186,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = """{"PHOTO":{"locked":true,"reason":"old reason"}}"""
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns existingSettings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(existingSettings)
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -214,7 +215,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = """{"PHOTO":{"locked":true,"reason":"$reason"}}"""
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns settings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(settings)
 
         // When
         val result = service.getLock(chatId, lockType)
@@ -235,7 +236,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = """{"VIDEO":{"locked":true}}"""
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns settings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(settings)
 
         // When
         val result = service.getLock(chatId, lockType)
@@ -250,7 +251,7 @@ class LockSettingsServiceTest {
         val chatId = 123L
         val lockType = LockType.PHOTO
 
-        every { lockSettingsRepository.findByChatId(chatId) } returns null
+        every { lockSettingsRepository.findById(chatId) } returns Optional.empty()
 
         // When
         val result = service.getLock(chatId, lockType)
@@ -264,7 +265,7 @@ class LockSettingsServiceTest {
         // Given
         val chatId = 123L
 
-        every { lockSettingsRepository.findByChatId(chatId) } returns null
+        every { lockSettingsRepository.findById(chatId) } returns Optional.empty()
 
         // When
         val result = service.getAllLocks(chatId)
@@ -282,7 +283,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = """{"PHOTO":{"locked":true,"reason":"reason1"},"VIDEO":{"locked":true},"STICKER":{"locked":true}}"""
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns settings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(settings)
 
         // When
         val result = service.getAllLocks(chatId)
@@ -302,9 +303,9 @@ class LockSettingsServiceTest {
 
         val settings = LockSettings(
             chatId = chatId,
-            locksJson = null
+            locksJson = "{}"
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns settings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(settings)
 
         // When
         val result = service.getAllLocks(chatId)
@@ -322,7 +323,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = """{"PHOTO":{"locked":true},"UNKNOWN_TYPE":{"locked":true},"VIDEO":{"locked":true}}"""
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns settings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(settings)
 
         // When
         val result = service.getAllLocks(chatId)
@@ -341,7 +342,7 @@ class LockSettingsServiceTest {
         // Given
         val chatId = 123L
 
-        every { lockSettingsRepository.findByChatId(chatId) } returns null
+        every { lockSettingsRepository.findById(chatId) } returns Optional.empty()
 
         // When
         val result = service.isLockWarnsEnabled(chatId)
@@ -356,7 +357,7 @@ class LockSettingsServiceTest {
         val chatId = 123L
 
         val settings = LockSettings(chatId = chatId, lockWarns = false)
-        every { lockSettingsRepository.findByChatId(chatId) } returns settings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(settings)
 
         // When
         val result = service.isLockWarnsEnabled(chatId)
@@ -371,7 +372,7 @@ class LockSettingsServiceTest {
         val chatId = 123L
 
         val settings = LockSettings(chatId = chatId, lockWarns = true)
-        every { lockSettingsRepository.findByChatId(chatId) } returns settings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(settings)
 
         // When
         val result = service.isLockWarnsEnabled(chatId)
@@ -385,7 +386,7 @@ class LockSettingsServiceTest {
         // Given
         val chatId = 123L
 
-        every { lockSettingsRepository.findByChatId(chatId) } returns null
+        every { lockSettingsRepository.findById(chatId) } returns Optional.empty()
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -405,7 +406,7 @@ class LockSettingsServiceTest {
         val chatId = 123L
 
         val existingSettings = LockSettings(chatId = chatId, lockWarns = false)
-        every { lockSettingsRepository.findByChatId(chatId) } returns existingSettings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(existingSettings)
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -423,7 +424,7 @@ class LockSettingsServiceTest {
         val chatId = 123L
 
         val existingSettings = LockSettings(chatId = chatId, lockWarns = true)
-        every { lockSettingsRepository.findByChatId(chatId) } returns existingSettings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(existingSettings)
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -839,7 +840,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = "INVALID JSON {{{" // Malformed JSON
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns existingSettings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(existingSettings)
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -870,7 +871,7 @@ class LockSettingsServiceTest {
             chatId = chatId,
             locksJson = "INVALID JSON"
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns settings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(settings)
 
         // When
         val result = service.getAllLocks(chatId)
@@ -892,7 +893,7 @@ class LockSettingsServiceTest {
             createdAt = oldTimestamp,
             updatedAt = oldTimestamp
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns existingSettings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(existingSettings)
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -919,7 +920,7 @@ class LockSettingsServiceTest {
             createdAt = oldTimestamp,
             updatedAt = oldTimestamp
         )
-        every { lockSettingsRepository.findByChatId(chatId) } returns existingSettings
+        every { lockSettingsRepository.findById(chatId) } returns Optional.of(existingSettings)
 
         val settingsSlot = slot<LockSettings>()
         every { lockSettingsRepository.save(capture(settingsSlot)) } answers { firstArg() }
@@ -940,9 +941,9 @@ class LockSettingsServiceTest {
         // Given
         val chatId = 123L
 
-        every { lockSettingsRepository.findByChatId(chatId) } returns null andThen
-                LockSettings(chatId = chatId, locksJson = """{"PHOTO":{"locked":true}}""") andThen
-                LockSettings(chatId = chatId, locksJson = """{"PHOTO":{"locked":true},"VIDEO":{"locked":true},"STICKER":{"locked":true}}""")
+        every { lockSettingsRepository.findById(chatId) } returns Optional.empty() andThen
+                Optional.of(LockSettings(chatId = chatId, locksJson = """{"PHOTO":{"locked":true}}""")) andThen
+                Optional.of(LockSettings(chatId = chatId, locksJson = """{"PHOTO":{"locked":true},"VIDEO":{"locked":true},"STICKER":{"locked":true}}"""))
 
         every { lockSettingsRepository.save(any()) } answers { firstArg() }
 

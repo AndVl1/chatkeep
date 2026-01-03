@@ -9,6 +9,7 @@ import ru.andvl.chatkeep.domain.model.locks.*
 import ru.andvl.chatkeep.infrastructure.repository.locks.LockAllowlistRepository
 import ru.andvl.chatkeep.infrastructure.repository.locks.LockExemptionRepository
 import ru.andvl.chatkeep.infrastructure.repository.locks.LockSettingsRepository
+import ru.andvl.chatkeep.infrastructure.repository.locks.findByChatId
 import java.time.Instant
 
 @Service
@@ -31,8 +32,13 @@ class LockSettingsService(
     // Set lock for specific type
     @Transactional
     fun setLock(chatId: Long, lockType: LockType, locked: Boolean, reason: String? = null) {
-        val settings = lockSettingsRepository.findByChatId(chatId) ?: LockSettings(chatId = chatId)
-        val locks = parseLocksJson(settings.locksJson)
+        val existingSettings = lockSettingsRepository.findByChatId(chatId)
+
+        val locks = if (existingSettings != null) {
+            parseLocksJson(existingSettings.locksJson)
+        } else {
+            mutableMapOf()
+        }
 
         if (locked) {
             locks[lockType.name] = LockConfig(locked = true, reason = reason)
@@ -40,18 +46,30 @@ class LockSettingsService(
             locks.remove(lockType.name)
         }
 
-        val updated = settings.copy(
-            locksJson = serializeLocksJson(locks),
-            updatedAt = Instant.now()
-        )
-        lockSettingsRepository.save(updated)
+        val newLocksJson = serializeLocksJson(locks)
+
+        val toSave = if (existingSettings != null) {
+            LockSettings(
+                chatId = chatId,
+                locksJson = newLocksJson,
+                lockWarns = existingSettings.lockWarns,
+                createdAt = existingSettings.createdAt,
+                updatedAt = Instant.now()
+            )
+        } else {
+            LockSettings.createNew(chatId = chatId, locksJson = newLocksJson)
+        }
+
+        lockSettingsRepository.save(toSave)
         logger.info("Lock ${lockType.name} ${if (locked) "enabled" else "disabled"} for chat $chatId")
     }
 
     // Get all locks for chat
     fun getAllLocks(chatId: Long): Map<LockType, LockConfig> {
         val settings = lockSettingsRepository.findByChatId(chatId) ?: return emptyMap()
+
         val locks = parseLocksJson(settings.locksJson)
+
         return locks.mapNotNull { (key, value) ->
             try {
                 LockType.valueOf(key) to value
@@ -69,12 +87,21 @@ class LockSettingsService(
 
     @Transactional
     fun setLockWarns(chatId: Long, enabled: Boolean) {
-        val settings = lockSettingsRepository.findByChatId(chatId) ?: LockSettings(chatId = chatId)
-        val updated = settings.copy(
-            lockWarns = enabled,
-            updatedAt = Instant.now()
-        )
-        lockSettingsRepository.save(updated)
+        val existingSettings = lockSettingsRepository.findByChatId(chatId)
+        val toSave = if (existingSettings != null) {
+            // UPDATE
+            LockSettings(
+                chatId = chatId,
+                locksJson = existingSettings.locksJson,
+                lockWarns = enabled,
+                createdAt = existingSettings.createdAt,
+                updatedAt = Instant.now()
+            )
+        } else {
+            // INSERT
+            LockSettings.createNew(chatId = chatId, lockWarns = enabled)
+        }
+        lockSettingsRepository.save(toSave)
         logger.info("Lock warns ${if (enabled) "enabled" else "disabled"} for chat $chatId")
     }
 
@@ -143,8 +170,8 @@ class LockSettingsService(
     }
 
     // JSON parsing helpers
-    private fun parseLocksJson(json: String?): MutableMap<String, LockConfig> {
-        if (json.isNullOrBlank()) return mutableMapOf()
+    private fun parseLocksJson(json: String): MutableMap<String, LockConfig> {
+        if (json.isBlank() || json == "{}") return mutableMapOf()
         return try {
             objectMapper.readValue(json, object : TypeReference<MutableMap<String, LockConfig>>() {})
         } catch (e: Exception) {
@@ -155,9 +182,9 @@ class LockSettingsService(
 
     private fun serializeLocksJson(locks: Map<String, LockConfig>): String {
         return if (locks.isEmpty()) {
-            null
+            "{}"
         } else {
             objectMapper.writeValueAsString(locks)
-        } ?: ""
+        }
     }
 }
