@@ -18,6 +18,7 @@ import ru.andvl.chatkeep.domain.model.moderation.Warning
 import ru.andvl.chatkeep.domain.service.locks.LockDetectorRegistry
 import ru.andvl.chatkeep.domain.service.locks.LockSettingsService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
+import ru.andvl.chatkeep.domain.service.moderation.PunishmentService
 import ru.andvl.chatkeep.domain.service.moderation.WarningService
 import java.time.Instant
 import kotlin.test.assertEquals
@@ -45,6 +46,7 @@ class LockEnforcementHandlerTest {
     private lateinit var lockDetectorRegistry: LockDetectorRegistry
     private lateinit var adminCacheService: AdminCacheService
     private lateinit var warningService: WarningService
+    private lateinit var punishmentService: PunishmentService
     private lateinit var handler: LockEnforcementHandler
 
     @BeforeEach
@@ -53,11 +55,13 @@ class LockEnforcementHandlerTest {
         lockDetectorRegistry = mockk()
         adminCacheService = mockk()
         warningService = mockk()
+        punishmentService = mockk()
         handler = LockEnforcementHandler(
             lockSettingsService,
             lockDetectorRegistry,
             adminCacheService,
-            warningService
+            warningService,
+            punishmentService
         )
     }
 

@@ -1,37 +1,57 @@
 package ru.andvl.chatkeep.bot.handlers.locks
 
 import dev.inmo.tgbotapi.extensions.api.delete
+import dev.inmo.tgbotapi.extensions.api.send.send
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onContentMessage
+import dev.inmo.tgbotapi.types.ChatId
+import dev.inmo.tgbotapi.types.RawChatId
+import dev.inmo.tgbotapi.types.buttons.InlineKeyboardMarkup
+import dev.inmo.tgbotapi.types.buttons.InlineKeyboardButtons.CallbackDataInlineKeyboardButton
+import dev.inmo.tgbotapi.types.chat.Bot
 import dev.inmo.tgbotapi.types.chat.GroupChat
 import dev.inmo.tgbotapi.types.chat.SupergroupChat
-import dev.inmo.tgbotapi.types.chat.Bot
 import dev.inmo.tgbotapi.types.message.abstracts.ContentMessage
 import dev.inmo.tgbotapi.types.message.abstracts.FromChannelGroupContentMessage
 import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.utils.RiskFeature
+import dev.inmo.tgbotapi.utils.matrix
+import dev.inmo.tgbotapi.utils.row
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
 import ru.andvl.chatkeep.domain.model.locks.AllowlistType
 import ru.andvl.chatkeep.domain.model.locks.ExemptionType
+import ru.andvl.chatkeep.domain.model.locks.LockType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 import ru.andvl.chatkeep.domain.service.locks.DetectionContext
 import ru.andvl.chatkeep.domain.service.locks.LockDetectorRegistry
 import ru.andvl.chatkeep.domain.service.locks.LockSettingsService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
+import ru.andvl.chatkeep.domain.service.moderation.PunishmentService
 import ru.andvl.chatkeep.domain.service.moderation.WarningService
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 @Component
 class LockEnforcementHandler(
     private val lockSettingsService: LockSettingsService,
     private val lockDetectorRegistry: LockDetectorRegistry,
     private val adminCacheService: AdminCacheService,
-    private val warningService: WarningService
+    private val warningService: WarningService,
+    private val punishmentService: PunishmentService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
+
+    companion object {
+        private val AUTO_DELETE_DELAY = 60.seconds
+    }
 
     @OptIn(RiskFeature::class)
     override suspend fun BehaviourContext.register() {
@@ -74,7 +94,7 @@ class LockEnforcementHandler(
 
                 if (detector.detect(message, context)) {
                     // Lock violated - handle violation
-                    handleViolation(message, chatId, userId, config.reason)
+                    handleViolation(message, chatId, userId, lockType, config.reason)
                     return  // Stop after first violation
                 }
             }
@@ -114,7 +134,7 @@ class LockEnforcementHandler(
         // Channel post exemption (linked channel) - only if ANONCHANNEL lock is not enabled
         if (message is FromChannelGroupContentMessage<*>) {
             val anonChannelLock = withContext(Dispatchers.IO) {
-                lockSettingsService.getLock(chatId, ru.andvl.chatkeep.domain.model.locks.LockType.ANONCHANNEL)
+                lockSettingsService.getLock(chatId, LockType.ANONCHANNEL)
             }
             // Exempt only if ANONCHANNEL lock is not active
             if (anonChannelLock == null || !anonChannelLock.locked) {
@@ -155,12 +175,13 @@ class LockEnforcementHandler(
         message: ContentMessage<*>,
         chatId: Long,
         userId: Long?,
+        lockType: LockType,
         reason: String?
     ) {
         // Delete the message
         try {
             delete(message)
-            logger.info("Deleted message violating lock in chat $chatId")
+            logger.info("Deleted message violating lock ${lockType.name} in chat $chatId")
         } catch (e: Exception) {
             logger.error("Failed to delete message: ${e.message}")
         }
@@ -172,10 +193,10 @@ class LockEnforcementHandler(
             }
 
             if (warnsEnabled) {
-                val warnReason = reason ?: "Locked content"
+                val warnReason = reason ?: "Lock: ${lockType.name.lowercase()}"
 
-                // Issue warning with threshold check
-                val result = withContext(Dispatchers.IO) {
+                // Issue warning with threshold check (atomic operation)
+                val thresholdResult = withContext(Dispatchers.IO) {
                     warningService.issueWarningWithThreshold(
                         chatId = chatId,
                         userId = userId,
@@ -183,12 +204,93 @@ class LockEnforcementHandler(
                         reason = warnReason
                     )
                 }
+                val warningResult = thresholdResult.warningResult
 
                 logger.info(
                     "Issued lock warning to user $userId in chat $chatId: " +
-                    "${result.warningResult.activeCount}/${result.warningResult.maxWarnings} warnings"
+                    "${warningResult.activeCount}/${warningResult.maxWarnings} warnings"
+                )
+
+                // Apply threshold punishment if triggered
+                if (thresholdResult.thresholdTriggered && thresholdResult.thresholdAction != null) {
+                    withContext(Dispatchers.IO) {
+                        punishmentService.executePunishment(
+                            chatId = chatId,
+                            userId = userId,
+                            issuedById = 0,
+                            type = thresholdResult.thresholdAction,
+                            duration = thresholdResult.thresholdDurationMinutes?.minutes,
+                            reason = "Warning threshold reached",
+                            source = PunishmentSource.THRESHOLD
+                        )
+                    }
+                    logger.info("Warning threshold reached, applied punishment: chatId=$chatId, userId=$userId")
+                }
+
+                // Send notification with warning count and admin undo button
+                sendLockNotification(
+                    chatId = chatId,
+                    userId = userId,
+                    lockType = lockType,
+                    reason = warnReason,
+                    warningCount = warningResult.activeCount,
+                    maxWarnings = warningResult.maxWarnings,
+                    thresholdAction = warningResult.thresholdAction
                 )
             }
+        }
+    }
+
+    private suspend fun BehaviourContext.sendLockNotification(
+        chatId: Long,
+        userId: Long,
+        lockType: LockType,
+        reason: String,
+        warningCount: Int,
+        maxWarnings: Int,
+        thresholdAction: PunishmentType?
+    ) {
+        val notificationMessage = buildString {
+            appendLine("🔒 Lock: ${lockType.name.lowercase()}")
+            appendLine()
+            appendLine("Причина: $reason")
+            appendLine("Варнов: $warningCount/$maxWarnings")
+            if (thresholdAction != null) {
+                appendLine("При $maxWarnings варнах: ${thresholdAction.name.lowercase()}")
+            }
+        }
+
+        // Create inline keyboard with undo button
+        val keyboard = InlineKeyboardMarkup(
+            keyboard = matrix {
+                row {
+                    +CallbackDataInlineKeyboardButton(
+                        "Удалить варн (только админ)",
+                        "lock_undo:$chatId:$userId:WARN"
+                    )
+                }
+            }
+        )
+
+        try {
+            val sentMessage = send(
+                ChatId(RawChatId(chatId)),
+                notificationMessage,
+                replyMarkup = keyboard
+            )
+
+            // Auto-delete after delay
+            launch {
+                delay(AUTO_DELETE_DELAY)
+                try {
+                    delete(sentMessage)
+                    logger.debug("Auto-deleted lock notification in chat $chatId")
+                } catch (e: Exception) {
+                    logger.warn("Failed to auto-delete lock notification in chat $chatId: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to send lock notification in chat $chatId: ${e.message}")
         }
     }
 }
