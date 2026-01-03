@@ -2,6 +2,7 @@ package ru.andvl.chatkeep.domain.service.moderation
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import ru.andvl.chatkeep.domain.model.moderation.AdminSession
 import ru.andvl.chatkeep.infrastructure.repository.moderation.AdminSessionRepository
 
@@ -12,6 +13,7 @@ class AdminSessionService(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    @Transactional
     fun connect(userId: Long, chatId: Long, chatTitle: String?): AdminSession {
         // Delete existing session if any
         adminSessionRepository.deleteByUserId(userId)
