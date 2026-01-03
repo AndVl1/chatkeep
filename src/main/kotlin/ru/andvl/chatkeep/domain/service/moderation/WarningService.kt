@@ -32,6 +32,18 @@ class WarningService(
         val thresholdAction: PunishmentType
     )
 
+    /**
+     * Result of issuing a warning with atomic threshold check.
+     * Combines warning issuance and threshold check in a single transaction
+     * to prevent race conditions when multiple warnings are issued concurrently.
+     */
+    data class WarningWithThresholdResult(
+        val warningResult: WarningResult,
+        val thresholdTriggered: Boolean,
+        val thresholdAction: PunishmentType?,
+        val thresholdDurationMinutes: Int?
+    )
+
     fun issueWarning(
         chatId: Long,
         userId: Long,
@@ -83,6 +95,44 @@ class WarningService(
         )
     }
 
+    /**
+     * Issues a warning and atomically checks if threshold is reached.
+     * This method prevents race conditions where two concurrent warnings
+     * could both trigger threshold punishment.
+     *
+     * @return Result containing warning info and whether threshold was triggered
+     */
+    @Transactional
+    fun issueWarningWithThreshold(
+        chatId: Long,
+        userId: Long,
+        issuedById: Long,
+        reason: String?,
+        chatTitle: String? = null
+    ): WarningWithThresholdResult {
+        // Issue the warning first
+        val warningResult = issueWarning(chatId, userId, issuedById, reason, chatTitle)
+
+        // Check threshold atomically in the same transaction
+        val thresholdTriggered = warningResult.activeCount >= warningResult.maxWarnings
+        val thresholdAction = if (thresholdTriggered) warningResult.thresholdAction else null
+        val thresholdDurationMinutes = if (thresholdTriggered) getThresholdDurationMinutes(chatId) else null
+
+        if (thresholdTriggered) {
+            logger.info(
+                "Warning threshold reached atomically: chatId=$chatId, userId=$userId, " +
+                    "count=${warningResult.activeCount}/${warningResult.maxWarnings}, action=$thresholdAction"
+            )
+        }
+
+        return WarningWithThresholdResult(
+            warningResult = warningResult,
+            thresholdTriggered = thresholdTriggered,
+            thresholdAction = thresholdAction,
+            thresholdDurationMinutes = thresholdDurationMinutes
+        )
+    }
+
     @Transactional
     fun removeWarnings(chatId: Long, userId: Long, issuedById: Long, chatTitle: String? = null) {
         val now = Instant.now()
@@ -120,8 +170,8 @@ class WarningService(
         return null
     }
 
-    fun getThresholdDurationHours(chatId: Long): Int? {
+    fun getThresholdDurationMinutes(chatId: Long): Int? {
         val config = moderationConfigRepository.findByChatId(chatId)
-        return config?.thresholdDurationHours
+        return config?.thresholdDurationMinutes
     }
 }

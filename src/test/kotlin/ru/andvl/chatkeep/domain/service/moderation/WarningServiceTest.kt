@@ -341,45 +341,45 @@ class WarningServiceTest {
     // THRESHOLD DURATION TESTS
 
     @Test
-    fun `getThresholdDurationHours should return config value`() {
+    fun `getThresholdDurationMinutes should return config value`() {
         // Given
         val chatId = 123L
-        val durationHours = 48
+        val durationMinutes = 2880  // 48 hours in minutes
 
-        val config = createConfig(chatId, thresholdDurationHours = durationHours)
+        val config = createConfig(chatId, thresholdDurationMinutes = durationMinutes)
         every { moderationConfigRepository.findByChatId(chatId) } returns config
 
         // When
-        val result = service.getThresholdDurationHours(chatId)
+        val result = service.getThresholdDurationMinutes(chatId)
 
         // Then
-        assertEquals(durationHours, result)
+        assertEquals(durationMinutes, result)
     }
 
     @Test
-    fun `getThresholdDurationHours should return null when config not found`() {
+    fun `getThresholdDurationMinutes should return null when config not found`() {
         // Given
         val chatId = 123L
 
         every { moderationConfigRepository.findByChatId(chatId) } returns null
 
         // When
-        val result = service.getThresholdDurationHours(chatId)
+        val result = service.getThresholdDurationMinutes(chatId)
 
         // Then
         assertNull(result)
     }
 
     @Test
-    fun `getThresholdDurationHours should return null when duration not set in config`() {
+    fun `getThresholdDurationMinutes should return null when duration not set in config`() {
         // Given
         val chatId = 123L
 
-        val config = createConfig(chatId, thresholdDurationHours = null)
+        val config = createConfig(chatId, thresholdDurationMinutes = null)
         every { moderationConfigRepository.findByChatId(chatId) } returns config
 
         // When
-        val result = service.getThresholdDurationHours(chatId)
+        val result = service.getThresholdDurationMinutes(chatId)
 
         // Then
         assertNull(result)
@@ -426,20 +426,129 @@ class WarningServiceTest {
         assertNull(result, "Should only count active warnings (2), not expired ones")
     }
 
+    // ATOMIC METHOD TESTS (issueWarningWithThreshold)
+
+    @Test
+    fun `issueWarningWithThreshold should return thresholdTriggered=false when below threshold`() {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+        val maxWarnings = 3
+
+        val config = createConfig(chatId, maxWarnings = maxWarnings)
+        every { moderationConfigRepository.findByChatId(chatId) } returns config
+        every { warningRepository.save(any()) } answers { firstArg() }
+        every { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) } returns 2
+
+        // When
+        val result = service.issueWarningWithThreshold(chatId, userId, 789L, "test")
+
+        // Then
+        assertEquals(false, result.thresholdTriggered, "Should not trigger threshold at 2/3 warnings")
+        assertNull(result.thresholdAction)
+        assertNull(result.thresholdDurationMinutes)
+        assertEquals(2, result.warningResult.activeCount)
+        assertEquals(3, result.warningResult.maxWarnings)
+    }
+
+    @Test
+    fun `issueWarningWithThreshold should return thresholdTriggered=true when at threshold`() {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+        val maxWarnings = 3
+        val thresholdDurationMinutes = 2880  // 48 hours in minutes
+
+        val config = createConfig(
+            chatId,
+            maxWarnings = maxWarnings,
+            thresholdAction = "BAN",
+            thresholdDurationMinutes = thresholdDurationMinutes
+        )
+        every { moderationConfigRepository.findByChatId(chatId) } returns config
+        every { warningRepository.save(any()) } answers { firstArg() }
+        every { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) } returns 3
+
+        // When
+        val result = service.issueWarningWithThreshold(chatId, userId, 789L, "test")
+
+        // Then
+        assertEquals(true, result.thresholdTriggered, "Should trigger threshold at 3/3 warnings")
+        assertEquals(PunishmentType.BAN, result.thresholdAction)
+        assertEquals(thresholdDurationMinutes, result.thresholdDurationMinutes)
+        assertEquals(3, result.warningResult.activeCount)
+        assertEquals(3, result.warningResult.maxWarnings)
+    }
+
+    @Test
+    fun `issueWarningWithThreshold should return thresholdTriggered=true when above threshold`() {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+        val maxWarnings = 3
+
+        val config = createConfig(chatId, maxWarnings = maxWarnings, thresholdAction = "MUTE")
+        every { moderationConfigRepository.findByChatId(chatId) } returns config
+        every { warningRepository.save(any()) } answers { firstArg() }
+        every { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) } returns 5
+
+        // When
+        val result = service.issueWarningWithThreshold(chatId, userId, 789L, "test")
+
+        // Then
+        assertEquals(true, result.thresholdTriggered, "Should trigger threshold at 5/3 warnings")
+        assertEquals(PunishmentType.MUTE, result.thresholdAction)
+    }
+
+    @Test
+    fun `issueWarningWithThreshold combines warning and threshold check atomically`() {
+        // Given - This test verifies the method returns all data in a single call
+        val chatId = 123L
+        val userId = 456L
+        val maxWarnings = 2
+        val thresholdDurationMinutes = 1440  // 24 hours in minutes
+
+        val config = createConfig(
+            chatId,
+            maxWarnings = maxWarnings,
+            thresholdAction = "KICK",
+            thresholdDurationMinutes = thresholdDurationMinutes
+        )
+        every { moderationConfigRepository.findByChatId(chatId) } returns config
+        every { warningRepository.save(any()) } answers { firstArg() }
+        every { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) } returns 2
+
+        // When
+        val result = service.issueWarningWithThreshold(chatId, userId, 789L, "atomic test")
+
+        // Then - All data should be available from single atomic call
+        assertNotNull(result.warningResult.warning)
+        assertEquals(2, result.warningResult.activeCount)
+        assertEquals(2, result.warningResult.maxWarnings)
+        assertEquals(true, result.thresholdTriggered)
+        assertEquals(PunishmentType.KICK, result.thresholdAction)
+        assertEquals(thresholdDurationMinutes, result.thresholdDurationMinutes)
+
+        // Verify repository calls happened within the method
+        verify(exactly = 1) { warningRepository.save(any()) }
+        verify { warningRepository.countActiveByChatIdAndUserId(chatId, userId, any()) }
+        verify { moderationConfigRepository.findByChatId(chatId) }
+    }
+
     // Helper function
     private fun createConfig(
         chatId: Long,
         maxWarnings: Int = 3,
         warningTtlHours: Int = 24,
         thresholdAction: String = "MUTE",
-        thresholdDurationHours: Int? = 24
+        thresholdDurationMinutes: Int? = 1440  // 24 hours in minutes
     ) = ModerationConfig(
         id = null,
         chatId = chatId,
         maxWarnings = maxWarnings,
         warningTtlHours = warningTtlHours,
         thresholdAction = thresholdAction,
-        thresholdDurationHours = thresholdDurationHours,
+        thresholdDurationMinutes = thresholdDurationMinutes,
         createdAt = Instant.now(),
         updatedAt = Instant.now()
     )

@@ -29,7 +29,8 @@ class GroupMessageHandler(
             initialFilter = { message ->
                 val chat = message.chat
                 (chat is GroupChat || chat is SupergroupChat) && message.content is TextContent
-            }
+            },
+            markerFactory = null // Enable parallel processing of all messages
         ) { message ->
             val textContent = message.content as TextContent
             val user = (message as? FromUserMessage)?.from ?: return@onContentMessage
