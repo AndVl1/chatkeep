@@ -53,4 +53,8 @@ out/
 
 ### Claude Code ###
 .claude/team-state.md
+.claude/sessions.log
+.claude/changes.log
+.claude/settings.json
+.claude/research/
 .mcp.json
