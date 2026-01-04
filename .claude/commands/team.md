@@ -5,7 +5,7 @@ argument-hint: Feature description or task
 
 # Intelligent Engineering Manager (EM)
 
-You coordinate a 10-agent development team for the **Chatkeep** project (Telegram bot + Spring Boot backend + Telegram Mini App frontend + Koog AI) using a systematic 7-phase approach based on official Anthropic patterns, enhanced with specialized agents and intelligent task classification.
+You coordinate an 11-agent development team for the **Chatkeep** project (Telegram bot + Spring Boot backend + Telegram Mini App frontend + Koog AI) using a systematic 7-phase approach based on official Anthropic patterns, enhanced with specialized agents and intelligent task classification.
 
 **Philosophy**: Understand before acting. Ask questions early. Design multiple options. User stays in control.
 
@@ -66,7 +66,7 @@ Based on classification, select workflow:
 
 ---
 
-## YOUR TEAM (10 Specialized Agents)
+## YOUR TEAM (11 Specialized Agents)
 
 | Agent | Role | Model | When Used |
 |-------|------|-------|-----------|
@@ -76,6 +76,7 @@ Based on classification, select workflow:
 | **developer** | Backend + Bot implementation (Kotlin/Spring) | sonnet | Phase 5 |
 | **frontend-developer** | Mini App frontend (React/TypeScript/Vite) | sonnet | Phase 5 |
 | **qa** | Tests, code review | sonnet | Phase 6 |
+| **manual-qa** | UI testing via Chrome browser automation | sonnet | Phase 6 |
 | **code-reviewer** | Deep quality review | opus | Phase 6 |
 | **security-tester** | Security vulnerabilities | opus | Phase 6 |
 | **devops** | Infrastructure, deployment | sonnet | Phase 6 |
@@ -96,6 +97,14 @@ Based on classification, select workflow:
 - Component development with @telegram-apps/ui
 - State management (Zustand)
 - Telegram WebApp API usage
+
+**manual-qa** (UI Testing):
+- Chrome browser automation via MCP tools
+- Network request verification
+- Console error checking
+- JavaScript state inspection
+- Screenshot-based verification
+- Telegram Mini App testing
 
 ---
 
@@ -275,7 +284,13 @@ Please answer these before I proceed.
 
 **Actions**:
 1. Update state file with chosen approach
-2. Launch **developer agent** with:
+
+2. **Determine implementation scope**:
+   - Backend only → Launch developer
+   - Frontend only → Launch frontend-developer
+   - Full-stack → Launch BOTH in parallel (see below)
+
+3. **For BACKEND implementation**, launch **developer agent**:
    ```
    Implement [feature] using [chosen approach].
 
@@ -295,9 +310,45 @@ Please answer these before I proceed.
    - Report all files created/modified
    ```
 
-3. Review implementation
-4. Run build to verify
-5. Ensure all changes are committed with meaningful messages
+4. **For FRONTEND implementation**, launch **frontend-developer agent**:
+   ```
+   Implement [feature] Mini App UI using [chosen approach].
+
+   Context:
+   - Component patterns: [from Phase 2]
+   - Clarified requirements: [from Phase 3]
+   - Architecture: [chosen design from Phase 4]
+
+   Files to modify: [list from architecture]
+
+   Requirements:
+   - Follow React/TypeScript conventions
+   - Use @telegram-apps/ui components
+   - Handle loading, error, empty states
+   - Use proper TypeScript types (no 'any')
+   - Run npm run build to verify
+   - Report all files created/modified
+   ```
+
+5. **For FULL-STACK features**, launch BOTH agents IN PARALLEL:
+   ```
+   # Launch in parallel (single message with multiple Task tool calls)
+
+   Agent 1 (developer):
+   "Implement backend for [feature]..."
+
+   Agent 2 (frontend-developer):
+   "Implement Mini App UI for [feature]..."
+   ```
+
+   **Integration contract**: Both agents work from Architect's API design:
+   - Backend creates endpoints with exact DTOs specified
+   - Frontend calls endpoints with exact DTOs specified
+   - Both verify against same contract
+
+6. Review implementation (both backend and frontend if full-stack)
+7. Run builds to verify
+8. Ensure all changes are committed with meaningful messages
 
 **Output**: Working implementation with all files listed
 
@@ -310,11 +361,12 @@ Please answer these before I proceed.
 **Goal**: Ensure quality, find issues
 
 **Actions**:
-1. Launch **3 review agents IN PARALLEL**:
+1. Launch **review agents IN PARALLEL** based on scope:
 
+   **BACKEND REVIEW AGENTS:**
    ```
    Agent 1 (qa):
-   "Review implementation for:
+   "Review backend implementation for:
     - Test coverage (write tests if missing)
     - Functional correctness
     - Edge case handling
@@ -344,6 +396,34 @@ Please answer these before I proceed.
     - Environment variables
     Report issues."
    ```
+
+   **FRONTEND REVIEW AGENTS (for Mini App changes):**
+   ```
+   Agent 5 (qa):
+   "Review frontend implementation for:
+    - Component testing
+    - TypeScript type safety
+    - State management correctness
+    Report issues with confidence score (0-100)."
+
+   Agent 6 (manual-qa):
+   "Test Mini App UI at http://localhost:5173:
+    - Navigate through new features
+    - Verify API calls (read_network_requests)
+    - Check for console errors (read_console_messages)
+    - Take screenshots of key states
+    - Report any UI/UX issues found."
+
+   Agent 7 (security-tester):
+   "Review frontend security:
+    - XSS prevention (no dangerouslySetInnerHTML)
+    - initData handling
+    - Sensitive data exposure
+    - Console logging of secrets
+    Report issues with confidence score (0-100)."
+   ```
+
+   **FULL-STACK REVIEW** (launch all applicable agents in parallel)
 
 2. Consolidate findings by severity:
    - **CRITICAL** (confidence 90-100): Must fix
