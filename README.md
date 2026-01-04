@@ -1,136 +1,123 @@
 # Chatkeep
 
-Telegram-бот для сохранения истории сообщений групповых чатов.
+Telegram-бот для модерации групповых чатов и сохранения истории сообщений.
 
 ## Возможности
 
-- Автоматический сбор текстовых сообщений из групповых чатов
-- Хранение сообщений в PostgreSQL с информацией об авторе
-- Управление ботом через личные сообщения (для админов чатов)
-- Включение/отключение сбора для отдельных чатов
-- Просмотр статистики по чатам
+- **Сбор сообщений** — автоматическое сохранение истории групповых чатов в PostgreSQL
+- **Модерация** — warn/mute/ban/kick с настраиваемыми порогами
+- **Блоклисты** — фильтрация по словам/regex с действиями (delete/warn/mute/ban)
+- **Локи (49 типов)** — запрет определённого контента (фото, видео, ссылки, forward и др.)
+- **Канальные ответы** — автоматические ответы на посты в каналах с медиа и кнопками
+- **Лог-канал** — логирование действий модерации в отдельный канал
+- **Админ-сессии** — управление чатом через личные сообщения с ботом
 
 ## Технологии
 
-- Kotlin 2.2.21
-- Spring Boot 4.0.1
+- Kotlin 2.2.21 / Spring Boot 4.0.1
 - KTgBotAPI 22.0.0
-- PostgreSQL + Flyway
-- Spring Data JDBC
+- PostgreSQL + Flyway + Spring Data JDBC
 
 ## Быстрый старт
 
-### 1. Создать бота
-
-1. Написать [@BotFather](https://t.me/BotFather) в Telegram
-2. Создать нового бота: `/newbot`
-3. Отключить Privacy Mode: `/setprivacy` → Disable (чтобы бот видел все сообщения)
-4. Сохранить токен
-
-### 2. Запуск с Docker (рекомендуется)
-
 ```bash
-# Скопировать и настроить переменные окружения
+# Клонировать и настроить
 cp .env.example .env
-# Отредактировать .env, добавить TELEGRAM_BOT_TOKEN
+# Добавить TELEGRAM_BOT_TOKEN в .env
 
-# Запустить всё (PostgreSQL + приложение)
+# Запустить (PostgreSQL + приложение)
 ./scripts/dev.sh docker
 ```
 
-### 3. Запуск без Docker
-
-```bash
-# Запустить только PostgreSQL в Docker
-./scripts/dev.sh db
-
-# Установить переменные окружения
-export TELEGRAM_BOT_TOKEN=your_bot_token
-
-# Запустить приложение
-./scripts/dev.sh app
-```
-
-### Доступные команды dev.sh
-
-| Команда | Описание |
-|---------|----------|
-| `./scripts/dev.sh start` | Запустить PostgreSQL + приложение |
-| `./scripts/dev.sh db` | Только PostgreSQL |
-| `./scripts/dev.sh app` | Только приложение |
-| `./scripts/dev.sh test` | Запустить тесты |
-| `./scripts/dev.sh build` | Собрать проект |
-| `./scripts/dev.sh docker` | Собрать и запустить в Docker |
-| `./scripts/dev.sh stop` | Остановить контейнеры |
-| `./scripts/dev.sh clean` | Очистить всё |
+Подробнее о настройке бота: [CLAUDE.md](CLAUDE.md)
 
 ## Команды бота
+
+### Основные (личные сообщения)
 
 | Команда | Описание |
 |---------|----------|
 | `/start` | Справка |
 | `/mychats` | Список чатов, где вы админ |
-| `/stats <chat_id>` | Статистика чата |
-| `/enable <chat_id>` | Включить сбор сообщений |
-| `/disable <chat_id>` | Отключить сбор сообщений |
+| `/connect [chat_id]` | Подключиться к чату для управления |
+| `/disconnect` | Отключиться от чата |
 
-## Деплой
-
-### Production с Docker Compose
-
-```bash
-# На сервере
-export TELEGRAM_BOT_TOKEN=your_token
-export DB_PASSWORD=secure_password
-
-# Запустить
-./scripts/deploy.sh up
-
-# Или pull + restart
-./scripts/deploy.sh restart
-```
-
-### Доступные команды deploy.sh
+### Модерация (в группе или через /connect)
 
 | Команда | Описание |
 |---------|----------|
-| `./scripts/deploy.sh build` | Собрать Docker образ |
-| `./scripts/deploy.sh push` | Собрать и отправить в registry |
-| `./scripts/deploy.sh pull` | Скачать последний образ |
-| `./scripts/deploy.sh up` | Запустить production |
-| `./scripts/deploy.sh down` | Остановить |
-| `./scripts/deploy.sh restart` | Pull + restart |
-| `./scripts/deploy.sh logs` | Логи контейнеров |
+| `/warn @user [причина]` | Выдать предупреждение |
+| `/unwarn @user` | Снять предупреждение |
+| `/mute @user [время]` | Замутить (1h, 1d, 1w) |
+| `/unmute @user` | Размутить |
+| `/ban @user [время]` | Забанить |
+| `/unban @user` | Разбанить |
+| `/kick @user` | Кикнуть |
 
-## CI/CD
+### Блоклисты
 
-GitHub Actions автоматически:
+| Команда | Описание |
+|---------|----------|
+| `/addblock <слово> [действие]` | Добавить в блоклист (delete/warn/mute/ban) |
+| `/delblock <слово>` | Удалить из блоклиста |
+| `/blocklist` | Показать блоклист |
 
-- **На Pull Request**: сборка и тесты
-- **На push в main**: сборка Docker образа и push в ghcr.io
+### Локи
 
-### Настройка деплоя
+| Команда | Описание |
+|---------|----------|
+| `/lock <тип>` | Заблокировать тип контента |
+| `/unlock <тип>` | Разблокировать |
+| `/locks` | Показать активные локи |
+| `/locktypes` | Список всех типов локов |
+| `/lockwarns on/off` | Включить варны за нарушение локов |
 
-1. В репозитории: **Settings → Variables → Repository variables**
-2. Добавить `DEPLOY_ENABLED=true` для сборки Docker образов
-3. (Опционально) Для автодеплоя на сервер:
-   - `DEPLOY_HOST` - адрес сервера
-   - `DEPLOY_USER` - пользователь SSH
-   - `DEPLOY_PATH` - путь к проекту (по умолчанию `~/chatkeep`)
-   - Секрет `DEPLOY_SSH_KEY` - приватный SSH ключ
+### Канальные ответы
+
+| Команда | Описание |
+|---------|----------|
+| `/setreply <текст>` | Установить авто-ответ на посты |
+| `/delreply` | Удалить авто-ответ |
+| `/showreply` | Показать текущий ответ |
+| `/replymedia` | Добавить медиа к ответу (ответом на файл) |
+| `/clearmedia` | Удалить медиа |
+| `/replybutton <текст> <url>` | Добавить кнопку |
+| `/clearbuttons` | Удалить кнопки |
+| `/replyenable` / `/replydisable` | Вкл/выкл ответы |
+
+### Логирование
+
+| Команда | Описание |
+|---------|----------|
+| `/setlogchannel @channel` | Установить лог-канал |
+| `/unsetlogchannel` | Отключить логирование |
+| `/logchannel` | Показать текущий лог-канал |
+| `/viewlogs [дни]` | Экспорт логов в JSON |
+| `/cleanservice on/off` | Авто-удаление сервисных сообщений |
 
 ## Структура проекта
 
 ```
 src/main/kotlin/ru/andvl/chatkeep/
-├── bot/                    # Telegram bot
-│   ├── ChatkeepBot.kt      # Главный сервис бота
-│   └── handlers/           # Обработчики сообщений
-├── domain/                 # Бизнес-логика
+├── bot/
+│   ├── handlers/
+│   │   ├── moderation/     # Варны, баны, блоклисты
+│   │   ├── locks/          # Система локов
+│   │   └── channelreply/   # Канальные ответы
+│   └── util/               # Парсеры, утилиты
+├── domain/
 │   ├── model/              # Сущности
-│   └── service/            # Сервисы
-└── infrastructure/         # Инфраструктура
+│   └── service/            # Бизнес-логика
+└── infrastructure/
     └── repository/         # Репозитории
+```
+
+## Деплой
+
+```bash
+export TELEGRAM_BOT_TOKEN=your_token
+export DB_PASSWORD=secure_password
+./scripts/deploy.sh up
 ```
 
 ## Лицензия
