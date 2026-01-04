@@ -35,7 +35,7 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
 
     // Telegram Bot API
-    implementation("dev.inmo:tgbotapi:22.0.0")
+    implementation("dev.inmo:tgbotapi:30.0.2")
 
     // Database
     runtimeOnly("org.postgresql:postgresql")
