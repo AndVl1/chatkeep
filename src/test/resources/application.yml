@@ -16,6 +16,10 @@ telegram:
   bot:
     token: test-token
 
+jwt:
+  secret: test-secret-key-for-testing-at-least-32-chars-long
+  expiration-hours: 24
+
 logging:
   level:
     ru.andvl.chatkeep: DEBUG

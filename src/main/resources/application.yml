@@ -17,6 +17,12 @@ spring:
 telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
+  mini-app:
+    url: ${MINI_APP_URL:https://unmicrobial-unparticularising-shonta.ngrok-free.dev/}
+
+jwt:
+  secret: ${JWT_SECRET:}
+  expiration-hours: ${JWT_EXPIRATION_HOURS:24}
 
 admin-logs:
   path: ${ADMIN_LOGS_PATH:/tmp/chatkeep/admin-logs}
