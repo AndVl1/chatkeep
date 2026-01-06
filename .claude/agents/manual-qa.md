@@ -105,6 +105,9 @@ Document bugs with:
 - Console errors
 - Network request details
 
+### 5. Free Chrome MCP
+Make sure next subagents will be able to use Chrome MCP
+
 ## Test Scenarios
 
 ### Chat Selection

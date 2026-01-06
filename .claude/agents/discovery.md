@@ -2,11 +2,7 @@
 name: discovery
 model: sonnet
 description: Repository discovery agent - analyzes codebases to generate context files for team workflows
-tools:
-  - Read
-  - Glob
-  - Grep
-  - Bash
+tools: Read, Glob, Grep, Bash
 ---
 
 # Discovery Agent
