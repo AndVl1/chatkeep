@@ -85,9 +85,21 @@ class TelegramLogChannelAdapter(
             }
 
             // Reason (skip for config-only actions)
-            if (entry.actionType !in listOf(ActionType.CLEAN_SERVICE_ON, ActionType.CLEAN_SERVICE_OFF)) {
+            val configActions = listOf(
+                ActionType.CLEAN_SERVICE_ON,
+                ActionType.CLEAN_SERVICE_OFF,
+                ActionType.LOCK_WARNS_ON,
+                ActionType.LOCK_WARNS_OFF,
+                ActionType.CONFIG_CHANGED
+            )
+            if (entry.actionType !in configActions) {
                 val reason = entry.reason ?: "No reason provided"
                 appendLine("<b>Reason:</b> $reason")
+            }
+
+            // Config change details
+            if (entry.actionType == ActionType.CONFIG_CHANGED && entry.reason != null) {
+                appendLine("<b>Changes:</b> ${entry.reason}")
             }
 
             // Source (if not manual)
@@ -122,6 +134,9 @@ class TelegramLogChannelAdapter(
             ActionType.KICK -> "#KICKED"
             ActionType.CLEAN_SERVICE_ON -> "#CLEANSERVICE_ON"
             ActionType.CLEAN_SERVICE_OFF -> "#CLEANSERVICE_OFF"
+            ActionType.LOCK_WARNS_ON -> "#LOCKWARNS_ON"
+            ActionType.LOCK_WARNS_OFF -> "#LOCKWARNS_OFF"
+            ActionType.CONFIG_CHANGED -> "#CONFIG_CHANGED"
         }
     }
 

@@ -29,9 +29,11 @@ class AdminCacheService(
      * @return true if user is admin
      */
     suspend fun isAdmin(userId: Long, chatId: Long, forceRefresh: Boolean = false): Boolean {
+        logger.info("Admin check requested: userId=$userId, chatId=$chatId, forceRefresh=$forceRefresh")
+
         // Force fresh check for sensitive operations (SEC-003)
         if (forceRefresh) {
-            logger.debug("Admin check force refresh: userId=$userId, chatId=$chatId")
+            logger.info("Admin check force refresh: userId=$userId, chatId=$chatId")
             return fetchAdminStatus(userId, chatId)
         }
 
@@ -39,12 +41,12 @@ class AdminCacheService(
 
         // Check cache first
         adminCacheRepository.findValidEntry(userId, chatId, now)?.let {
-            logger.debug("Admin check cache hit: userId=$userId, chatId=$chatId, isAdmin=${it.isAdmin}")
+            logger.info("Admin check cache hit: userId=$userId, chatId=$chatId, isAdmin=${it.isAdmin}")
             return it.isAdmin
         }
 
         // Cache miss - fetch from Telegram
-        logger.debug("Admin check cache miss: userId=$userId, chatId=$chatId")
+        logger.info("Admin check cache miss: userId=$userId, chatId=$chatId")
         val isAdmin = fetchAdminStatus(userId, chatId)
 
         // Store in cache using upsert to handle expired entries
@@ -67,10 +69,14 @@ class AdminCacheService(
 
     private suspend fun fetchAdminStatus(userId: Long, chatId: Long): Boolean {
         return try {
+            logger.info("Fetching admin status: userId=$userId, chatId=$chatId")
             val admins = bot.getChatAdministrators(ChatId(RawChatId(chatId)))
-            admins.any { it.user.id.chatId.long == userId }
+            logger.info("Got ${admins.size} admins for chat $chatId: ${admins.map { it.user.id.chatId.long }}")
+            val isAdmin = admins.any { it.user.id.chatId.long == userId }
+            logger.info("User $userId isAdmin=$isAdmin in chat $chatId")
+            isAdmin
         } catch (e: Exception) {
-            logger.debug("Failed to get admins for chat $chatId: ${e.message}")
+            logger.error("Failed to get admins for chat $chatId: ${e.javaClass.simpleName}: ${e.message}", e)
             false
         }
     }
