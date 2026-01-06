@@ -19,7 +19,7 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 @Service
-class TelegramAuthService(
+open class TelegramAuthService(
     @Value("\${telegram.bot.token}") private val botToken: String,
     private val objectMapper: ObjectMapper
 ) {
@@ -49,7 +49,7 @@ class TelegramAuthService(
      * Validates Telegram Mini App initData using Ed25519 signature (preferred) or HMAC-SHA256 (fallback).
      * See: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
      */
-    fun validateAndParse(initDataRaw: String): TelegramUser? {
+    open fun validateAndParse(initDataRaw: String): TelegramUser? {
         try {
             logger.debug("Validating initData, length={}, preview={}",
                 initDataRaw.length,
