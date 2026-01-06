@@ -10,5 +10,8 @@ enum class ActionType {
     UNBAN,
     KICK,
     CLEAN_SERVICE_ON,
-    CLEAN_SERVICE_OFF
+    CLEAN_SERVICE_OFF,
+    LOCK_WARNS_ON,
+    LOCK_WARNS_OFF,
+    CONFIG_CHANGED
 }
