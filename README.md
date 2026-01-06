@@ -31,6 +31,63 @@ cp .env.example .env
 
 Подробнее о настройке бота: [CLAUDE.md](CLAUDE.md)
 
+## Mini App (Telegram Web Interface)
+
+Web-интерфейс для управления настройками бота через Telegram Mini Apps.
+
+### Возможности Mini App
+
+- **Выбор чата** из списка ваших админских чатов
+- **Настройки модерации**: лимит предупреждений, TTL, действия при превышении
+- **Управление локами**: 47 типов блокировок по 6 категориям
+  - General (общие), Media (медиа), Messages (сообщения)
+  - Links (ссылки), Bots (боты), Advanced (расширенные)
+- **Блоклист**: CRUD для паттернов с автодетектом wildcard/regex
+- **Интуитивный UI**: на базе Telegram UI Kit
+
+### Запуск Mini App
+
+**Полный стек одной командой:**
+```bash
+./scripts/dev.sh all
+```
+
+**Или по отдельности (разные терминалы):**
+```bash
+# Терминал 1: База данных
+./scripts/dev.sh db
+
+# Терминал 2: Backend (Spring Boot)
+./scripts/dev.sh app
+
+# Терминал 3: Frontend (Vite dev server)
+./scripts/dev.sh mini-app
+```
+
+### Production сборка
+
+```bash
+# Собрать Mini App для продакшена
+./scripts/dev.sh build-mini-app
+
+# Запустить весь стек через Docker Compose (db + app + nginx с mini-app)
+./scripts/dev.sh docker
+```
+
+После запуска:
+- **Backend API**: http://localhost:8080
+- **Mini App** (dev): http://localhost:5173
+- **Mini App** (production): http://localhost:3000
+
+### Настройка в Telegram
+
+1. Откройте @BotFather
+2. Выберите вашего бота → **Bot Settings** → **Menu Button**
+3. Установите URL вашего Mini App
+4. Теперь в чате с ботом будет кнопка меню для открытия интерфейса
+
+Подробное руководство: [VERIFICATION.md](VERIFICATION.md)
+
 ## Команды бота
 
 ### Основные (личные сообщения)
