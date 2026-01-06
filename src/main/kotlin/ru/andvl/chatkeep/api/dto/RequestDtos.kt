@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size
 data class UpdateSettingsRequest(
     val collectionEnabled: Boolean? = null,
     val cleanServiceEnabled: Boolean? = null,
+    val lockWarnsEnabled: Boolean? = null,
 
     @field:Min(1)
     @field:Max(20)

@@ -140,9 +140,18 @@ class MiniAppSettingsController(
             }
         }
 
+        // Track old settings for logging
+        val oldCollectionEnabled = chatSettings.collectionEnabled
+        val oldLockWarnsEnabled = lockSettingsService.isLockWarnsEnabled(chatId)
+
         // Update chat settings
         updateRequest.collectionEnabled?.let {
             chatService.setCollectionEnabled(chatId, it)
+        }
+
+        // Update lock warns setting
+        updateRequest.lockWarnsEnabled?.let {
+            lockSettingsService.setLockWarns(chatId, it)
         }
 
         // Update moderation config
@@ -162,7 +171,62 @@ class MiniAppSettingsController(
 
         moderationConfigRepository.save(updatedConfig)
 
-        // Log config changes to log channel if any settings changed
+        // Log collection toggle with specific action type
+        updateRequest.collectionEnabled?.let { newValue ->
+            if (oldCollectionEnabled != newValue) {
+                logChannelService.logModerationAction(
+                    ModerationLogEntry(
+                        chatId = chatId,
+                        chatTitle = chatSettings.chatTitle,
+                        adminId = user.id,
+                        adminFirstName = user.firstName,
+                        adminLastName = user.lastName,
+                        adminUserName = user.username,
+                        actionType = ActionType.CONFIG_CHANGED,
+                        reason = "collection: ${if (newValue) "ON" else "OFF"}",
+                        source = PunishmentSource.MANUAL
+                    )
+                )
+            }
+        }
+
+        // Log clean service toggle with specific action type
+        updateRequest.cleanServiceEnabled?.let { newValue ->
+            if (existingConfig.cleanServiceEnabled != newValue) {
+                logChannelService.logModerationAction(
+                    ModerationLogEntry(
+                        chatId = chatId,
+                        chatTitle = chatSettings.chatTitle,
+                        adminId = user.id,
+                        adminFirstName = user.firstName,
+                        adminLastName = user.lastName,
+                        adminUserName = user.username,
+                        actionType = if (newValue) ActionType.CLEAN_SERVICE_ON else ActionType.CLEAN_SERVICE_OFF,
+                        source = PunishmentSource.MANUAL
+                    )
+                )
+            }
+        }
+
+        // Log lock warns toggle with specific action type
+        updateRequest.lockWarnsEnabled?.let { newValue ->
+            if (oldLockWarnsEnabled != newValue) {
+                logChannelService.logModerationAction(
+                    ModerationLogEntry(
+                        chatId = chatId,
+                        chatTitle = chatSettings.chatTitle,
+                        adminId = user.id,
+                        adminFirstName = user.firstName,
+                        adminLastName = user.lastName,
+                        adminUserName = user.username,
+                        actionType = if (newValue) ActionType.LOCK_WARNS_ON else ActionType.LOCK_WARNS_OFF,
+                        source = PunishmentSource.MANUAL
+                    )
+                )
+            }
+        }
+
+        // Log other config changes to log channel if any settings changed
         val changes = buildConfigChangesList(existingConfig, updatedConfig, updateRequest)
         if (changes.isNotEmpty()) {
             logChannelService.logModerationAction(
@@ -186,6 +250,8 @@ class MiniAppSettingsController(
 
     /**
      * Build a list of config changes for logging.
+     * Note: cleanServiceEnabled, lockWarnsEnabled, and collectionEnabled are logged separately
+     * with specific ActionTypes, so they are excluded from this list.
      */
     private fun buildConfigChangesList(
         oldConfig: ModerationConfig,
@@ -194,9 +260,10 @@ class MiniAppSettingsController(
     ): List<String> {
         val changes = mutableListOf<String>()
 
-        if (request.cleanServiceEnabled != null && oldConfig.cleanServiceEnabled != newConfig.cleanServiceEnabled) {
-            changes.add("cleanService: ${if (newConfig.cleanServiceEnabled) "ON" else "OFF"}")
-        }
+        // cleanServiceEnabled is logged separately with CLEAN_SERVICE_ON/OFF action type
+        // lockWarnsEnabled is logged separately with LOCK_WARNS_ON/OFF action type
+        // collectionEnabled is logged separately with CONFIG_CHANGED action type
+
         if (request.maxWarnings != null && oldConfig.maxWarnings != newConfig.maxWarnings) {
             changes.add("maxWarnings: ${newConfig.maxWarnings}")
         }
