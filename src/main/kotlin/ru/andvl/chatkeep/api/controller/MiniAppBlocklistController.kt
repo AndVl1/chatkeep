@@ -22,8 +22,13 @@ import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
 import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.exception.ValidationException
+import ru.andvl.chatkeep.domain.model.moderation.ActionType
 import ru.andvl.chatkeep.domain.model.moderation.MatchType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
+import ru.andvl.chatkeep.domain.service.ChatService
+import ru.andvl.chatkeep.domain.service.logchannel.LogChannelService
+import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.moderation.BlocklistService
 
@@ -33,7 +38,9 @@ import ru.andvl.chatkeep.domain.service.moderation.BlocklistService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppBlocklistController(
     private val blocklistService: BlocklistService,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val chatService: ChatService,
+    private val logChannelService: LogChannelService
 ) {
 
     private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
@@ -181,6 +188,25 @@ class MiniAppBlocklistController(
         if (!deleted) {
             throw ResourceNotFoundException("Blocklist pattern", patternId)
         }
+
+        // Get chat settings for title
+        val chatSettings = chatService.getSettings(chatId)
+            ?: throw ResourceNotFoundException("Chat", chatId)
+
+        // Log blocklist removal to admin channel
+        logChannelService.logModerationAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatSettings.chatTitle,
+                adminId = user.id,
+                adminFirstName = user.firstName,
+                adminLastName = user.lastName,
+                adminUserName = user.username,
+                actionType = ActionType.BLOCKLIST_REMOVED,
+                reason = "Removed pattern: ${pattern.pattern}",
+                source = PunishmentSource.MANUAL
+            )
+        )
 
         return ResponseEntity.noContent().build()
     }

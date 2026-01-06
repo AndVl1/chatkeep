@@ -390,4 +390,50 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
         val patterns = blocklistPatternRepository.findByChatId(TestDataFactory.SECONDARY_CHAT_ID)
         assertThat(patterns).hasSize(1)
     }
+
+    @Test
+    fun `DELETE blocklist - logs to admin channel when log channel is configured`() = runBlocking {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings(chatTitle = "Test Chat"))
+
+        // Setup log channel
+        val logChannelId = -1001111111111L
+        moderationConfigRepository.save(
+            ModerationConfig(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                logChannelId = logChannelId
+            )
+        )
+
+        // Create pattern
+        val pattern = testDataFactory.createBlocklistPattern(
+            chatId = TestDataFactory.DEFAULT_CHAT_ID,
+            pattern = "badword",
+            matchType = MatchType.EXACT.name
+        )
+        val saved = blocklistPatternRepository.save(pattern)
+
+        mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist/${saved.id}") {
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isNoContent() }
+        }
+
+        // Verify log entry was sent
+        val logEntry = capturingLogChannelPort.waitForEntry(
+            channelId = logChannelId,
+            actionType = ActionType.BLOCKLIST_REMOVED,
+            timeoutMs = 2000
+        )
+
+        assertThat(logEntry).isNotNull
+        assertThat(logEntry?.chatId).isEqualTo(TestDataFactory.DEFAULT_CHAT_ID)
+        assertThat(logEntry?.chatTitle).isEqualTo("Test Chat")
+        assertThat(logEntry?.adminId).isEqualTo(user.id)
+        assertThat(logEntry?.actionType).isEqualTo(ActionType.BLOCKLIST_REMOVED)
+        assertThat(logEntry?.reason).contains("badword")
+    }
 }

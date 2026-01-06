@@ -137,6 +137,7 @@ class TelegramLogChannelAdapter(
             ActionType.LOCK_WARNS_ON -> "#LOCKWARNS_ON"
             ActionType.LOCK_WARNS_OFF -> "#LOCKWARNS_OFF"
             ActionType.CONFIG_CHANGED -> "#CONFIG_CHANGED"
+            ActionType.BLOCKLIST_REMOVED -> "#BLOCKLIST_REMOVED"
         }
     }
 

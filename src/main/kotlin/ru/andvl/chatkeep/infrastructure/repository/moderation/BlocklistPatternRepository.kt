@@ -1,5 +1,6 @@
 package ru.andvl.chatkeep.infrastructure.repository.moderation
 
+import org.springframework.data.jdbc.repository.query.Modifying
 import org.springframework.data.jdbc.repository.query.Query
 import org.springframework.data.repository.CrudRepository
 import ru.andvl.chatkeep.domain.model.moderation.BlocklistPattern
@@ -22,6 +23,7 @@ interface BlocklistPatternRepository : CrudRepository<BlocklistPattern, Long> {
     @Query("SELECT * FROM blocklist_patterns WHERE chat_id IS NULL")
     fun findGlobalPatterns(): List<BlocklistPattern>
 
+    @Modifying
     @Query("""
         DELETE FROM blocklist_patterns
         WHERE chat_id = :chatId
