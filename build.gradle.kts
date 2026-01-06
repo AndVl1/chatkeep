@@ -27,12 +27,21 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.springframework.boot:spring-boot-starter-webclient")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+
+    // OpenAPI / Swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
 
     // Kotlin
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     implementation("tools.jackson.module:jackson-module-kotlin")
+
+    // JWT
+    implementation("io.jsonwebtoken:jjwt-api:0.12.3")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.3")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.3")
 
     // Telegram Bot API
     implementation("dev.inmo:tgbotapi:30.0.2")
