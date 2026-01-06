@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Section, Cell, Switch, Input, Select } from '@telegram-apps/telegram-ui';
 import type { ChatSettings, PunishmentType } from '@/types';
 import { PUNISHMENT_LABELS } from '@/utils/constants';
@@ -6,16 +6,14 @@ import { PUNISHMENT_LABELS } from '@/utils/constants';
 interface SettingsFormProps {
   settings: ChatSettings;
   onChange: (updates: Partial<ChatSettings>) => void;
+  disabled?: boolean;
 }
 
-export function SettingsForm({ settings, onChange }: SettingsFormProps) {
-  const [localSettings, setLocalSettings] = useState(settings);
-
+export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps) {
   const handleChange = useCallback(<K extends keyof ChatSettings>(
     key: K,
     value: ChatSettings[K]
   ) => {
-    setLocalSettings(prev => ({ ...prev, [key]: value }));
     onChange({ [key]: value });
   }, [onChange]);
 
@@ -26,8 +24,9 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
           Component="label"
           after={
             <Switch
-              checked={localSettings.collectionEnabled}
+              checked={settings.collectionEnabled}
               onChange={(e) => handleChange('collectionEnabled', e.target.checked)}
+              disabled={disabled}
             />
           }
           description="Enable message collection for this chat"
@@ -39,8 +38,9 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
           Component="label"
           after={
             <Switch
-              checked={localSettings.cleanServiceEnabled}
+              checked={settings.cleanServiceEnabled}
               onChange={(e) => handleChange('cleanServiceEnabled', e.target.checked)}
+              disabled={disabled}
             />
           }
           description="Automatically delete service messages"
@@ -52,8 +52,9 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
           Component="label"
           after={
             <Switch
-              checked={localSettings.lockWarnsEnabled}
+              checked={settings.lockWarnsEnabled}
               onChange={(e) => handleChange('lockWarnsEnabled', e.target.checked)}
+              disabled={disabled}
             />
           }
           description="Warn users when they violate locks"
@@ -66,33 +67,36 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
         <Cell description="Maximum warnings before threshold action">
           <Input
             type="number"
-            value={localSettings.maxWarnings}
+            value={settings.maxWarnings}
             onChange={(e) => {
-              const val = parseInt(e.target.value);
-              handleChange('maxWarnings', isNaN(val) ? 1 : Math.max(1, val));
+              const val = parseInt(e.target.value, 10);
+              handleChange('maxWarnings', isNaN(val) ? 1 : Math.max(1, Math.min(20, val)));
             }}
             min={1}
-            max={10}
+            max={20}
+            disabled={disabled}
           />
         </Cell>
 
         <Cell description="Warning expiry time (hours)">
           <Input
             type="number"
-            value={localSettings.warningTtlHours}
+            value={settings.warningTtlHours}
             onChange={(e) => {
-              const val = parseInt(e.target.value);
-              handleChange('warningTtlHours', isNaN(val) ? 24 : Math.max(1, val));
+              const val = parseInt(e.target.value, 10);
+              handleChange('warningTtlHours', isNaN(val) ? 24 : Math.max(1, Math.min(168, val)));
             }}
             min={1}
-            max={720}
+            max={168}
+            disabled={disabled}
           />
         </Cell>
 
         <Cell description="Action when threshold reached">
           <Select
-            value={localSettings.thresholdAction}
+            value={settings.thresholdAction}
             onChange={(e) => handleChange('thresholdAction', e.target.value as PunishmentType)}
+            disabled={disabled}
           >
             {Object.entries(PUNISHMENT_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -102,16 +106,17 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
           </Select>
         </Cell>
 
-        {(localSettings.thresholdAction === 'MUTE' || localSettings.thresholdAction === 'BAN') && (
+        {(settings.thresholdAction === 'MUTE' || settings.thresholdAction === 'BAN') && (
           <Cell description="Duration (minutes, 0 = permanent)">
             <Input
               type="number"
-              value={localSettings.thresholdDurationMinutes ?? 0}
+              value={settings.thresholdDurationMinutes ?? 0}
               onChange={(e) => {
-                const val = parseInt(e.target.value);
+                const val = parseInt(e.target.value, 10);
                 handleChange('thresholdDurationMinutes', isNaN(val) ? null : val);
               }}
               min={0}
+              disabled={disabled}
             />
           </Cell>
         )}
@@ -120,8 +125,9 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
       <Section header="Blocklist">
         <Cell description="Default action for blocked patterns">
           <Select
-            value={localSettings.defaultBlocklistAction}
+            value={settings.defaultBlocklistAction}
             onChange={(e) => handleChange('defaultBlocklistAction', e.target.value as PunishmentType)}
+            disabled={disabled}
           >
             {Object.entries(PUNISHMENT_LABELS).map(([value, label]) => (
               <option key={value} value={value}>

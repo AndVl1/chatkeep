@@ -1,13 +1,11 @@
 import { useParams, Navigate, useNavigate } from 'react-router-dom';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { Button } from '@telegram-apps/telegram-ui';
 import { SettingsForm } from '@/components/settings/SettingsForm';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useSettings } from '@/hooks/api/useSettings';
-import { useMainButton } from '@/hooks/telegram/useMainButton';
 import { useNotification } from '@/hooks/ui/useNotification';
-import { useSettingsStore } from '@/stores/settingsStore';
 import type { ChatSettings } from '@/types';
 
 export function SettingsPage() {
@@ -16,35 +14,15 @@ export function SettingsPage() {
   const numericChatId = Number(chatId);
 
   const { data: settings, isLoading, isSaving, error, mutate, refetch } = useSettings(numericChatId);
-  const { showSuccess, showError } = useNotification();
-  const updatePending = useSettingsStore(s => s.updatePending);
-  const clearPending = useSettingsStore(s => s.clearPending);
-  const pendingChanges = useSettingsStore(s => s.pendingChanges[numericChatId]);
+  const { showError } = useNotification();
 
-  const hasChanges = useMemo(() => !!pendingChanges && Object.keys(pendingChanges).length > 0, [pendingChanges]);
-
-  const handleChange = useCallback((updates: Partial<ChatSettings>) => {
-    updatePending(numericChatId, updates);
-  }, [numericChatId, updatePending]);
-
-  const handleSave = useCallback(async () => {
-    if (!hasChanges || !pendingChanges) return;
-
+  const handleChange = useCallback(async (updates: Partial<ChatSettings>) => {
     try {
-      await mutate(pendingChanges);
-      clearPending(numericChatId);
-      showSuccess('Settings saved successfully');
+      await mutate(updates);
     } catch (err) {
       showError((err as Error).message || 'Failed to save settings');
     }
-  }, [hasChanges, pendingChanges, mutate, clearPending, numericChatId, showSuccess, showError]);
-
-  useMainButton({
-    text: 'Save Settings',
-    onClick: handleSave,
-    disabled: !hasChanges || isSaving,
-    visible: hasChanges,
-  });
+  }, [mutate, showError]);
 
   if (!chatId || isNaN(numericChatId)) {
     return <Navigate to="/" replace />;
@@ -58,10 +36,6 @@ export function SettingsPage() {
     return <ErrorState error={error || new Error('Failed to load settings')} onRetry={refetch} />;
   }
 
-  const effectiveSettings = pendingChanges
-    ? { ...settings, ...pendingChanges }
-    : settings;
-
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
@@ -74,8 +48,9 @@ export function SettingsPage() {
       </div>
 
       <SettingsForm
-        settings={effectiveSettings}
+        settings={settings}
         onChange={handleChange}
+        disabled={isSaving}
       />
 
       <div style={{ padding: '16px 0' }}>
