@@ -84,7 +84,7 @@ class TelegramLogChannelAdapter(
                 }
             }
 
-            // Reason (skip for config-only actions)
+            // Reason (skip for config-only actions, but show for lock enabled/disabled as it contains lock type)
             val configActions = listOf(
                 ActionType.CLEAN_SERVICE_ON,
                 ActionType.CLEAN_SERVICE_OFF,
@@ -95,6 +95,13 @@ class TelegramLogChannelAdapter(
             if (entry.actionType !in configActions) {
                 val reason = entry.reason ?: "No reason provided"
                 appendLine("<b>Reason:</b> $reason")
+            }
+
+            // Lock type for lock enabled/disabled
+            if (entry.actionType in listOf(ActionType.LOCK_ENABLED, ActionType.LOCK_DISABLED)) {
+                entry.reason?.let { lockType ->
+                    appendLine("<b>Lock Type:</b> $lockType")
+                }
             }
 
             // Config change details
@@ -136,6 +143,8 @@ class TelegramLogChannelAdapter(
             ActionType.CLEAN_SERVICE_OFF -> "#CLEANSERVICE_OFF"
             ActionType.LOCK_WARNS_ON -> "#LOCKWARNS_ON"
             ActionType.LOCK_WARNS_OFF -> "#LOCKWARNS_OFF"
+            ActionType.LOCK_ENABLED -> "#LOCK_ENABLED"
+            ActionType.LOCK_DISABLED -> "#LOCK_DISABLED"
             ActionType.CONFIG_CHANGED -> "#CONFIG_CHANGED"
             ActionType.BLOCKLIST_REMOVED -> "#BLOCKLIST_REMOVED"
         }
