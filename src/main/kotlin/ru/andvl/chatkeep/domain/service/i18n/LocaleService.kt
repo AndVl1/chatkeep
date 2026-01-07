@@ -13,6 +13,7 @@ class LocaleService(
 ) {
     companion object {
         const val DEFAULT_LOCALE = "en"
+        val SUPPORTED_LOCALES = setOf("en", "ru")
     }
 
     fun getChatLocale(chatId: Long): String {
@@ -28,6 +29,7 @@ class LocaleService(
     }
 
     fun setUserLocale(userId: Long, locale: String): String {
+        require(locale in SUPPORTED_LOCALES) { "Unsupported locale: $locale. Supported: $SUPPORTED_LOCALES" }
         val now = Instant.now()
         val prefs = userPreferencesRepository.findById(userId)
             .map { it.copy(locale = locale, updatedAt = now) }
