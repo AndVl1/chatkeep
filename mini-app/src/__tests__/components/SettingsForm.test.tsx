@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AppRoot } from '@telegram-apps/telegram-ui';
 import { SettingsForm } from '@/components/settings/SettingsForm';
 import type { ChatSettings } from '@/types';
@@ -23,6 +23,14 @@ function renderWithAppRoot(component: React.ReactElement) {
 }
 
 describe('SettingsForm', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe('Toggle switches', () => {
     it('should call onChange with collectionEnabled: false when toggle is switched off', () => {
       const onChange = vi.fn();
@@ -130,22 +138,38 @@ describe('SettingsForm', () => {
   });
 
   describe('Number inputs', () => {
-    it('should call onChange with maxWarnings when input changes', () => {
+    it('should call onChange with maxWarnings when input changes', async () => {
       const onChange = vi.fn();
       renderWithAppRoot(<SettingsForm settings={mockSettings} onChange={onChange} />);
 
       const maxWarningsInput = screen.getByDisplayValue('3');
-      fireEvent.change(maxWarningsInput, { target: { value: '5' } });
+
+      act(() => {
+        fireEvent.change(maxWarningsInput, { target: { value: '5' } });
+      });
+
+      // Advance timers to trigger debounce
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
 
       expect(onChange).toHaveBeenCalledWith({ maxWarnings: 5 });
     });
 
-    it('should call onChange with warningTtlHours when input changes', () => {
+    it('should call onChange with warningTtlHours when input changes', async () => {
       const onChange = vi.fn();
       renderWithAppRoot(<SettingsForm settings={mockSettings} onChange={onChange} />);
 
       const warningTtlInput = screen.getByDisplayValue('24');
-      fireEvent.change(warningTtlInput, { target: { value: '48' } });
+
+      act(() => {
+        fireEvent.change(warningTtlInput, { target: { value: '48' } });
+      });
+
+      // Advance timers to trigger debounce
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
 
       expect(onChange).toHaveBeenCalledWith({ warningTtlHours: 48 });
     });
