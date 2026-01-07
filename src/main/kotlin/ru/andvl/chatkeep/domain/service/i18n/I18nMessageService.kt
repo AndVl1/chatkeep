@@ -7,8 +7,8 @@ import org.springframework.stereotype.Service
 import java.util.Locale
 
 @Service
-class MessageService(private val messageSource: MessageSource) {
-    private val logger = LoggerFactory.getLogger(MessageService::class.java)
+class I18nMessageService(private val messageSource: MessageSource) {
+    private val logger = LoggerFactory.getLogger(I18nMessageService::class.java)
 
     fun get(key: String, locale: String = "en", vararg args: Any): String {
         return try {
