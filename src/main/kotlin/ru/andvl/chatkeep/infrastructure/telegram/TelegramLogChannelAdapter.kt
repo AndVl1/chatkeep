@@ -90,7 +90,9 @@ class TelegramLogChannelAdapter(
                 ActionType.CLEAN_SERVICE_OFF,
                 ActionType.LOCK_WARNS_ON,
                 ActionType.LOCK_WARNS_OFF,
-                ActionType.CONFIG_CHANGED
+                ActionType.CONFIG_CHANGED,
+                ActionType.LOCK_ENABLED,
+                ActionType.LOCK_DISABLED
             )
             if (entry.actionType !in configActions) {
                 val reason = entry.reason ?: "No reason provided"

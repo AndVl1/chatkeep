@@ -104,6 +104,10 @@ class MiniAppLocksController(
             throw AccessDeniedException("You are not an admin in this chat")
         }
 
+        // Fetch current state once before updates (avoid N+1 queries)
+        val currentLocks = lockSettingsService.getAllLocks(chatId)
+        val chatSettings = chatService.getSettings(chatId)
+
         // Update each lock and log changes
         updateRequest.locks.forEach { (lockTypeName, lockDto) ->
             val lockType = try {
@@ -113,7 +117,7 @@ class MiniAppLocksController(
             }
 
             // Get old state to check if it changed
-            val oldConfig = lockSettingsService.getAllLocks(chatId)[lockType]
+            val oldConfig = currentLocks[lockType]
             val oldLocked = oldConfig?.locked ?: false
 
             lockSettingsService.setLock(
@@ -125,7 +129,6 @@ class MiniAppLocksController(
 
             // Log lock change if state changed
             if (oldLocked != lockDto.locked) {
-                val chatSettings = chatService.getSettings(chatId)
                 logChannelService.logModerationAction(
                     ModerationLogEntry(
                         chatId = chatId,
@@ -149,7 +152,6 @@ class MiniAppLocksController(
                 lockSettingsService.setLockWarns(chatId, newValue)
 
                 // Log lock warns change
-                val chatSettings = chatService.getSettings(chatId)
                 logChannelService.logModerationAction(
                     ModerationLogEntry(
                         chatId = chatId,
