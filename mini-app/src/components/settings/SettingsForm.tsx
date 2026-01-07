@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
-import { Section, Cell, Switch, Input, Select } from '@telegram-apps/telegram-ui';
+import { Section, Cell, Switch, Select } from '@telegram-apps/telegram-ui';
 import type { ChatSettings, PunishmentType } from '@/types';
 import { PUNISHMENT_LABELS } from '@/utils/constants';
+import { DebouncedNumberInput } from './DebouncedNumberInput';
 
 interface SettingsFormProps {
   settings: ChatSettings;
@@ -65,13 +66,9 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
 
       <Section header="Warning Configuration">
         <Cell description="Maximum warnings before threshold action">
-          <Input
-            type="number"
+          <DebouncedNumberInput
             value={settings.maxWarnings}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              handleChange('maxWarnings', isNaN(val) ? 1 : Math.max(1, Math.min(20, val)));
-            }}
+            onChange={(val) => handleChange('maxWarnings', val)}
             min={1}
             max={20}
             disabled={disabled}
@@ -79,13 +76,9 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
         </Cell>
 
         <Cell description="Warning expiry time (hours)">
-          <Input
-            type="number"
+          <DebouncedNumberInput
             value={settings.warningTtlHours}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              handleChange('warningTtlHours', isNaN(val) ? 24 : Math.max(1, Math.min(168, val)));
-            }}
+            onChange={(val) => handleChange('warningTtlHours', val)}
             min={1}
             max={168}
             disabled={disabled}
@@ -108,13 +101,9 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
 
         {(settings.thresholdAction === 'MUTE' || settings.thresholdAction === 'BAN') && (
           <Cell description="Duration (minutes, 0 = permanent)">
-            <Input
-              type="number"
+            <DebouncedNumberInput
               value={settings.thresholdDurationMinutes ?? 0}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                handleChange('thresholdDurationMinutes', isNaN(val) ? null : val);
-              }}
+              onChange={(val) => handleChange('thresholdDurationMinutes', val)}
               min={0}
               disabled={disabled}
             />
