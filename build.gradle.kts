@@ -43,6 +43,9 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.3")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.3")
 
+    // Rate Limiting
+    implementation("com.bucket4j:bucket4j-core:8.7.0")
+
     // Telegram Bot API
     implementation("dev.inmo:tgbotapi:30.0.2")
 
