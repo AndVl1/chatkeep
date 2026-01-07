@@ -5,19 +5,11 @@ import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table
 import java.time.Instant
 
-@Table("chat_settings")
-data class ChatSettings(
+@Table("user_preferences")
+data class UserPreferences(
     @Id
-    val id: Long? = null,
-
-    @Column("chat_id")
-    val chatId: Long,
-
-    @Column("chat_title")
-    val chatTitle: String?,
-
-    @Column("collection_enabled")
-    val collectionEnabled: Boolean = true,
+    @Column("user_id")
+    val userId: Long,
 
     @Column("locale")
     val locale: String = "en",

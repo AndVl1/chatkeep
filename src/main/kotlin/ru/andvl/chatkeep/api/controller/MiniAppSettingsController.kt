@@ -91,7 +91,8 @@ class MiniAppSettingsController(
             thresholdDurationMinutes = moderationConfig.thresholdDurationMinutes,
             defaultBlocklistAction = moderationConfig.defaultBlocklistAction,
             logChannelId = moderationConfig.logChannelId,
-            lockWarnsEnabled = lockWarnsEnabled
+            lockWarnsEnabled = lockWarnsEnabled,
+            locale = chatSettings.locale
         )
     }
 
