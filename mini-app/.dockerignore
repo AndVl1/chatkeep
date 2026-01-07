@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env.development
+.env.local
+src
+tsconfig.json
+vite.config.ts
+package.json
+package-lock.json

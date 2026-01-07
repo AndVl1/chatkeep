@@ -249,6 +249,31 @@ import { Section, Cell, Switch, Button, Spinner } from '@telegram-apps/ui';
 - Do NOT make architectural decisions
 - Do NOT use `any` type
 - Do NOT ignore error states
+- Do NOT use browser dialogs (`alert()`, `confirm()`, `prompt()`) - ALL dialogs must be in-app
+
+## In-App Dialogs (MANDATORY)
+**CRITICAL**: Never use browser native dialogs. Always use in-app components:
+
+### For Notifications (success, error, info)
+```tsx
+import { useNotification } from '@/hooks/ui/useNotification';
+
+const { showSuccess, showError, showNotification } = useNotification();
+showSuccess('Changes saved');
+showError('Failed to delete');
+showNotification('Processing...');
+```
+The hook automatically uses Telegram popup when available, falls back to in-app toast.
+
+### For Confirmations
+```tsx
+import { useConfirmDialog } from '@/hooks/ui/useConfirmDialog';
+
+const { confirm } = useConfirmDialog();
+const confirmed = await confirm('Delete this item?', 'Confirm Delete');
+if (confirmed) { /* proceed */ }
+```
+Uses Telegram popup when available, falls back to custom in-app dialog.
 
 ## Output Format (REQUIRED)
 

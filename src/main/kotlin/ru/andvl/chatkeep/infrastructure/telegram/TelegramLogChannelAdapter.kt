@@ -84,10 +84,31 @@ class TelegramLogChannelAdapter(
                 }
             }
 
-            // Reason (skip for config-only actions)
-            if (entry.actionType !in listOf(ActionType.CLEAN_SERVICE_ON, ActionType.CLEAN_SERVICE_OFF)) {
+            // Reason (skip for config-only actions, but show for lock enabled/disabled as it contains lock type)
+            val configActions = listOf(
+                ActionType.CLEAN_SERVICE_ON,
+                ActionType.CLEAN_SERVICE_OFF,
+                ActionType.LOCK_WARNS_ON,
+                ActionType.LOCK_WARNS_OFF,
+                ActionType.CONFIG_CHANGED,
+                ActionType.LOCK_ENABLED,
+                ActionType.LOCK_DISABLED
+            )
+            if (entry.actionType !in configActions) {
                 val reason = entry.reason ?: "No reason provided"
                 appendLine("<b>Reason:</b> $reason")
+            }
+
+            // Lock type for lock enabled/disabled
+            if (entry.actionType in listOf(ActionType.LOCK_ENABLED, ActionType.LOCK_DISABLED)) {
+                entry.reason?.let { lockType ->
+                    appendLine("<b>Lock Type:</b> $lockType")
+                }
+            }
+
+            // Config change details
+            if (entry.actionType == ActionType.CONFIG_CHANGED && entry.reason != null) {
+                appendLine("<b>Changes:</b> ${entry.reason}")
             }
 
             // Source (if not manual)
@@ -122,6 +143,12 @@ class TelegramLogChannelAdapter(
             ActionType.KICK -> "#KICKED"
             ActionType.CLEAN_SERVICE_ON -> "#CLEANSERVICE_ON"
             ActionType.CLEAN_SERVICE_OFF -> "#CLEANSERVICE_OFF"
+            ActionType.LOCK_WARNS_ON -> "#LOCKWARNS_ON"
+            ActionType.LOCK_WARNS_OFF -> "#LOCKWARNS_OFF"
+            ActionType.LOCK_ENABLED -> "#LOCK_ENABLED"
+            ActionType.LOCK_DISABLED -> "#LOCK_DISABLED"
+            ActionType.CONFIG_CHANGED -> "#CONFIG_CHANGED"
+            ActionType.BLOCKLIST_REMOVED -> "#BLOCKLIST_REMOVED"
         }
     }
 

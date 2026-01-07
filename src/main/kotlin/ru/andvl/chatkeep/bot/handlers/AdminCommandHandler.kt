@@ -7,12 +7,18 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.RawChatId
+import dev.inmo.tgbotapi.types.buttons.InlineKeyboardButtons.WebAppInlineKeyboardButton
+import dev.inmo.tgbotapi.types.buttons.InlineKeyboardMarkup
 import dev.inmo.tgbotapi.types.chat.PrivateChat
 import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.types.message.content.TextContent
+import dev.inmo.tgbotapi.types.webapps.WebAppInfo
+import dev.inmo.tgbotapi.utils.matrix
+import dev.inmo.tgbotapi.utils.row
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.domain.model.ChatSettings
 import ru.andvl.chatkeep.domain.service.AdminService
@@ -21,13 +27,22 @@ import ru.andvl.chatkeep.domain.service.ChatService
 @Component
 class AdminCommandHandler(
     private val chatService: ChatService,
-    private val adminService: AdminService
+    private val adminService: AdminService,
+    @Value("\${telegram.mini-app.url}") private val miniAppUrl: String
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override suspend fun BehaviourContext.register() {
         onCommand("start", initialFilter = { it.chat is PrivateChat }) { message ->
+            val keyboard = InlineKeyboardMarkup(
+                keyboard = matrix {
+                    row {
+                        +WebAppInlineKeyboardButton("📱 Open Mini App", WebAppInfo(miniAppUrl))
+                    }
+                }
+            )
+
             reply(
                 message,
                 """
@@ -55,7 +70,8 @@ class AdminCommandHandler(
                 /unban - Unban a user
                 /kick - Kick a user
                 /cleanservice <on|off> - Auto-delete join/leave messages
-                """.trimIndent()
+                """.trimIndent(),
+                replyMarkup = keyboard
             )
         }
 

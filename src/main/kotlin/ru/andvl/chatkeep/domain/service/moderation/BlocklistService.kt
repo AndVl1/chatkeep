@@ -147,6 +147,17 @@ class BlocklistService(
         logger.info("Removed blocklist pattern: chatId=$chatId, pattern='$pattern'")
     }
 
+    fun deletePatternById(patternId: Long): Boolean {
+        return try {
+            blocklistPatternRepository.deleteById(patternId)
+            logger.info("Deleted blocklist pattern by ID: id=$patternId")
+            true
+        } catch (e: Exception) {
+            logger.warn("Failed to delete blocklist pattern by ID: id=$patternId", e)
+            false
+        }
+    }
+
     fun listPatterns(chatId: Long): List<BlocklistPattern> {
         return blocklistPatternRepository.findByChatId(chatId)
     }

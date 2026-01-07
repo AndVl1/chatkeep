@@ -25,16 +25,19 @@ print_help() {
     echo "Usage: ./scripts/dev.sh [command]"
     echo ""
     echo "Commands:"
-    echo "  start     Start PostgreSQL and run the app (default)"
-    echo "  db        Start only PostgreSQL"
-    echo "  app       Run the app (assumes DB is running)"
-    echo "  test      Run tests"
-    echo "  build     Build the project"
-    echo "  docker    Build and run with Docker Compose"
-    echo "  stop      Stop all Docker containers"
-    echo "  logs      Show Docker logs"
-    echo "  clean     Clean build artifacts and Docker volumes"
-    echo "  help      Show this help message"
+    echo "  start           Start PostgreSQL and run the app (default)"
+    echo "  db              Start only PostgreSQL"
+    echo "  app             Run the app (assumes DB is running)"
+    echo "  mini-app        Start Mini App dev server (Vite)"
+    echo "  build-mini-app  Build Mini App for production"
+    echo "  all             Start everything (db + app + mini-app)"
+    echo "  test            Run tests"
+    echo "  build           Build the project"
+    echo "  docker          Build and run with Docker Compose (includes mini-app)"
+    echo "  stop            Stop all Docker containers"
+    echo "  logs            Show Docker logs"
+    echo "  clean           Clean build artifacts and Docker volumes"
+    echo "  help            Show this help message"
 }
 
 start_db() {
@@ -49,6 +52,41 @@ run_app() {
     ./gradlew bootRun
 }
 
+run_mini_app() {
+    if [ ! -d "$PROJECT_DIR/mini-app" ]; then
+        echo -e "${RED}Error: mini-app directory not found${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}Starting Mini App dev server...${NC}"
+    cd "$PROJECT_DIR/mini-app"
+
+    if [ ! -d "node_modules" ]; then
+        echo -e "${YELLOW}Installing dependencies...${NC}"
+        npm install
+    fi
+
+    npm run dev
+}
+
+build_mini_app() {
+    if [ ! -d "$PROJECT_DIR/mini-app" ]; then
+        echo -e "${RED}Error: mini-app directory not found${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}Building Mini App for production...${NC}"
+    cd "$PROJECT_DIR/mini-app"
+
+    if [ ! -d "node_modules" ]; then
+        echo -e "${YELLOW}Installing dependencies...${NC}"
+        npm install
+    fi
+
+    npm run build
+    echo -e "${GREEN}Mini App built successfully! Output: mini-app/dist${NC}"
+}
+
 case "${1:-start}" in
     start)
         start_db
@@ -60,6 +98,32 @@ case "${1:-start}" in
         ;;
     app)
         run_app
+        ;;
+    mini-app)
+        run_mini_app
+        ;;
+    build-mini-app)
+        build_mini_app
+        ;;
+    all)
+        echo -e "${GREEN}Starting full development stack...${NC}"
+        start_db
+
+        # Start backend in background
+        echo -e "${GREEN}Starting backend in background...${NC}"
+        ./gradlew bootRun > /tmp/chatkeep-backend.log 2>&1 &
+        BACKEND_PID=$!
+        echo -e "${YELLOW}Backend PID: $BACKEND_PID (logs: /tmp/chatkeep-backend.log)${NC}"
+
+        # Give backend time to start
+        sleep 5
+
+        # Start frontend in foreground
+        echo -e "${GREEN}Starting Mini App dev server...${NC}"
+        run_mini_app
+
+        # Cleanup on exit
+        trap "echo -e '${YELLOW}Stopping backend...${NC}'; kill $BACKEND_PID 2>/dev/null" EXIT
         ;;
     test)
         echo -e "${GREEN}Running tests...${NC}"
@@ -74,6 +138,11 @@ case "${1:-start}" in
             echo -e "${YELLOW}Warning: TELEGRAM_BOT_TOKEN not set. Bot will not work.${NC}"
             echo -e "${YELLOW}Set it with: export TELEGRAM_BOT_TOKEN=your_token${NC}"
         fi
+
+        # Build Mini App first
+        echo -e "${GREEN}Building Mini App...${NC}"
+        build_mini_app
+
         echo -e "${GREEN}Building and starting with Docker Compose...${NC}"
         docker compose up --build
         ;;

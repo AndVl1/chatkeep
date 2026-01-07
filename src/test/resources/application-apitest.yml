@@ -1,0 +1,11 @@
+# Test profile configuration for Mini App API tests
+spring:
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+logging:
+  level:
+    ru.andvl.chatkeep: DEBUG
+    ru.andvl.chatkeep.api: DEBUG
+    org.testcontainers: WARN

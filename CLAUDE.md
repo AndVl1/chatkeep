@@ -209,6 +209,68 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
 **CRITICAL: Never commit directly to main. Always use feature branches.**
 
+## Technical Debt Tracking
+
+**MANDATORY for all agents during research and development.**
+
+When agents (main or sub-agents) discover code that needs refactoring, improvements, or has issues that are not directly related to the current task, they MUST:
+
+1. **Document the finding** in `docs/debt/tech-debt.md`
+2. **Commit the change** to the repository
+
+### What to Track
+
+- Code smells and anti-patterns discovered
+- Missing tests or test coverage gaps
+- Performance bottlenecks identified
+- Security concerns noticed
+- Deprecated dependencies or APIs
+- Duplicated code that should be extracted
+- Missing documentation
+- Inconsistent coding patterns
+- TODO/FIXME comments found in code
+
+### Tech Debt Entry Format
+
+```markdown
+## [Date] - [Brief Title]
+
+**Found by**: [agent name or "main agent"]
+**Location**: [file path and line numbers]
+**Priority**: [low/medium/high/critical]
+**Category**: [refactor/test/security/performance/docs/other]
+
+**Description**:
+[What was found and why it's a problem]
+
+**Suggested Fix**:
+[How to address this issue]
+```
+
+### Example Entry
+
+```markdown
+## 2024-01-07 - Duplicate validation logic in handlers
+
+**Found by**: code-reviewer agent
+**Location**: src/main/kotlin/ru/andvl/chatkeep/bot/handlers/
+**Priority**: medium
+**Category**: refactor
+
+**Description**:
+BlocklistManagementHandler and AdminCommandHandler both have similar user permission checking logic that could be extracted to a shared utility.
+
+**Suggested Fix**:
+Create a `PermissionUtils` object with reusable permission checking functions.
+```
+
+### Rules for Agents
+
+- **DO NOT** fix tech debt during current task unless explicitly requested
+- **DO** document all findings immediately when discovered
+- **DO** commit tech debt updates as separate commits with message: `docs: add tech debt entry - [brief description]`
+- **DO** continue with the main task after documenting
+
 ## Global Execution Rules (IMPORTANT)
 
 These rules apply to the main agent and ALL sub-agents.

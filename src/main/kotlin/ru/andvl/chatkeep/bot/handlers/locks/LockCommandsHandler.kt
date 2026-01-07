@@ -17,14 +17,21 @@ import ru.andvl.chatkeep.bot.handlers.Handler
 import ru.andvl.chatkeep.bot.util.SessionAuthHelper
 import ru.andvl.chatkeep.domain.model.locks.LockCategory
 import ru.andvl.chatkeep.domain.model.locks.LockType
+import ru.andvl.chatkeep.domain.model.moderation.ActionType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
+import ru.andvl.chatkeep.domain.service.ChatService
 import ru.andvl.chatkeep.domain.service.locks.LockSettingsService
+import ru.andvl.chatkeep.domain.service.logchannel.LogChannelService
+import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
 @Component
 class LockCommandsHandler(
     private val lockSettingsService: LockSettingsService,
     private val sessionAuthHelper: SessionAuthHelper,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val logChannelService: LogChannelService,
+    private val chatService: ChatService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -107,6 +114,23 @@ class LockCommandsHandler(
             lockSettingsService.setLock(chatId, lockType, true, reason)
         }
 
+        // Send log notification
+        val chatSettings = withContext(Dispatchers.IO) { chatService.getSettings(chatId) }
+        val adminUser = (message as? FromUserMessage)?.from
+        logChannelService.logModerationAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatSettings?.chatTitle,
+                adminId = userId,
+                adminFirstName = adminUser?.firstName,
+                adminLastName = adminUser?.lastName,
+                adminUserName = adminUser?.username?.withoutAt,
+                actionType = ActionType.LOCK_ENABLED,
+                reason = lockType.name,
+                source = PunishmentSource.MANUAL
+            )
+        )
+
         reply(message, buildString {
             append("Locked: ${lockType.description}")
             reason?.let { append("\nReason: $it") }
@@ -142,6 +166,23 @@ class LockCommandsHandler(
         withContext(Dispatchers.IO) {
             lockSettingsService.setLock(chatId, lockType, false)
         }
+
+        // Send log notification
+        val chatSettings = withContext(Dispatchers.IO) { chatService.getSettings(chatId) }
+        val adminUser = (message as? FromUserMessage)?.from
+        logChannelService.logModerationAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatSettings?.chatTitle,
+                adminId = userId,
+                adminFirstName = adminUser?.firstName,
+                adminLastName = adminUser?.lastName,
+                adminUserName = adminUser?.username?.withoutAt,
+                actionType = ActionType.LOCK_DISABLED,
+                reason = lockType.name,
+                source = PunishmentSource.MANUAL
+            )
+        )
 
         reply(message, "Unlocked: ${lockType.description}")
 
@@ -215,6 +256,22 @@ class LockCommandsHandler(
             lockSettingsService.setLockWarns(chatId, enabled)
         }
 
+        // Send log notification
+        val chatSettings = withContext(Dispatchers.IO) { chatService.getSettings(chatId) }
+        val adminUser = (message as? FromUserMessage)?.from
+        logChannelService.logModerationAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatSettings?.chatTitle,
+                adminId = userId,
+                adminFirstName = adminUser?.firstName,
+                adminLastName = adminUser?.lastName,
+                adminUserName = adminUser?.username?.withoutAt,
+                actionType = if (enabled) ActionType.LOCK_WARNS_ON else ActionType.LOCK_WARNS_OFF,
+                source = PunishmentSource.MANUAL
+            )
+        )
+
         reply(message, "Lock warnings ${if (enabled) "enabled" else "disabled"}.")
 
         logger.info("Lock warns ${if (enabled) "enabled" else "disabled"} for chat $chatId by user $userId")
@@ -251,6 +308,23 @@ class LockCommandsHandler(
             withContext(Dispatchers.IO) {
                 lockSettingsService.setLock(ctx.chatId, lockType, true, reason)
             }
+
+            // Send log notification
+            val admin = (message as? FromUserMessage)?.from ?: return@withSessionAuth
+            val chatSettings = withContext(Dispatchers.IO) { chatService.getSettings(ctx.chatId) }
+            logChannelService.logModerationAction(
+                ModerationLogEntry(
+                    chatId = ctx.chatId,
+                    chatTitle = chatSettings?.chatTitle,
+                    adminId = admin.id.chatId.long,
+                    adminFirstName = admin.firstName,
+                    adminLastName = admin.lastName,
+                    adminUserName = admin.username?.withoutAt,
+                    actionType = ActionType.LOCK_ENABLED,
+                    reason = lockType.name,
+                    source = PunishmentSource.MANUAL
+                )
+            )
 
             reply(message, buildString {
                 appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
@@ -291,6 +365,23 @@ class LockCommandsHandler(
             withContext(Dispatchers.IO) {
                 lockSettingsService.setLock(ctx.chatId, lockType, false)
             }
+
+            // Send log notification
+            val admin = (message as? FromUserMessage)?.from ?: return@withSessionAuth
+            val chatSettings = withContext(Dispatchers.IO) { chatService.getSettings(ctx.chatId) }
+            logChannelService.logModerationAction(
+                ModerationLogEntry(
+                    chatId = ctx.chatId,
+                    chatTitle = chatSettings?.chatTitle,
+                    adminId = admin.id.chatId.long,
+                    adminFirstName = admin.firstName,
+                    adminLastName = admin.lastName,
+                    adminUserName = admin.username?.withoutAt,
+                    actionType = ActionType.LOCK_DISABLED,
+                    reason = lockType.name,
+                    source = PunishmentSource.MANUAL
+                )
+            )
 
             reply(message, buildString {
                 appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))
@@ -369,6 +460,22 @@ class LockCommandsHandler(
             withContext(Dispatchers.IO) {
                 lockSettingsService.setLockWarns(ctx.chatId, enabled)
             }
+
+            // Send log notification
+            val admin = (message as? FromUserMessage)?.from ?: return@withSessionAuth
+            val chatSettings = withContext(Dispatchers.IO) { chatService.getSettings(ctx.chatId) }
+            logChannelService.logModerationAction(
+                ModerationLogEntry(
+                    chatId = ctx.chatId,
+                    chatTitle = chatSettings?.chatTitle,
+                    adminId = admin.id.chatId.long,
+                    adminFirstName = admin.firstName,
+                    adminLastName = admin.lastName,
+                    adminUserName = admin.username?.withoutAt,
+                    actionType = if (enabled) ActionType.LOCK_WARNS_ON else ActionType.LOCK_WARNS_OFF,
+                    source = PunishmentSource.MANUAL
+                )
+            )
 
             reply(message, buildString {
                 appendLine(sessionAuthHelper.formatReplyPrefix(ctx.session))

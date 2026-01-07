@@ -32,7 +32,7 @@ class AdminCommandHandlerTest {
     fun setUp() {
         chatService = mockk()
         adminService = mockk()
-        handler = AdminCommandHandler(chatService, adminService)
+        handler = AdminCommandHandler(chatService, adminService, "https://test-mini-app.example.com")
     }
 
     @AfterEach

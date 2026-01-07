@@ -7,6 +7,7 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
 import dev.inmo.tgbotapi.requests.abstracts.asMultipartFile
 import dev.inmo.tgbotapi.types.chat.PrivateChat
+import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.utils.buildEntities
 import dev.inmo.tgbotapi.utils.expandableBlockquote
@@ -17,13 +18,18 @@ import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
 import ru.andvl.chatkeep.bot.util.AddBlockParser
 import ru.andvl.chatkeep.bot.util.SessionAuthHelper
+import ru.andvl.chatkeep.domain.model.moderation.ActionType
 import ru.andvl.chatkeep.domain.model.moderation.MatchType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
 import ru.andvl.chatkeep.domain.service.moderation.BlocklistService
+import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 
 @Component
 class BlocklistManagementHandler(
     private val blocklistService: BlocklistService,
-    private val sessionAuthHelper: SessionAuthHelper
+    private val sessionAuthHelper: SessionAuthHelper,
+    private val logChannelService: ru.andvl.chatkeep.domain.service.logchannel.LogChannelService,
+    private val chatService: ru.andvl.chatkeep.domain.service.ChatService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -147,6 +153,29 @@ class BlocklistManagementHandler(
             val prefix = sessionAuthHelper.formatReplyPrefix(ctx.session)
             reply(message, "$prefix\n\nRemoved blocklist pattern: $pattern")
             logger.info("Blocklist pattern removed: chatId=${ctx.chatId}, pattern='$pattern'")
+
+            // Get admin info from message for logging
+            val admin = (message as? FromUserMessage)?.from ?: return@withSessionAuth
+
+            // Get chat settings for title
+            val chatSettings = withContext(Dispatchers.IO) {
+                chatService.getSettings(ctx.chatId)
+            }
+
+            // Log to admin channel
+            logChannelService.logModerationAction(
+                ModerationLogEntry(
+                    chatId = ctx.chatId,
+                    chatTitle = chatSettings?.chatTitle,
+                    adminId = admin.id.chatId.long,
+                    adminFirstName = admin.firstName,
+                    adminLastName = admin.lastName,
+                    adminUserName = admin.username?.withoutAt,
+                    actionType = ActionType.BLOCKLIST_REMOVED,
+                    reason = "Removed pattern: $pattern",
+                    source = PunishmentSource.MANUAL
+                )
+            )
         }
     }
 

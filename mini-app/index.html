@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <title>Chatkeep Configuration</title>
+    <script>
+      // Mock Telegram environment for local development ONLY when explicitly requested
+      // This MUST run before any ES modules load
+      // Usage: http://localhost:5173/?mock=true or ?tma=true
+      // Without the param, web mode will be detected automatically
+      (function() {
+        var isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        var wantsMock = window.location.search.includes('mock=true') || window.location.search.includes('tma=true');
+
+        if (isDevelopment && wantsMock) {
+          // Build initDataRaw
+          var user = JSON.stringify({
+            id: 99281932,
+            first_name: 'Test',
+            last_name: 'User',
+            username: 'testuser',
+            language_code: 'en',
+            is_premium: true
+          });
+          var initDataRaw = 'user=' + encodeURIComponent(user) +
+            '&hash=mock-hash-for-development' +
+            '&auth_date=' + Math.floor(Date.now() / 1000) +
+            '&start_param=debug' +
+            '&chat_type=sender' +
+            '&chat_instance=1234567890';
+
+          var themeParams = {
+            accent_text_color: '#6ab2f2',
+            bg_color: '#17212b',
+            button_color: '#5288c1',
+            button_text_color: '#ffffff',
+            destructive_text_color: '#ec3942',
+            header_bg_color: '#17212b',
+            hint_color: '#708499',
+            link_color: '#6ab3f3',
+            secondary_bg_color: '#232e3c',
+            section_bg_color: '#17212b',
+            section_header_text_color: '#6ab3f3',
+            subtitle_text_color: '#708499',
+            text_color: '#f5f5f5'
+          };
+
+          // Set window globals that SDK reads
+          window.tgWebAppPlatform = 'tdesktop';
+          window.tgWebAppVersion = '7.2';
+          window.tgWebAppData = initDataRaw;
+          window.tgWebAppThemeParams = JSON.stringify(themeParams);
+
+          // Set up TelegramWebviewProxy
+          window.TelegramWebviewProxy = {
+            postEvent: function(eventType, eventData) {
+              console.log('[Mock] postEvent:', eventType);
+            }
+          };
+
+          // Set up window.Telegram.WebApp
+          window.Telegram = {
+            WebApp: {
+              initData: initDataRaw,
+              initDataUnsafe: {
+                user: { id: 99281932, first_name: 'Test', last_name: 'User', username: 'testuser', language_code: 'en', is_premium: true },
+                hash: 'mock-hash-for-development',
+                auth_date: Math.floor(Date.now() / 1000),
+                start_param: 'debug',
+                chat_type: 'sender',
+                chat_instance: '1234567890'
+              },
+              version: '7.2',
+              platform: 'tdesktop',
+              colorScheme: 'dark',
+              themeParams: themeParams,
+              isExpanded: true,
+              viewportHeight: 600,
+              viewportStableHeight: 600,
+              headerColor: '#17212b',
+              backgroundColor: '#17212b',
+              isClosingConfirmationEnabled: false,
+              ready: function() {},
+              expand: function() {},
+              close: function() {},
+              enableClosingConfirmation: function() {},
+              disableClosingConfirmation: function() {},
+              onEvent: function() {},
+              offEvent: function() {},
+              sendData: function() {},
+              openLink: function() {},
+              openTelegramLink: function() {},
+              showPopup: function() { return Promise.resolve({ button_id: 'ok' }); },
+              showAlert: function() { return Promise.resolve(); },
+              showConfirm: function() { return Promise.resolve(true); },
+              MainButton: {
+                text: '', color: '#5288c1', textColor: '#ffffff',
+                isVisible: false, isActive: true, isProgressVisible: false,
+                setText: function(t) { this.text = t; },
+                onClick: function() {}, offClick: function() {},
+                show: function() { this.isVisible = true; },
+                hide: function() { this.isVisible = false; },
+                enable: function() { this.isActive = true; },
+                disable: function() { this.isActive = false; },
+                showProgress: function() { this.isProgressVisible = true; },
+                hideProgress: function() { this.isProgressVisible = false; },
+                setParams: function() {}
+              },
+              BackButton: {
+                isVisible: false,
+                onClick: function() {}, offClick: function() {},
+                show: function() { this.isVisible = true; },
+                hide: function() { this.isVisible = false; }
+              },
+              HapticFeedback: {
+                impactOccurred: function() {},
+                notificationOccurred: function() {},
+                selectionChanged: function() {}
+              }
+            }
+          };
+
+          // Also set sessionStorage keys that SDK looks for
+          try {
+            var launchParams = {
+              platform: 'tdesktop',
+              version: '7.2',
+              themeParams: themeParams,
+              initData: window.Telegram.WebApp.initDataUnsafe,
+              initDataRaw: initDataRaw
+            };
+            sessionStorage.setItem('launchParams', JSON.stringify(launchParams));
+          } catch (e) {
+            // Ignore sessionStorage errors
+          }
+
+          console.log('[Mock] Telegram environment initialized in index.html');
+        } else if (!isDevelopment) {
+          // Production: load official Telegram SDK
+          // This will provide initData if opened from Telegram, or be empty for web mode
+          document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
+        }
+        // Development without mock: do nothing, web mode will be detected
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
