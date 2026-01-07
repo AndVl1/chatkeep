@@ -104,7 +104,7 @@ class MiniAppLocksController(
             throw AccessDeniedException("You are not an admin in this chat")
         }
 
-        // Update each lock
+        // Update each lock and log changes
         updateRequest.locks.forEach { (lockTypeName, lockDto) ->
             val lockType = try {
                 LockType.valueOf(lockTypeName)
@@ -112,12 +112,34 @@ class MiniAppLocksController(
                 throw ValidationException("Invalid lock type: $lockTypeName")
             }
 
+            // Get old state to check if it changed
+            val oldConfig = lockSettingsService.getAllLocks(chatId)[lockType]
+            val oldLocked = oldConfig?.locked ?: false
+
             lockSettingsService.setLock(
                 chatId = chatId,
                 lockType = lockType,
                 locked = lockDto.locked,
                 reason = lockDto.reason
             )
+
+            // Log lock change if state changed
+            if (oldLocked != lockDto.locked) {
+                val chatSettings = chatService.getSettings(chatId)
+                logChannelService.logModerationAction(
+                    ModerationLogEntry(
+                        chatId = chatId,
+                        chatTitle = chatSettings?.chatTitle,
+                        adminId = user.id,
+                        adminFirstName = user.firstName,
+                        adminLastName = user.lastName,
+                        adminUserName = user.username,
+                        actionType = if (lockDto.locked) ActionType.LOCK_ENABLED else ActionType.LOCK_DISABLED,
+                        reason = lockType.name,
+                        source = PunishmentSource.MANUAL
+                    )
+                )
+            }
         }
 
         // Update lock warns if provided and log the change
