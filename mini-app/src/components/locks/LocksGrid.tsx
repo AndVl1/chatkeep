@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Section, Tabbar } from '@telegram-apps/telegram-ui';
 import { LockToggle } from './LockToggle';
 import type { LockType, LockCategory } from '@/types';
@@ -11,6 +12,7 @@ interface LocksGridProps {
 }
 
 export function LocksGrid({ locks, onToggle, disabled = false }: LocksGridProps) {
+  const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<LockCategory>('CONTENT');
 
   const categories = useMemo(() => Object.keys(LOCK_CATEGORIES) as LockCategory[], []);
@@ -28,12 +30,12 @@ export function LocksGrid({ locks, onToggle, disabled = false }: LocksGridProps)
             selected={activeCategory === category}
             onClick={() => setActiveCategory(category)}
           >
-            {category}
+            {t(`lockCategories.${category}`)}
           </Tabbar.Item>
         ))}
       </Tabbar>
 
-      <Section header={`${activeCategory} Locks`} style={{ paddingBottom: '70px' }}>
+      <Section header={t('locks.categoryTitle', { category: t(`lockCategories.${activeCategory}`) })} style={{ paddingBottom: '70px' }}>
         {currentLocks.map((lockType) => (
           <LockToggle
             key={lockType}

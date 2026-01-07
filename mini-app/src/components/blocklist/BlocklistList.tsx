@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Section } from '@telegram-apps/telegram-ui';
 import { BlocklistItem } from './BlocklistItem';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -20,6 +21,8 @@ export function BlocklistList({
   onDelete,
   onRetry,
 }: BlocklistListProps) {
+  const { t } = useTranslation();
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -31,14 +34,14 @@ export function BlocklistList({
   if (patterns.length === 0) {
     return (
       <EmptyState
-        title="No Patterns"
-        description="Add patterns to block specific words or phrases."
+        title={t('blocklist.noPatterns')}
+        description={t('blocklist.noPatternsDescription')}
       />
     );
   }
 
   return (
-    <Section header="Blocked Patterns">
+    <Section header={t('blocklist.title')}>
       {patterns.map((pattern) => (
         <BlocklistItem
           key={pattern.id}

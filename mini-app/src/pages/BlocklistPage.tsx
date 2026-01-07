@@ -1,5 +1,6 @@
 import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@telegram-apps/telegram-ui';
 import { BlocklistList } from '@/components/blocklist/BlocklistList';
 import { AddPatternForm } from '@/components/blocklist/AddPatternForm';
@@ -8,6 +9,7 @@ import { useConfirmDialog } from '@/hooks/ui/useConfirmDialog';
 import { useNotification } from '@/hooks/ui/useNotification';
 
 export function BlocklistPage() {
+  const { t } = useTranslation();
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
   const numericChatId = Number(chatId);
@@ -19,8 +21,8 @@ export function BlocklistPage() {
 
   const handleDelete = useCallback(async (patternId: number) => {
     const confirmed = await confirm(
-      'Are you sure you want to delete this pattern?',
-      'Delete Pattern'
+      t('blocklist.deleteConfirm'),
+      t('blocklist.deleteTitle')
     );
 
     if (!confirmed) return;
@@ -28,19 +30,19 @@ export function BlocklistPage() {
     try {
       await removePattern(patternId);
     } catch (err) {
-      showError((err as Error).message || 'Failed to delete pattern');
+      showError((err as Error).message || t('blocklist.deleteError'));
     }
-  }, [removePattern, confirm, showError]);
+  }, [removePattern, confirm, showError, t]);
 
   const handleAdd = useCallback(async (pattern: Parameters<typeof addPattern>[0]) => {
     try {
       await addPattern(pattern);
       setIsAdding(false);
     } catch (err) {
-      showError((err as Error).message || 'Failed to add pattern');
+      showError((err as Error).message || t('blocklist.addError'));
       throw err;
     }
-  }, [addPattern, showError]);
+  }, [addPattern, showError, t]);
 
   if (!chatId || isNaN(numericChatId)) {
     return <Navigate to="/" replace />;
@@ -50,10 +52,10 @@ export function BlocklistPage() {
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
         <Button size="s" mode="plain" onClick={() => navigate(`/chat/${chatId}/settings`)}>
-          ← Back
+          {t('settings.back')}
         </Button>
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
-          Blocklist
+          {t('blocklist.title')}
         </h1>
       </div>
 
@@ -66,7 +68,7 @@ export function BlocklistPage() {
         <>
           <div style={{ marginBottom: '16px' }}>
             <Button size="l" stretched onClick={() => setIsAdding(true)}>
-              Add Pattern
+              {t('blocklist.addPattern')}
             </Button>
           </div>
 

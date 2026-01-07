@@ -1,5 +1,6 @@
 import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@telegram-apps/telegram-ui';
 import { SettingsForm } from '@/components/settings/SettingsForm';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -9,6 +10,7 @@ import { useNotification } from '@/hooks/ui/useNotification';
 import type { ChatSettings } from '@/types';
 
 export function SettingsPage() {
+  const { t } = useTranslation();
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
   const numericChatId = Number(chatId);
@@ -20,9 +22,9 @@ export function SettingsPage() {
     try {
       await mutate(updates);
     } catch (err) {
-      showError((err as Error).message || 'Failed to save settings');
+      showError((err as Error).message || t('settings.saveError'));
     }
-  }, [mutate, showError]);
+  }, [mutate, showError, t]);
 
   if (!chatId || isNaN(numericChatId)) {
     return <Navigate to="/" replace />;
@@ -40,7 +42,7 @@ export function SettingsPage() {
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
         <Button size="s" mode="plain" onClick={() => navigate('/')}>
-          ← Back
+          {t('settings.back')}
         </Button>
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
           {settings.chatTitle}
@@ -59,7 +61,7 @@ export function SettingsPage() {
           stretched
           onClick={() => navigate(`/chat/${chatId}/blocklist`)}
         >
-          Manage Blocklist
+          {t('settings.manageBlocklist')}
         </Button>
       </div>
 
@@ -69,7 +71,7 @@ export function SettingsPage() {
           stretched
           onClick={() => navigate(`/chat/${chatId}/locks`)}
         >
-          Configure Locks
+          {t('settings.configureLocks')}
         </Button>
       </div>
     </div>

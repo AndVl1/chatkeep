@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cell } from '@telegram-apps/telegram-ui';
 import type { Chat } from '@/types';
 
@@ -13,8 +14,9 @@ export const ChatCard = memo(function ChatCard({
   isActive = false,
   onSelect,
 }: ChatCardProps) {
+  const { t } = useTranslation();
   const subtitle = chat.memberCount
-    ? `${chat.memberCount} members`
+    ? t('chats.members', { count: chat.memberCount })
     : undefined;
 
   return (

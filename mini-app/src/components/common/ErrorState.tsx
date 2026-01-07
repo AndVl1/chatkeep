@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Placeholder, Button } from '@telegram-apps/telegram-ui';
 
 interface ErrorStateProps {
@@ -6,14 +7,16 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ error, onRetry }: ErrorStateProps) {
+  const { t } = useTranslation();
+
   return (
     <Placeholder
-      header="Error"
-      description={error.message || 'Something went wrong'}
+      header={t('common.error')}
+      description={error.message || t('errors.generic')}
     >
       {onRetry && (
         <Button size="m" onClick={onRetry}>
-          Retry
+          {t('common.retry')}
         </Button>
       )}
     </Placeholder>
