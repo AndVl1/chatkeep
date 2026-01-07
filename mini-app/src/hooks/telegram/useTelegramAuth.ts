@@ -44,9 +44,6 @@ export function useTelegramAuth() {
     if (!initDataState?.user || !initDataRawValue) {
       const webAppData = getWebAppData();
       if (webAppData.user) {
-        if (import.meta.env.DEV) {
-          console.log('[Auth] Using window.Telegram.WebApp fallback');
-        }
         setFallbackData(webAppData);
       }
     }

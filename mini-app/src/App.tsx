@@ -74,10 +74,8 @@ export function App() {
   useEffect(() => {
     // In development mode, only restore initData (mockEnv provides window globals)
     if (import.meta.env.DEV) {
-      console.log('[SDK] Development mode - using mock environment');
       try {
         initData.restore();
-        console.log('[SDK] initData restored from mock environment');
       } catch (error) {
         console.warn('[SDK] Failed to restore initData:', error);
       }
@@ -87,8 +85,7 @@ export function App() {
 
     // Production: Initialize all SDK components
     try {
-      const launchParams = retrieveLaunchParams();
-      console.log('[SDK] Launch params retrieved:', launchParams.platform);
+      retrieveLaunchParams();
 
       miniApp.mount();
       themeParams.mount();
@@ -96,7 +93,6 @@ export function App() {
       initData.restore();
 
       miniApp.ready();
-      console.log('[SDK] Initialized successfully');
       setSdkInitialized(true);
     } catch (error) {
       console.error('[SDK] Initialization failed:', error);
