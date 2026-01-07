@@ -467,4 +467,213 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
             jsonPath("$.locks.VIDEO.locked") { value(true) }
         }
     }
+
+    @Test
+    fun `PUT locks - logs LOCK_ENABLED when lock is enabled`() = runBlocking {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings(chatTitle = "Test Chat"))
+
+        // Setup config with log channel
+        moderationConfigRepository.save(
+            ru.andvl.chatkeep.domain.model.moderation.ModerationConfig(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                logChannelId = -1001234567890L
+            )
+        )
+
+        // Initially no locks
+        lockSettingsRepository.save(
+            LockSettings.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                locksJson = "{}",
+                lockWarns = false
+            )
+        )
+
+        mockMvc.put("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
+            header("Authorization", authHeader)
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                    "locks": {
+                        "TEXT": {
+                            "locked": true,
+                            "reason": "No spam"
+                        }
+                    }
+                }
+            """.trimIndent()
+        }.andExpect {
+            status { isOk() }
+        }
+
+        // Verify log entry sent
+        val logEntry = capturingLogChannelPort.waitForEntry(
+            channelId = -1001234567890L,
+            actionType = ActionType.LOCK_ENABLED,
+            timeoutMs = 2000
+        )
+
+        assertThat(logEntry).isNotNull
+        assertThat(logEntry?.chatId).isEqualTo(TestDataFactory.DEFAULT_CHAT_ID)
+        assertThat(logEntry?.chatTitle).isEqualTo("Test Chat")
+        assertThat(logEntry?.adminId).isEqualTo(user.id)
+        assertThat(logEntry?.actionType).isEqualTo(ActionType.LOCK_ENABLED)
+        assertThat(logEntry?.reason).isEqualTo("TEXT")
+    }
+
+    @Test
+    fun `PUT locks - logs LOCK_DISABLED when lock is disabled`() = runBlocking {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings(chatTitle = "Test Chat"))
+
+        // Setup config with log channel
+        moderationConfigRepository.save(
+            ru.andvl.chatkeep.domain.model.moderation.ModerationConfig(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                logChannelId = -1001234567890L
+            )
+        )
+
+        // Initially locked
+        lockSettingsRepository.save(
+            LockSettings.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                locksJson = """{"TEXT": {"locked": true, "reason": "No spam"}}""",
+                lockWarns = false
+            )
+        )
+
+        mockMvc.put("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
+            header("Authorization", authHeader)
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                    "locks": {
+                        "TEXT": {
+                            "locked": false,
+                            "reason": null
+                        }
+                    }
+                }
+            """.trimIndent()
+        }.andExpect {
+            status { isOk() }
+        }
+
+        // Verify log entry sent
+        val logEntry = capturingLogChannelPort.waitForEntry(
+            channelId = -1001234567890L,
+            actionType = ActionType.LOCK_DISABLED,
+            timeoutMs = 2000
+        )
+
+        assertThat(logEntry).isNotNull
+        assertThat(logEntry?.actionType).isEqualTo(ActionType.LOCK_DISABLED)
+        assertThat(logEntry?.reason).isEqualTo("TEXT")
+    }
+
+    @Test
+    fun `PUT locks - does not log when lock state unchanged`() = runBlocking {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        // Setup config with log channel
+        moderationConfigRepository.save(
+            ru.andvl.chatkeep.domain.model.moderation.ModerationConfig(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                logChannelId = -1001234567890L
+            )
+        )
+
+        // Already locked
+        lockSettingsRepository.save(
+            LockSettings.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                locksJson = """{"TEXT": {"locked": true, "reason": "Old reason"}}""",
+                lockWarns = false
+            )
+        )
+
+        mockMvc.put("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
+            header("Authorization", authHeader)
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                    "locks": {
+                        "TEXT": {
+                            "locked": true,
+                            "reason": "New reason"
+                        }
+                    }
+                }
+            """.trimIndent()
+        }.andExpect {
+            status { isOk() }
+        }
+
+        // Verify no log entry sent (state unchanged from true -> true)
+        assertThat(capturingLogChannelPort.getEntriesForChannel(-1001234567890L)).isEmpty()
+    }
+
+    @Test
+    fun `PUT locks - logs multiple lock changes`() = runBlocking {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings(chatTitle = "Test Chat"))
+
+        // Setup config with log channel
+        moderationConfigRepository.save(
+            ru.andvl.chatkeep.domain.model.moderation.ModerationConfig(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                logChannelId = -1001234567890L
+            )
+        )
+
+        // Setup mixed initial state
+        lockSettingsRepository.save(
+            LockSettings.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                locksJson = """{"TEXT": {"locked": true, "reason": null}}""",
+                lockWarns = false
+            )
+        )
+
+        mockMvc.put("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
+            header("Authorization", authHeader)
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                    "locks": {
+                        "TEXT": {"locked": false, "reason": null},
+                        "STICKER": {"locked": true, "reason": null},
+                        "PHOTO": {"locked": true, "reason": null}
+                    }
+                }
+            """.trimIndent()
+        }.andExpect {
+            status { isOk() }
+        }
+
+        // Verify multiple log entries
+        val entries = capturingLogChannelPort.getEntriesForChannel(-1001234567890L)
+        assertThat(entries).hasSize(3)
+
+        // Check we have entries for all three types
+        val actionsByType = entries.associate { it.reason!! to it.actionType }
+        assertThat(actionsByType["TEXT"]).isEqualTo(ActionType.LOCK_DISABLED)
+        assertThat(actionsByType["STICKER"]).isEqualTo(ActionType.LOCK_ENABLED)
+        assertThat(actionsByType["PHOTO"]).isEqualTo(ActionType.LOCK_ENABLED)
+    }
 }
