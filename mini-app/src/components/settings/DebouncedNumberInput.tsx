@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Input } from '@telegram-apps/telegram-ui';
 import { useDebouncedValue } from '@/hooks/ui/useDebouncedValue';
 
@@ -30,9 +30,21 @@ export function DebouncedNumberInput({
   // Debounced version of the local value
   const debouncedValue = useDebouncedValue(localValue, 500);
 
+  // Track if the change originated internally to prevent loops
+  const isInternalChangeRef = useRef(false);
+
+  // Store the latest onChange callback in a ref to avoid dependency issues
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   // Sync local state when props.value changes externally
   useEffect(() => {
-    setLocalValue(String(value));
+    if (!isInternalChangeRef.current) {
+      setLocalValue(String(value));
+    }
+    isInternalChangeRef.current = false;
   }, [value]);
 
   // Handle debounced value changes
@@ -57,10 +69,11 @@ export function DebouncedNumberInput({
 
       // Only call onChange if value actually changed
       if (validValue !== value) {
-        onChange(validValue);
+        isInternalChangeRef.current = true;
+        onChangeRef.current(validValue);
       }
     }
-  }, [debouncedValue, value, onChange, min, max]);
+  }, [debouncedValue, value, min, max]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
