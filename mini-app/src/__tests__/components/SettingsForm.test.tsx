@@ -82,7 +82,7 @@ describe('SettingsForm', () => {
       const onChange = vi.fn();
       renderWithAppRoot(<SettingsForm settings={mockSettings} onChange={onChange} />);
 
-      const lockWarnsSwitch = screen.getByRole('checkbox', { name: /lock warnings/i });
+      const lockWarnsSwitch = screen.getByRole('checkbox', { name: /violation warnings/i });
       expect(lockWarnsSwitch).not.toBeChecked();
 
       fireEvent.click(lockWarnsSwitch);
@@ -94,7 +94,7 @@ describe('SettingsForm', () => {
       const settings = { ...mockSettings, lockWarnsEnabled: true };
       renderWithAppRoot(<SettingsForm settings={settings} onChange={onChange} />);
 
-      const lockWarnsSwitch = screen.getByRole('checkbox', { name: /lock warnings/i });
+      const lockWarnsSwitch = screen.getByRole('checkbox', { name: /violation warnings/i });
       expect(lockWarnsSwitch).toBeChecked();
 
       fireEvent.click(lockWarnsSwitch);
@@ -109,7 +109,7 @@ describe('SettingsForm', () => {
 
       expect(screen.getByRole('checkbox', { name: /collection enabled/i })).toBeInTheDocument();
       expect(screen.getByRole('checkbox', { name: /clean service messages/i })).toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: /lock warnings/i })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /violation warnings/i })).toBeInTheDocument();
     });
 
     it('should render correct initial states for toggles', () => {
@@ -124,7 +124,7 @@ describe('SettingsForm', () => {
 
       expect(screen.getByRole('checkbox', { name: /collection enabled/i })).toBeChecked();
       expect(screen.getByRole('checkbox', { name: /clean service messages/i })).toBeChecked();
-      expect(screen.getByRole('checkbox', { name: /lock warnings/i })).not.toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /violation warnings/i })).not.toBeChecked();
     });
 
     it('should disable all inputs when disabled prop is true', () => {
@@ -133,7 +133,7 @@ describe('SettingsForm', () => {
 
       expect(screen.getByRole('checkbox', { name: /collection enabled/i })).toBeDisabled();
       expect(screen.getByRole('checkbox', { name: /clean service messages/i })).toBeDisabled();
-      expect(screen.getByRole('checkbox', { name: /lock warnings/i })).toBeDisabled();
+      expect(screen.getByRole('checkbox', { name: /violation warnings/i })).toBeDisabled();
     });
   });
 
