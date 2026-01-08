@@ -38,7 +38,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,flyway
+        include: health,info,flyway,prometheus,metrics
   endpoint:
     health:
       show-details: always
@@ -46,6 +46,10 @@ management:
   health:
     db:
       enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
 
 logging:
   level:
