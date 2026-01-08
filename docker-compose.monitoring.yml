@@ -1,11 +1,11 @@
 # Monitoring stack
 # Run with: docker compose -f docker-compose.monitoring.yml up -d
-# Access:
-#   Grafana: http://localhost:3000 (admin/admin)
+# Access (localhost only):
+#   Grafana: http://localhost:3000
 #   Prometheus: http://localhost:9090
 #
-# Production: Connect to existing app network
-# Use: networks.chatkeep_default.external: true
+# Production: Services bound to 127.0.0.1 - use reverse proxy for external access
+# Connect to existing app network with: networks.chatkeep_default.external: true
 
 services:
   prometheus:
@@ -20,7 +20,7 @@ services:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     restart: always
     networks:
       - chatkeep_default
@@ -37,7 +37,7 @@ services:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     restart: always
     networks:
       - chatkeep_default
