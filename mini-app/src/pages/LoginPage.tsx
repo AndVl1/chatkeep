@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { TelegramLoginWidget } from '@/components/auth/TelegramLoginWidget';
 import { useAuthStore } from '@/stores/authStore';
 import { Spinner } from '@telegram-apps/telegram-ui';
@@ -21,6 +22,7 @@ function shouldUseRedirectMode(): boolean {
 }
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
@@ -96,7 +98,7 @@ export function LoginPage() {
             color: 'var(--tg-theme-button-color, #5288c1)',
           }}
         >
-          Chatkeep
+          {t('login.title')}
         </h1>
 
         <p
@@ -106,7 +108,7 @@ export function LoginPage() {
             color: 'var(--tg-theme-hint-color, #708499)',
           }}
         >
-          Configure your Telegram bot settings
+          {t('login.subtitle')}
         </p>
 
         {/* Loading State */}
@@ -114,7 +116,7 @@ export function LoginPage() {
           <div style={{ marginBottom: '24px' }}>
             <Spinner size="l" />
             <p style={{ marginTop: '16px', color: 'var(--tg-theme-hint-color, #708499)' }}>
-              Authenticating...
+              {t('login.authenticating')}
             </p>
           </div>
         )}
@@ -155,9 +157,9 @@ export function LoginPage() {
             color: 'var(--tg-theme-hint-color, #708499)',
           }}
         >
-          You need a Telegram account to use this app.
+          {t('login.helpText')}
           <br />
-          Click the button above to log in with Telegram.
+          {t('login.helpInstruction')}
         </p>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Section } from '@telegram-apps/telegram-ui';
 import { ChatCard } from './ChatCard';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -22,6 +23,8 @@ export function ChatSelector({
   onSelectChat,
   onRetry,
 }: ChatSelectorProps) {
+  const { t } = useTranslation();
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -33,14 +36,14 @@ export function ChatSelector({
   if (chats.length === 0) {
     return (
       <EmptyState
-        title="No Chats"
-        description="You are not an admin in any groups with this bot."
+        title={t('chats.noChats')}
+        description={t('chats.noChatsDescription')}
       />
     );
   }
 
   return (
-    <Section header="Select a Chat">
+    <Section header={t('chats.selectChat')}>
       {chats.map((chat) => (
         <ChatCard
           key={chat.chatId}

@@ -1,7 +1,7 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cell, Switch } from '@telegram-apps/telegram-ui';
 import type { LockType } from '@/types';
-import { LOCK_TYPE_LABELS } from '@/utils/constants';
 
 interface LockToggleProps {
   lockType: LockType;
@@ -16,7 +16,8 @@ export const LockToggle = memo(function LockToggle({
   onToggle,
   disabled = false,
 }: LockToggleProps) {
-  const label = LOCK_TYPE_LABELS[lockType] || lockType;
+  const { t } = useTranslation();
+  const label = t(`lockTypes.${lockType}`, lockType);
 
   return (
     <Cell

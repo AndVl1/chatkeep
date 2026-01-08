@@ -24,7 +24,8 @@ data class SettingsResponse(
     val thresholdDurationMinutes: Int?,
     val defaultBlocklistAction: String,
     val logChannelId: Long?,
-    val lockWarnsEnabled: Boolean
+    val lockWarnsEnabled: Boolean,
+    val locale: String
 )
 
 data class LocksResponse(
@@ -109,4 +110,9 @@ data class TelegramUserResponse(
     val lastName: String? = null,
     val username: String? = null,
     val photoUrl: String? = null
+)
+
+data class UserPreferencesResponse(
+    val userId: Long,
+    val locale: String
 )

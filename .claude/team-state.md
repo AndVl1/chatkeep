@@ -1,44 +1,66 @@
 # TEAM STATE
 
 ## Classification
-- Type: BUG_FIX
-- Complexity: MEDIUM
-- Workflow: STANDARD (Discovery → Exploration → Implementation → Review → Fix Issues → Summary)
+- Type: FEATURE
+- Complexity: COMPLEX
+- Workflow: FULL 7-PHASE
 
 ## Task
-При изменении состояния чекбоксов локов (lock settings) в Mini App и при изменении локов через чат-команды бота не отправляются уведомления в привязанный лог канал. Нужно:
-1. Исправить отправку уведомлений при изменении локов
-2. Использовать единый механизм для отправки уведомлений (одинаковое сообщение)
-3. Покрыть тестами данный кейс
-4. После ревью сразу пофиксить все замечания без вопросов
+Implement full localization (i18n) for both Telegram bot and Mini App:
+- Support RU and EN locales
+- User-level locale preference
+- Chat-level locale preference (for bot messages in groups)
+- Localize: configurations, descriptions, toggle names
+- Allow switching between locales in both bot and Mini App
 
 ## Progress
-- [x] Phase 0: Classification - COMPLETED
 - [x] Phase 1: Discovery - COMPLETED
 - [x] Phase 2: Exploration - COMPLETED
-- [x] Phase 5: Implementation - COMPLETED
-- [ ] Phase 6: Review - IN PROGRESS
-- [ ] Phase 6.5: Review Fixes - pending (if issues found)
+- [x] Phase 3: Questions - SKIPPED (user requested no questions)
+- [x] Phase 4: Architecture - COMPLETED
+- [ ] Phase 5: Implementation - IN PROGRESS
+- [ ] Phase 6: Review - pending
 - [ ] Phase 7: Summary - pending
 
-## Phase 5 Output: Implementation
+## Key Decisions
+- Branch created: feat/full-localization
+- User requested implementation without questions
+- Pragmatic approach: Spring MessageSource + react-i18next
 
-### Commits Made
-1. `2d5458c` - feat: add LOCK_ENABLED and LOCK_DISABLED action types
-2. `6a371ad` - feat: add log channel notifications for lock changes in Mini App
-3. `cbf9746` - feat: add log channel notifications for lock commands
+## Phase 4 Output: Architecture Design
 
-### Files Modified
-1. `ActionType.kt` - Added LOCK_ENABLED, LOCK_DISABLED enum values
-2. `TelegramLogChannelAdapter.kt` - Added hashtags #LOCK_ENABLED, #LOCK_DISABLED and lock type formatting
-3. `MiniAppLocksController.kt` - Added notifications for individual lock changes (with old vs new state comparison)
-4. `LockCommandsHandler.kt` - Added LogChannelService, ChatService dependencies and notifications for /lock, /unlock, /lockwarns
+### Database Migration (V11__add_locale_support.sql)
+- Add `locale` column to `chat_settings` table (VARCHAR(5), default 'en')
+- Create `user_preferences` table (user_id BIGINT PK, locale VARCHAR(5))
 
-### Build Status
-- ./gradlew build -x test: PASS
+### Backend Components
+1. **UserPreferences.kt** - New entity for user locale
+2. **UserPreferencesRepository.kt** - Repository interface
+3. **BotMessageService.kt** - Central service for localized bot messages
+4. **LocaleResolver.kt** - Resolves locale from chat/user context
+5. **messages_en.properties** - English strings (~150 keys)
+6. **messages_ru.properties** - Russian strings (~150 keys)
+
+### Frontend Components
+1. **i18n/index.ts** - i18next configuration
+2. **i18n/locales/en.json** - English UI strings (~80 keys)
+3. **i18n/locales/ru.json** - Russian UI strings
+4. **hooks/i18n/useLocale.ts** - Custom locale hook
+5. **components/settings/LocaleSelector.tsx** - Language switcher
+
+### API Changes
+- GET/PUT /api/v1/miniapp/preferences - User locale
+- Chat settings DTO includes locale field
+
+### Locale Resolution
+- Group chats: chat_settings.locale -> default EN
+- Private chats: user_preferences.locale -> default EN
+- Mini App: user_preferences.locale -> Telegram WebApp language -> default EN
 
 ## Chosen Approach
-Used `LOCK_ENABLED` and `LOCK_DISABLED` ActionTypes with reason field containing lock type name (e.g., "LINKS", "PHOTOS"). Both Mini App and Bot use the same LogChannelService mechanism ensuring consistent message format.
+- Backend: Spring MessageSource with properties files
+- Frontend: react-i18next with JSON locale files
+- Database: Add locale fields to existing tables + new user_preferences table
 
 ## Recovery
-Continue from Phase 6 Review. Need to add tests and perform quality review.
+Continue from Phase 5 Implementation. Launch backend and frontend developers in parallel.

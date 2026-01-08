@@ -54,3 +54,9 @@ data class UpdateChannelReplyRequest(
     @field:Valid
     val buttons: List<ButtonDto>? = null
 )
+
+data class UpdatePreferencesRequest(
+    @field:NotBlank
+    @field:Pattern(regexp = "^(en|ru)$", message = "Locale must be 'en' or 'ru'")
+    val locale: String
+)

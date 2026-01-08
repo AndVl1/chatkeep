@@ -230,6 +230,36 @@ import { Section, Cell, Switch, Button, Spinner } from '@telegram-apps/ui';
 </Section>
 ```
 
+### Localization (i18n)
+All user-facing text MUST be localized using react-i18next:
+
+```tsx
+import { useTranslation } from 'react-i18next';
+
+export function SettingsPage() {
+  const { t } = useTranslation();
+
+  return (
+    <Section header={t('settings.general')}>
+      <Cell description={t('settings.collectionDescription')}>
+        {t('settings.collectionEnabled')}
+      </Cell>
+    </Section>
+  );
+}
+```
+
+**Locale files**: `mini-app/src/i18n/locales/`
+- `en.json` - English (default)
+- `ru.json` - Russian
+
+**Adding new strings**:
+1. Add key to BOTH locale files
+2. Use nested keys: `"section.key": "value"`
+3. For dynamic values: `t('key', { count: 5 })` → `"{{count}} items"`
+
+**Language selector**: Uses `useLocale()` hook from `@/hooks/i18n/useLocale`
+
 ### Styling
 - Use CSS modules (*.module.css)
 - Use Telegram CSS variables: `var(--tg-theme-bg-color)`

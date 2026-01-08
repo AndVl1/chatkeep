@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Section, Cell, Switch, Select } from '@telegram-apps/telegram-ui';
 import type { ChatSettings, PunishmentType } from '@/types';
-import { PUNISHMENT_LABELS } from '@/utils/constants';
 import { DebouncedNumberInput } from './DebouncedNumberInput';
+import { LocaleSelector } from './LocaleSelector';
 
 interface SettingsFormProps {
   settings: ChatSettings;
@@ -11,6 +12,8 @@ interface SettingsFormProps {
 }
 
 export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps) {
+  const { t } = useTranslation();
+
   const handleChange = useCallback(<K extends keyof ChatSettings>(
     key: K,
     value: ChatSettings[K]
@@ -18,9 +21,11 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
     onChange({ [key]: value });
   }, [onChange]);
 
+  const punishmentTypes: PunishmentType[] = ['NOTHING', 'WARN', 'MUTE', 'BAN', 'KICK'];
+
   return (
     <>
-      <Section header="General Settings">
+      <Section header={t('settings.general')}>
         <Cell
           Component="label"
           after={
@@ -30,9 +35,9 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
               disabled={disabled}
             />
           }
-          description="Enable message collection for this chat"
+          description={t('settings.collectionDescription')}
         >
-          Collection Enabled
+          {t('settings.collectionEnabled')}
         </Cell>
 
         <Cell
@@ -44,9 +49,9 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
               disabled={disabled}
             />
           }
-          description="Automatically delete service messages"
+          description={t('settings.cleanServiceDescription')}
         >
-          Clean Service Messages
+          {t('settings.cleanService')}
         </Cell>
 
         <Cell
@@ -58,14 +63,14 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
               disabled={disabled}
             />
           }
-          description="Warn users when they violate locks"
+          description={t('settings.lockWarningsDescription')}
         >
-          Lock Warnings
+          {t('settings.lockWarnings')}
         </Cell>
       </Section>
 
-      <Section header="Warning Configuration">
-        <Cell description="Maximum warnings before threshold action">
+      <Section header={t('settings.warningConfig')}>
+        <Cell description={t('settings.maxWarnings')}>
           <DebouncedNumberInput
             value={settings.maxWarnings}
             onChange={(val) => handleChange('maxWarnings', val)}
@@ -75,7 +80,7 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
           />
         </Cell>
 
-        <Cell description="Warning expiry time (hours)">
+        <Cell description={t('settings.warningExpiry')}>
           <DebouncedNumberInput
             value={settings.warningTtlHours}
             onChange={(val) => handleChange('warningTtlHours', val)}
@@ -85,22 +90,22 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
           />
         </Cell>
 
-        <Cell description="Action when threshold reached">
+        <Cell description={t('settings.thresholdAction')}>
           <Select
             value={settings.thresholdAction}
             onChange={(e) => handleChange('thresholdAction', e.target.value as PunishmentType)}
             disabled={disabled}
           >
-            {Object.entries(PUNISHMENT_LABELS).map(([value, label]) => (
+            {punishmentTypes.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {t(`punishment.${value}`)}
               </option>
             ))}
           </Select>
         </Cell>
 
         {(settings.thresholdAction === 'MUTE' || settings.thresholdAction === 'BAN') && (
-          <Cell description="Duration (minutes, 0 = permanent)">
+          <Cell description={t('settings.duration')}>
             <DebouncedNumberInput
               value={settings.thresholdDurationMinutes ?? 0}
               onChange={(val) => handleChange('thresholdDurationMinutes', val)}
@@ -111,20 +116,24 @@ export function SettingsForm({ settings, onChange, disabled }: SettingsFormProps
         )}
       </Section>
 
-      <Section header="Blocklist">
-        <Cell description="Default action for blocked patterns">
+      <Section header={t('settings.blocklist')}>
+        <Cell description={t('settings.blocklistAction')}>
           <Select
             value={settings.defaultBlocklistAction}
             onChange={(e) => handleChange('defaultBlocklistAction', e.target.value as PunishmentType)}
             disabled={disabled}
           >
-            {Object.entries(PUNISHMENT_LABELS).map(([value, label]) => (
+            {punishmentTypes.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {t(`punishment.${value}`)}
               </option>
             ))}
           </Select>
         </Cell>
+      </Section>
+
+      <Section header={t('settings.language')}>
+        <LocaleSelector />
       </Section>
     </>
   );

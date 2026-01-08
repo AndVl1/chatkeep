@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Section, Cell, Input, Select, Button } from '@telegram-apps/telegram-ui';
 import type { AddBlocklistPatternRequest, PunishmentType } from '@/types';
-import { PUNISHMENT_LABELS } from '@/utils/constants';
 
 interface AddPatternFormProps {
   onAdd: (pattern: AddBlocklistPatternRequest) => Promise<void>;
@@ -9,12 +9,15 @@ interface AddPatternFormProps {
 }
 
 export function AddPatternForm({ onAdd, onCancel }: AddPatternFormProps) {
+  const { t } = useTranslation();
   const [pattern, setPattern] = useState('');
   const [matchType, setMatchType] = useState<'EXACT' | 'WILDCARD'>('EXACT');
   const [action, setAction] = useState<PunishmentType>('WARN');
   const [duration, setDuration] = useState<number>(0);
   const [severity, setSeverity] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const punishmentTypes: PunishmentType[] = ['NOTHING', 'WARN', 'MUTE', 'BAN', 'KICK'];
 
   const handleSubmit = useCallback(async () => {
     if (!pattern.trim()) return;
@@ -40,34 +43,34 @@ export function AddPatternForm({ onAdd, onCancel }: AddPatternFormProps) {
   }, [pattern, matchType, action, duration, severity, onAdd]);
 
   return (
-    <Section header="Add Pattern">
-      <Cell description="Pattern to match">
+    <Section header={t('blocklist.addPattern')}>
+      <Cell description={t('blocklist.patternLabel')}>
         <Input
-          placeholder="e.g., spam, advertisement"
+          placeholder={t('blocklist.patternPlaceholder')}
           value={pattern}
           onChange={(e) => setPattern(e.target.value)}
         />
       </Cell>
 
-      <Cell description="Match type">
+      <Cell description={t('blocklist.matchType')}>
         <Select value={matchType} onChange={(e) => setMatchType(e.target.value as 'EXACT' | 'WILDCARD')}>
-          <option value="EXACT">Exact</option>
-          <option value="WILDCARD">Wildcard</option>
+          <option value="EXACT">{t('blocklist.exact')}</option>
+          <option value="WILDCARD">{t('blocklist.wildcard')}</option>
         </Select>
       </Cell>
 
-      <Cell description="Action">
+      <Cell description={t('blocklist.action')}>
         <Select value={action} onChange={(e) => setAction(e.target.value as PunishmentType)}>
-          {Object.entries(PUNISHMENT_LABELS).map(([value, label]) => (
+          {punishmentTypes.map((value) => (
             <option key={value} value={value}>
-              {label}
+              {t(`punishment.${value}`)}
             </option>
           ))}
         </Select>
       </Cell>
 
       {(action === 'MUTE' || action === 'BAN') && (
-        <Cell description="Duration (minutes, 0 = permanent)">
+        <Cell description={t('settings.duration')}>
           <Input
             type="number"
             value={duration}
@@ -77,7 +80,7 @@ export function AddPatternForm({ onAdd, onCancel }: AddPatternFormProps) {
         </Cell>
       )}
 
-      <Cell description="Severity (1-10)">
+      <Cell description={t('blocklist.severity')}>
         <Input
           type="number"
           value={severity}
@@ -94,7 +97,7 @@ export function AddPatternForm({ onAdd, onCancel }: AddPatternFormProps) {
           onClick={handleSubmit}
           disabled={!pattern.trim() || isSubmitting}
         >
-          Add Pattern
+          {t('common.add')}
         </Button>
         <Button
           size="m"
@@ -102,7 +105,7 @@ export function AddPatternForm({ onAdd, onCancel }: AddPatternFormProps) {
           onClick={onCancel}
           disabled={isSubmitting}
         >
-          Cancel
+          {t('common.cancel')}
         </Button>
       </div>
     </Section>

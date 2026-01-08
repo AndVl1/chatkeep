@@ -1,5 +1,6 @@
 import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@telegram-apps/telegram-ui';
 import { LocksGrid } from '@/components/locks/LocksGrid';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -9,6 +10,7 @@ import { useNotification } from '@/hooks/ui/useNotification';
 import type { LockType } from '@/types';
 
 export function LocksPage() {
+  const { t } = useTranslation();
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
   const numericChatId = Number(chatId);
@@ -20,9 +22,9 @@ export function LocksPage() {
     try {
       await toggleLock(lockType, locked);
     } catch (err) {
-      showError((err as Error).message || 'Failed to update lock');
+      showError((err as Error).message || t('locks.saveError'));
     }
-  }, [toggleLock, showError]);
+  }, [toggleLock, showError, t]);
 
   if (!chatId || isNaN(numericChatId)) {
     return <Navigate to="/" replace />;
@@ -40,10 +42,10 @@ export function LocksPage() {
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
         <Button size="s" mode="plain" onClick={() => navigate(`/chat/${chatId}/settings`)}>
-          ← Back
+          {t('settings.back')}
         </Button>
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
-          Configure Locks
+          {t('locks.title')}
         </h1>
       </div>
 

@@ -143,6 +143,32 @@ throw ConflictRestException("Tag already exists")
 - Use `inlineKeyboard {}` and `replyKeyboard {}` DSL builders
 - Handle errors with `runCatching` wrapper
 
+### Localization (i18n)
+Bot messages MUST be localized using `I18nMessageService`:
+
+```kotlin
+@Service
+class MyHandler(
+    private val i18n: I18nMessageService
+) {
+    suspend fun BehaviourContext.handle(message: Message) {
+        val locale = message.from?.languageCode?.let { Locale.forLanguageTag(it) }
+        reply(message, i18n.getMessage("bot.welcome", locale))
+    }
+}
+```
+
+**Message files**: `src/main/resources/i18n/`
+- `messages.properties` - Default (English)
+- `messages_ru.properties` - Russian
+
+**Adding new messages**:
+1. Add key to ALL message files
+2. Use dot notation: `bot.command.help=Help text`
+3. For placeholders: `bot.greeting=Hello, {0}!` → `i18n.getMessage("bot.greeting", locale, userName)`
+
+**Getting user locale**: Extract from `message.from?.languageCode`
+
 ## Constraints (What NOT to Do)
 - Do NOT deviate from Architect's design
 - Do NOT skip error handling
