@@ -102,6 +102,19 @@ case "${1:-help}" in
         echo -e "${GREEN}Pulling latest and restarting...${NC}"
         docker compose -f docker-compose.prod.yml pull
         docker compose -f docker-compose.prod.yml up -d
+
+        # Wait for health check
+        echo -e "${YELLOW}Waiting for application to become healthy...${NC}"
+        sleep 10
+        for i in {1..30}; do
+            if docker compose -f docker-compose.prod.yml ps | grep -q "healthy"; then
+                echo -e "${GREEN}Application is healthy!${NC}"
+                break
+            fi
+            echo -n "."
+            sleep 2
+        done
+
         docker image prune -f
         echo -e "${GREEN}Restart complete!${NC}"
         ;;
