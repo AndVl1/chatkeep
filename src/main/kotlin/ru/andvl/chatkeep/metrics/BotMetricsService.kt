@@ -1,10 +1,12 @@
 package ru.andvl.chatkeep.metrics
 
 import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import org.springframework.stereotype.Service
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 @Service
 class BotMetricsService(
@@ -13,6 +15,13 @@ class BotMetricsService(
 
     companion object {
         private const val PREFIX = "chatkeep.bot"
+    }
+
+    private val activeChatsCount = AtomicLong(0)
+
+    init {
+        Gauge.builder("$PREFIX.chats.active") { activeChatsCount.get().toDouble() }
+            .register(meterRegistry)
     }
 
     // Messages
@@ -97,6 +106,6 @@ class BotMetricsService(
 
     // Gauge for active chats
     fun setActiveChats(count: Long) {
-        meterRegistry.gauge("$PREFIX.chats.active", count)
+        activeChatsCount.set(count)
     }
 }
