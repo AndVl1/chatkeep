@@ -40,7 +40,8 @@ class BlocklistFilterHandler(
     private val blocklistService: BlocklistService,
     private val punishmentService: PunishmentService,
     private val warningService: WarningService,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -69,6 +70,7 @@ class BlocklistFilterHandler(
             blocklistService.checkMessage(chatId, content)
         }
         if (match != null) {
+            metricsService.recordBlocklistMatch()
             handleBlocklistMatch(chatId, userId, match, message)
         }
     }
@@ -80,13 +82,18 @@ class BlocklistFilterHandler(
             },
             markerFactory = null // Enable parallel processing of all messages
         ) { message ->
-            val textContent = message.content as? TextContent ?: return@onText
-            val text = textContent.text
-            val chatId = message.chat.id.chatId.long
-            val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return@onText
+            try {
+                val textContent = message.content as? TextContent ?: return@onText
+                val text = textContent.text
+                val chatId = message.chat.id.chatId.long
+                val userId = (message as? FromUserMessage)?.from?.id?.chatId?.long ?: return@onText
 
-            if (isAdminExempt(userId, chatId)) return@onText
-            checkAndHandle(chatId, userId, text, message)
+                if (isAdminExempt(userId, chatId)) return@onText
+                checkAndHandle(chatId, userId, text, message)
+            } catch (e: Exception) {
+                logger.error("Error in BlocklistFilterHandler.onText: ${e.message}", e)
+                metricsService.recordHandlerError("BlocklistFilterHandler")
+            }
         }
 
         // Handle dice messages (🎲🎯🏀⚽🎰🎳)

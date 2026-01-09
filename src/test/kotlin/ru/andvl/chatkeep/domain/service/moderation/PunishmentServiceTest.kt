@@ -34,7 +34,8 @@ class PunishmentServiceTest {
         bot = mockk(relaxed = true)
         logChannelService = mockk(relaxed = true)
         usernameCacheService = mockk(relaxed = true)
-        service = PunishmentService(repository, bot, logChannelService, usernameCacheService)
+        val metricsService = mockk<ru.andvl.chatkeep.metrics.BotMetricsService>(relaxed = true)
+        service = PunishmentService(repository, bot, logChannelService, usernameCacheService, metricsService)
     }
 
     @Test

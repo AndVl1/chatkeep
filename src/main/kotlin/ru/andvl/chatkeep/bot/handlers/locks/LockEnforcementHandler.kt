@@ -44,7 +44,8 @@ class LockEnforcementHandler(
     private val lockDetectorRegistry: LockDetectorRegistry,
     private val adminCacheService: AdminCacheService,
     private val warningService: WarningService,
-    private val punishmentService: PunishmentService
+    private val punishmentService: PunishmentService,
+    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -94,12 +95,14 @@ class LockEnforcementHandler(
 
                 if (detector.detect(message, context)) {
                     // Lock violated - handle violation
+                    metricsService.recordLockViolation(lockType.name)
                     handleViolation(message, chatId, userId, lockType, config.reason)
                     return  // Stop after first violation
                 }
             }
         } catch (e: Exception) {
             logger.error("Lock enforcement error: ${e.message}", e)
+            metricsService.recordHandlerError("LockEnforcementHandler")
         }
     }
 

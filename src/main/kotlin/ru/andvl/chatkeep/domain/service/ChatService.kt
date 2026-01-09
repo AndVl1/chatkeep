@@ -9,7 +9,8 @@ import java.time.Instant
 
 @Service
 class ChatService(
-    private val chatSettingsRepository: ChatSettingsRepository
+    private val chatSettingsRepository: ChatSettingsRepository,
+    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -50,8 +51,16 @@ class ChatService(
 
         return chatSettingsRepository.save(updated).also {
             logger.info("Chat $chatId collection ${if (enabled) "enabled" else "disabled"}")
+            updateActiveChatsMetric()
         }
     }
 
     fun getAllChats(): List<ChatSettings> = chatSettingsRepository.findAll().toList()
+
+    private fun updateActiveChatsMetric() {
+        val activeCount = chatSettingsRepository.findAll()
+            .count { it.collectionEnabled }
+            .toLong()
+        metricsService.setActiveChats(activeCount)
+    }
 }

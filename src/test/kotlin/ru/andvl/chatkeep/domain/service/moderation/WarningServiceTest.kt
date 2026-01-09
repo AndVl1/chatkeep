@@ -38,7 +38,8 @@ class WarningServiceTest {
         punishmentService = mockk()
         // Mock logAction to do nothing (we just verify it was called)
         justRun { punishmentService.logAction(any(), any(), any(), any(), any(), any(), any(), any()) }
-        service = WarningService(warningRepository, moderationConfigRepository, punishmentService)
+        val metricsService = mockk<ru.andvl.chatkeep.metrics.BotMetricsService>(relaxed = true)
+        service = WarningService(warningRepository, moderationConfigRepository, punishmentService, metricsService)
     }
 
     // WARNING ISSUANCE TESTS
