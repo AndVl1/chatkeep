@@ -16,16 +16,30 @@ infra/
 
 ## Monitoring Stack
 
-To start the monitoring stack:
+### Local Development
+
+To start the monitoring stack locally:
 
 ```bash
+docker compose -f docker-compose.monitoring.yml up -d
+```
+
+### Production Deployment
+
+The monitoring stack connects to the existing `chatkeep_default` network:
+
+```bash
+# On production server
+cd /root/chatkeep
 docker compose -f docker-compose.monitoring.yml up -d
 ```
 
 ### Access
 
 - **Grafana**: http://localhost:3000 (default: admin/admin)
+  - Production: http://89.125.243.104:3000
 - **Prometheus**: http://localhost:9090
+  - Production: http://89.125.243.104:9090
 
 ### Metrics
 
@@ -53,7 +67,18 @@ class MyService(private val registry: MeterRegistry) {
 
 ## Grafana Dashboards
 
-After starting Grafana, you can import dashboards:
+### Pre-configured Dashboard
+
+A basic "Chatkeep - Spring Boot Metrics" dashboard is automatically created with:
+- Uptime monitoring
+- JVM Memory usage
+- HTTP request rate
+- GC pause time
+- Thread count
+
+### Additional Dashboards
+
+You can import more comprehensive dashboards:
 
 1. **Spring Boot Dashboard**: Import ID `11378` for comprehensive Spring Boot metrics
 2. **JVM Dashboard**: Import ID `4701` for JVM metrics

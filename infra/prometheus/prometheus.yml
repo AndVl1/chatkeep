@@ -7,10 +7,12 @@ global:
 
 scrape_configs:
   # Spring Boot application metrics
+  # Use 'chatkeep-app:8080' for production (Docker network)
+  # Use 'host.docker.internal:8080' for local development
   - job_name: 'chatkeep-app'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['chatkeep-app:8080']
         labels:
           application: 'chatkeep'
           service: 'backend'
