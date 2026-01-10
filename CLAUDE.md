@@ -182,6 +182,57 @@ Use DeepWiki for:
 | API reference | Context7 |
 | Codebase architecture | DeepWiki |
 
+## Mobile Development (KMP)
+
+The project includes infrastructure for Kotlin Multiplatform mobile development.
+
+### Skills
+
+| Skill | Description |
+|-------|-------------|
+| `kmp` | KMP fundamentals, expect/actual, source sets, multi-module setup |
+| `compose` | Compose Multiplatform UI patterns, theming, resources |
+| `decompose` | Navigation, components, lifecycle, state preservation |
+| `metro-di-mobile` | Metro DI for compile-time dependency injection |
+
+### Agents
+
+| Agent | Description |
+|-------|-------------|
+| `developer-mobile` | Implements KMP features with Compose UI |
+| `init-mobile` | Creates new KMP project with full structure |
+
+### Commands
+
+- `/init-mobile [project-name]` - Creates a complete KMP Compose Multiplatform project
+
+### Technology Stack
+
+- **Platforms**: Android, iOS, Desktop (JVM), Web (WASM)
+- **UI**: Compose Multiplatform
+- **Navigation**: Decompose
+- **DI**: Metro (compile-time)
+- **HTTP**: Ktor Client
+- **Database**: Room (Android/iOS/JVM)
+- **Preferences**: DataStore
+
+### Project Structure Pattern
+
+```
+project/
+├── core/
+│   ├── common/      # Utilities, Result types
+│   ├── data/        # DataStore
+│   ├── database/    # Room (mobile + desktop)
+│   ├── network/     # Ktor client
+│   └── ui/          # Theme, components
+├── feature/
+│   └── [name]/
+│       ├── api/     # Public interfaces
+│       └── impl/    # Implementation + UI
+└── composeApp/      # Platform entry points
+```
+
 ## Git Workflow
 
 **IMPORTANT: ALL features and fixes MUST be developed in separate branches.**

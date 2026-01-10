@@ -1,783 +1,740 @@
-# Decompose - Kotlin Multiplatform Navigation Framework
+---
+name: decompose
+description: Decompose navigation and components - use for KMP component architecture, navigation, lifecycle, and state management
+---
 
-Decompose - библиотека Kotlin Multiplatform для построения lifecycle-aware бизнес-логики компонентов с роутингом и pluggable UI.
+# Decompose for Kotlin Multiplatform
 
-## Gradle Dependencies
+Component-based architecture with lifecycle management and navigation for KMP.
+
+## Setup
+
+### libs.versions.toml
+
+```toml
+[versions]
+decompose = "3.5.0"
+essenty = "2.5.0"
+
+[libraries]
+decompose = { module = "com.arkivanov.decompose:decompose", version.ref = "decompose" }
+decompose-compose = { module = "com.arkivanov.decompose:extensions-compose", version.ref = "decompose" }
+essenty-lifecycle = { module = "com.arkivanov.essenty:lifecycle", version.ref = "essenty" }
+```
+
+### build.gradle.kts
 
 ```kotlin
-// Core module (обязательный)
-implementation("com.arkivanov.decompose:decompose:3.2.0")
-
-// Compose integration (стабильный)
-implementation("com.arkivanov.decompose:extensions-compose:3.2.0")
-
-// Experimental Compose (shared elements, predictive back)
-implementation("com.arkivanov.decompose:extensions-compose-experimental:3.2.0")
+commonMain.dependencies {
+    implementation(libs.decompose)
+    implementation(libs.decompose.compose)
+    implementation(libs.essenty.lifecycle)
+    implementation(libs.kotlinx.serialization.json)
+}
 ```
 
 ## Core Concepts
 
+### Component
+
+Business logic container with lifecycle. UI-agnostic.
+
+```kotlin
+// Interface (public API)
+interface HomeComponent {
+    val state: Value<HomeState>
+    fun onItemClick(item: HomeItem)
+    fun onRefresh()
+}
+
+// Implementation
+class DefaultHomeComponent(
+    componentContext: ComponentContext,
+    private val repository: HomeRepository,
+    private val onNavigateToDetails: (itemId: String) -> Unit
+) : HomeComponent, ComponentContext by componentContext {
+
+    private val _state = MutableValue<HomeState>(HomeState.Loading)
+    override val state: Value<HomeState> = _state
+
+    private val scope = componentScope()
+
+    init {
+        loadData()
+    }
+
+    private fun loadData() {
+        scope.launch {
+            _state.value = HomeState.Loading
+            repository.getItems()
+                .onSuccess { items ->
+                    _state.value = HomeState.Success(items)
+                }
+                .onError { message, _ ->
+                    _state.value = HomeState.Error(message)
+                }
+        }
+    }
+
+    override fun onItemClick(item: HomeItem) {
+        onNavigateToDetails(item.id)
+    }
+
+    override fun onRefresh() {
+        loadData()
+    }
+}
+
+sealed class HomeState {
+    data object Loading : HomeState()
+    data class Success(val items: List<HomeItem>) : HomeState()
+    data class Error(val message: String) : HomeState()
+}
+```
+
 ### ComponentContext
 
-`ComponentContext` - центральный интерфейс, предоставляющий компонентам:
-- **Lifecycle** - жизненный цикл компонента (CREATED → STARTED → RESUMED → DESTROYED)
-- **StateKeeper** - сохранение состояния при configuration changes и process death
-- **InstanceKeeper** - сохранение инстансов между configuration changes (аналог ViewModel)
-- **BackHandler** - обработка кнопки "назад"
+Provides lifecycle, state preservation, and child management.
 
 ```kotlin
 class MyComponent(
     componentContext: ComponentContext
 ) : ComponentContext by componentContext {
 
-    // Доступ к lifecycle
+    // Access lifecycle
     init {
-        lifecycle.doOnCreate { /* ... */ }
-        lifecycle.doOnDestroy { /* ... */ }
+        lifecycle.subscribe(
+            onCreate = { println("Created") },
+            onStart = { println("Started") },
+            onResume = { println("Resumed") },
+            onPause = { println("Paused") },
+            onStop = { println("Stopped") },
+            onDestroy = { println("Destroyed") }
+        )
     }
 
-    // Сохранение состояния
-    private val savedState: MyState? = stateKeeper.consume("KEY", MyState.serializer())
+    // Retain instances across config changes (Android)
+    private val viewModel = instanceKeeper.getOrCreate { MyViewModel() }
 
-    init {
-        stateKeeper.register("KEY", MyState.serializer()) { currentState }
-    }
+    // Preserve state during process death
+    private var counter: Int by savedState("counter", 0)
 
-    // Retained instance (переживает configuration changes)
-    private val retainedData = instanceKeeper.getOrCreate {
-        RetainedInstance()
-    }
+    // Create coroutine scope tied to lifecycle
+    private val scope = componentScope()
+}
+
+// Helper extension - place in core/common module
+import com.arkivanov.essenty.lifecycle.doOnDestroy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+
+fun ComponentContext.componentScope(): CoroutineScope {
+    val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+    lifecycle.doOnDestroy { scope.cancel() }
+    return scope
 }
 ```
 
-### DefaultComponentContext
+## Navigation
 
-Создание root ComponentContext:
+### Child Stack (Primary Navigation)
+
+Stack-based navigation like a navigation controller.
 
 ```kotlin
-// Android Activity
-class MainActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val root = RootComponent(defaultComponentContext())
+interface RootComponent {
+    val childStack: Value<ChildStack<Config, Child>>
+
+    sealed class Child {
+        data class Home(val component: HomeComponent) : Child()
+        data class Details(val component: DetailsComponent) : Child()
+        data class Settings(val component: SettingsComponent) : Child()
+    }
+
+    @Serializable
+    sealed class Config {
+        @Serializable data object Home : Config()
+        @Serializable data class Details(val itemId: String) : Config()
+        @Serializable data object Settings : Config()
     }
 }
 
-// Compose Desktop
-fun main() = application {
-    val lifecycle = LifecycleRegistry()
-    val root = RootComponent(
-        DefaultComponentContext(lifecycle = lifecycle)
-    )
-
-    LifecycleController(lifecycle, windowState)
-
-    Window(onCloseRequest = ::exitApplication) {
-        RootContent(root)
-    }
-}
-```
-
-### Custom ComponentContext
-
-Расширение контекста дополнительными зависимостями:
-
-```kotlin
-interface AppComponentContext : GenericComponentContext<AppComponentContext> {
-    val api: ApiClient
-    val analytics: Analytics
-}
-
-class DefaultAppComponentContext(
+class DefaultRootComponent(
     componentContext: ComponentContext,
-    override val api: ApiClient,
-    override val analytics: Analytics,
-) : AppComponentContext,
-    LifecycleOwner by componentContext,
-    StateKeeperOwner by componentContext,
-    InstanceKeeperOwner by componentContext,
-    BackHandlerOwner by componentContext {
+    private val homeComponentFactory: HomeComponent.Factory,
+    private val detailsComponentFactory: DetailsComponent.Factory,
+    private val settingsComponentFactory: SettingsComponent.Factory
+) : RootComponent, ComponentContext by componentContext {
 
-    override val componentContextFactory: ComponentContextFactory<AppComponentContext> =
-        ComponentContextFactory { lifecycle, stateKeeper, instanceKeeper, backHandler ->
-            val ctx = componentContext.componentContextFactory(
-                lifecycle, stateKeeper, instanceKeeper, backHandler
+    private val navigation = StackNavigation<RootComponent.Config>()
+
+    override val childStack: Value<ChildStack<RootComponent.Config, RootComponent.Child>> =
+        childStack(
+            source = navigation,
+            serializer = RootComponent.Config.serializer(),
+            initialConfiguration = RootComponent.Config.Home,
+            handleBackButton = true,  // Auto handle back
+            childFactory = ::createChild
+        )
+
+    private fun createChild(
+        config: RootComponent.Config,
+        context: ComponentContext
+    ): RootComponent.Child = when (config) {
+        RootComponent.Config.Home -> RootComponent.Child.Home(
+            homeComponentFactory.create(
+                componentContext = context,
+                onNavigateToDetails = { itemId ->
+                    navigation.push(RootComponent.Config.Details(itemId))
+                }
             )
-            DefaultAppComponentContext(ctx, api, analytics)
-        }
-}
-```
-
-## Value и MutableValue
-
-Thread-safe observable state holder:
-
-```kotlin
-class CounterComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
-
-    // Mutable внутри компонента
-    private val _state = MutableValue(State())
-
-    // Immutable наружу
-    val state: Value<State> = _state
-
-    fun increment() {
-        // Атомарное обновление
-        _state.update { it.copy(count = it.count + 1) }
+        )
+        is RootComponent.Config.Details -> RootComponent.Child.Details(
+            detailsComponentFactory.create(
+                componentContext = context,
+                itemId = config.itemId,
+                onBack = { navigation.pop() }
+            )
+        )
+        RootComponent.Config.Settings -> RootComponent.Child.Settings(
+            settingsComponentFactory.create(context)
+        )
     }
 
-    @Serializable
-    data class State(val count: Int = 0)
-}
-
-// Compose UI
-@Composable
-fun CounterContent(component: CounterComponent) {
-    val state by component.state.subscribeAsState()
-
-    Column {
-        Text("Count: ${state.count}")
-        Button(onClick = component::increment) {
-            Text("Increment")
-        }
+    // Public navigation methods
+    fun navigateToSettings() {
+        navigation.push(RootComponent.Config.Settings)
     }
 }
 ```
 
-## Navigation Models
+### Child Slot (Modals/Dialogs)
 
-### Child Stack
-
-Стек компонентов (аналог FragmentManager). Компоненты в back stack НЕ уничтожаются.
+Single optional active child.
 
 ```kotlin
-class RootComponent(
+interface HomeComponent {
+    val dialogSlot: Value<ChildSlot<DialogConfig, DialogChild>>
+    fun showConfirmDialog(itemId: String)
+    fun dismissDialog()
+}
+
+@Serializable
+sealed class DialogConfig {
+    @Serializable data class Confirm(val itemId: String) : DialogConfig()
+    @Serializable data class Edit(val item: HomeItem) : DialogConfig()
+}
+
+sealed class DialogChild {
+    data class Confirm(val component: ConfirmDialogComponent) : DialogChild()
+    data class Edit(val component: EditDialogComponent) : DialogChild()
+}
+
+class DefaultHomeComponent(
     componentContext: ComponentContext
-) : ComponentContext by componentContext {
-
-    private val navigation = StackNavigation<Config>()
-
-    val stack: Value<ChildStack<Config, Child>> = childStack(
-        source = navigation,
-        serializer = Config.serializer(),
-        initialConfiguration = Config.List,
-        handleBackButton = true, // Автоматическая обработка back
-        childFactory = ::createChild
-    )
-
-    private fun createChild(config: Config, context: ComponentContext): Child =
-        when (config) {
-            is Config.List -> Child.List(ListComponent(context))
-            is Config.Details -> Child.Details(
-                DetailsComponent(context, config.itemId)
-            )
-        }
-
-    // Navigation actions
-    fun onItemClicked(itemId: Long) {
-        navigation.push(Config.Details(itemId))
-    }
-
-    fun onBackClicked() {
-        navigation.pop()
-    }
-
-    // Для двойных кликов - не добавит если уже есть
-    fun onItemClickedSafe(itemId: Long) {
-        navigation.pushNew(Config.Details(itemId))
-    }
-
-    // Поднять существующий или добавить новый
-    fun onItemClickedUnique(itemId: Long) {
-        navigation.pushToFront(Config.Details(itemId))
-    }
-
-    @Serializable
-    sealed interface Config {
-        @Serializable
-        data object List : Config
-
-        @Serializable
-        data class Details(val itemId: Long) : Config
-    }
-
-    sealed interface Child {
-        data class List(val component: ListComponent) : Child
-        data class Details(val component: DetailsComponent) : Child
-    }
-}
-```
-
-### Child Slot
-
-Один опциональный child (диалоги, bottom sheets):
-
-```kotlin
-class RootComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
+) : HomeComponent, ComponentContext by componentContext {
 
     private val dialogNavigation = SlotNavigation<DialogConfig>()
 
-    val dialog: Value<ChildSlot<DialogConfig, DialogComponent>> = childSlot(
-        source = dialogNavigation,
-        serializer = DialogConfig.serializer(),
-        handleBackButton = true
-    ) { config, context ->
-        DialogComponent(context, config.message)
-    }
-
-    fun showDialog(message: String) {
-        dialogNavigation.activate(DialogConfig(message))
-    }
-
-    fun dismissDialog() {
-        dialogNavigation.dismiss()
-    }
-
-    @Serializable
-    data class DialogConfig(val message: String)
-}
-```
-
-### Child Pages
-
-Pager-like navigation с одной активной страницей:
-
-```kotlin
-class PagerComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
-
-    private val navigation = PagesNavigation<PageConfig>()
-
-    val pages: Value<ChildPages<PageConfig, PageComponent>> = childPages(
-        source = navigation,
-        serializer = PageConfig.serializer(),
-        initialPages = {
-            Pages(
-                items = listOf(
-                    PageConfig(0),
-                    PageConfig(1),
-                    PageConfig(2)
-                ),
-                selectedIndex = 0
-            )
-        }
-    ) { config, context ->
-        PageComponent(context, config.index)
-    }
-
-    fun selectPage(index: Int) {
-        navigation.select(index)
-    }
-
-    @Serializable
-    data class PageConfig(val index: Int)
-}
-```
-
-### Child Panels (Experimental)
-
-Multi-pane layout (list-detail):
-
-```kotlin
-class PanelsComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
-
-    private val navigation = PanelsNavigation<MainConfig, DetailsConfig, Unit>()
-
-    val panels: Value<ChildPanels<MainConfig, MainComponent, DetailsConfig, DetailsComponent, Unit, Nothing>> =
-        childPanels(
-            source = navigation,
-            serializer = Triple(
-                MainConfig.serializer(),
-                DetailsConfig.serializer().nullable,
-                PolymorphicSerializer(Unit::class).nullable
-            ),
-            initialPanels = { Panels(main = MainConfig) },
-            mainFactory = { _, ctx -> MainComponent(ctx) },
-            detailsFactory = { config, ctx -> DetailsComponent(ctx, config.itemId) }
+    override val dialogSlot: Value<ChildSlot<DialogConfig, DialogChild>> =
+        childSlot(
+            source = dialogNavigation,
+            serializer = DialogConfig.serializer(),
+            childFactory = ::createDialog
         )
 
-    fun showDetails(itemId: Long) {
-        navigation.activateDetails(DetailsConfig(itemId))
+    private fun createDialog(
+        config: DialogConfig,
+        context: ComponentContext
+    ): DialogChild = when (config) {
+        is DialogConfig.Confirm -> DialogChild.Confirm(
+            ConfirmDialogComponent(
+                context = context,
+                itemId = config.itemId,
+                onConfirm = { deleteItem(config.itemId); dismissDialog() },
+                onDismiss = ::dismissDialog
+            )
+        )
+        is DialogConfig.Edit -> DialogChild.Edit(
+            EditDialogComponent(context, config.item)
+        )
     }
 
-    fun setMode(mode: ChildPanelsMode) {
-        navigation.setMode(mode)
+    override fun showConfirmDialog(itemId: String) {
+        dialogNavigation.activate(DialogConfig.Confirm(itemId))
+    }
+
+    override fun dismissDialog() {
+        dialogNavigation.dismiss()
     }
 }
+```
+
+### Navigation Operations
+
+```kotlin
+// Stack operations
+navigation.push(Config.Details(itemId))           // Add to stack
+navigation.pop()                                   // Go back
+navigation.pop { config -> config is Config.Home } // Pop to specific
+navigation.replaceAll(Config.Home)                 // Clear and replace
+navigation.replaceCurrent(Config.Other)            // Replace top
+
+// Slot operations
+dialogNavigation.activate(DialogConfig.Confirm(id)) // Show
+dialogNavigation.dismiss()                          // Hide
 ```
 
 ## Compose Integration
 
-### Children Composable
+### Observing State
+
+```kotlin
+@Composable
+fun HomeScreen(component: HomeComponent) {
+    val state by component.state.subscribeAsState()
+
+    when (val currentState = state) {
+        is HomeState.Loading -> LoadingIndicator()
+        is HomeState.Error -> ErrorContent(
+            message = currentState.message,
+            onRetry = component::onRefresh
+        )
+        is HomeState.Success -> HomeContent(
+            items = currentState.items,
+            onItemClick = component::onItemClick
+        )
+    }
+}
+```
+
+### Rendering Child Stack
 
 ```kotlin
 @Composable
 fun RootContent(component: RootComponent) {
+    val childStack by component.childStack.subscribeAsState()
+
     Children(
-        stack = component.stack,
-        animation = stackAnimation(fade() + scale())
+        stack = childStack,
+        modifier = Modifier.fillMaxSize(),
+        animation = stackAnimation(fade() + slide())
     ) { child ->
         when (val instance = child.instance) {
-            is Child.List -> ListContent(instance.component)
-            is Child.Details -> DetailsContent(instance.component)
+            is RootComponent.Child.Home -> HomeScreen(instance.component)
+            is RootComponent.Child.Details -> DetailsScreen(instance.component)
+            is RootComponent.Child.Settings -> SettingsScreen(instance.component)
         }
     }
 }
 
-// Slot
+// Animation options
+val animation = stackAnimation(
+    fade(),                    // Fade in/out
+    slide(),                   // Slide horizontal
+    scale(),                   // Scale
+    fade() + slide(),          // Combined
+    slide(SlideAnimation.Top)  // Slide from top
+)
+```
+
+### Rendering Child Slot (Dialog)
+
+```kotlin
 @Composable
-fun DialogSlot(component: RootComponent) {
-    val dialogSlot by component.dialog.subscribeAsState()
+fun HomeScreen(component: HomeComponent) {
+    val state by component.state.subscribeAsState()
+    val dialogSlot by component.dialogSlot.subscribeAsState()
 
-    dialogSlot.child?.instance?.let { dialogComponent ->
-        Dialog(onDismissRequest = component::dismissDialog) {
-            DialogContent(dialogComponent)
-        }
-    }
-}
-
-// Pages с HorizontalPager
-@Composable
-fun PagesContent(component: PagerComponent) {
-    val pages by component.pages.subscribeAsState()
-
-    HorizontalPager(
-        state = rememberPagerState { pages.items.size },
-        // ...
-    ) { index ->
-        PageContent(pages.items[index].instance)
-    }
-}
-```
-
-## Stack Animations
-
-### Predefined Animators
-
-```kotlin
-// Простые анимации
-Children(
-    stack = component.stack,
-    animation = stackAnimation(fade())
-)
-
-// Комбинированные
-Children(
-    stack = component.stack,
-    animation = stackAnimation(fade() + scale() + slide())
-)
-
-// Разные анимации для разных направлений
-Children(
-    stack = component.stack,
-    animation = stackAnimation { child ->
-        when (child.configuration) {
-            is Config.List -> fade()
-            is Config.Details -> slide()
-        }
-    }
-)
-```
-
-### Predictive Back Gesture
-
-```kotlin
-// Default API
-Children(
-    stack = component.stack,
-    animation = predictiveBackAnimation(
-        backHandler = component.backHandler,
-        fallbackAnimation = stackAnimation(fade() + scale()),
-        onBack = component::onBackClicked,
-    )
-)
-
-// Experimental API с Material Design
-ChildStack(
-    stack = component.stack,
-    animation = stackAnimation(
-        animator = fade() + scale(),
-        predictiveBackParams = {
-            PredictiveBackParams(
-                backHandler = component.backHandler,
-                onBack = component::onBackClicked,
-                animatable = ::materialPredictiveBackAnimatable,
-            )
-        }
-    )
-)
-```
-
-### Custom Animation
-
-```kotlin
-fun customAnimator(): StackAnimator =
-    stackAnimator { factor: Float, direction: Direction, content: (Modifier) -> Unit ->
-        content(
-            Modifier
-                .alpha(if (direction.isEnter) factor else 1f - factor)
-                .offset(
-                    x = when (direction) {
-                        Direction.ENTER_FRONT -> ((1f - factor) * 100).dp
-                        Direction.EXIT_BACK -> (factor * -50).dp
-                        else -> 0.dp
-                    }
-                )
+    Scaffold { paddingValues ->
+        // Main content
+        HomeContent(
+            modifier = Modifier.padding(paddingValues),
+            state = state,
+            onItemLongClick = { component.showConfirmDialog(it.id) }
         )
-    }
-```
 
-## Coroutines in Components
-
-```kotlin
-class MyComponent(
-    componentContext: ComponentContext,
-    mainContext: CoroutineContext = Dispatchers.Main.immediate,
-    private val ioContext: CoroutineContext = Dispatchers.IO
-) : ComponentContext by componentContext {
-
-    // Scope автоматически отменяется при destroy
-    private val scope = coroutineScope(mainContext + SupervisorJob())
-
-    fun loadData() {
-        scope.launch {
-            _state.update { it.copy(isLoading = true) }
-
-            val result = withContext(ioContext) {
-                api.fetchData()
+        // Dialog overlay
+        dialogSlot.child?.instance?.let { dialogChild ->
+            when (dialogChild) {
+                is DialogChild.Confirm -> ConfirmDialog(dialogChild.component)
+                is DialogChild.Edit -> EditDialog(dialogChild.component)
             }
-
-            _state.update { it.copy(data = result, isLoading = false) }
         }
     }
 }
 
-// Retained scope (переживает configuration changes)
-class RetainedLogic(mainContext: CoroutineContext) : InstanceKeeper.Instance {
-
-    private val scope = CoroutineScope(mainContext + SupervisorJob())
-
-    fun doWork() {
-        scope.launch { /* ... */ }
-    }
-
-    override fun onDestroy() {
-        scope.cancel()
-    }
+@Composable
+private fun ConfirmDialog(component: ConfirmDialogComponent) {
+    AlertDialog(
+        onDismissRequest = component::onDismiss,
+        title = { Text("Delete Item?") },
+        text = { Text("This action cannot be undone.") },
+        confirmButton = {
+            TextButton(onClick = component::onConfirm) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = component::onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
+```
 
+## State Preservation
+
+### InstanceKeeper (Config Changes)
+
+Survives configuration changes on Android. Does NOT survive process death.
+
+```kotlin
 class MyComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
 
-    private val logic = instanceKeeper.getOrCreate {
-        RetainedLogic(Dispatchers.Main.immediate)
+    // Approach 1: Manual
+    private val viewModel = instanceKeeper.getOrCreate("viewModel") {
+        MyViewModel()
+    }
+
+    // Approach 2: Extension
+    private val viewModel by retainedInstance { MyViewModel() }
+
+    class MyViewModel : InstanceKeeper.Instance {
+        val state = MutableStateFlow<UiState>(UiState.Initial)
+
+        override fun onDestroy() {
+            // Cleanup when component truly destroyed
+        }
+    }
+}
+```
+
+### StateKeeper (Process Death)
+
+Survives process death. Data must be serializable.
+
+```kotlin
+class MyComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
+
+    // Approach 1: Delegate property
+    private var searchQuery: String by savedState("searchQuery", "")
+    private var selectedTab: Int by savedState("selectedTab", 0)
+
+    // Approach 2: Complex state
+    @Serializable
+    data class SavedState(
+        val query: String = "",
+        val filters: List<Filter> = emptyList(),
+        val scrollPosition: Int = 0
+    )
+
+    private var savedState: SavedState by savedState("state", SavedState())
+
+    // Approach 3: Manual
+    init {
+        stateKeeper.register("manualState") {
+            SavedState(query = currentQuery, filters = currentFilters)
+        }
+
+        stateKeeper.consume<SavedState>("manualState")?.let { restored ->
+            currentQuery = restored.query
+            currentFilters = restored.filters
+        }
+    }
+}
+```
+
+## Component Hierarchy Pattern
+
+### Feature Module Structure
+
+```
+feature/home/impl/src/commonMain/kotlin/
+├── HomeComponent.kt          # Interface
+├── DefaultHomeComponent.kt   # Implementation
+├── HomeState.kt              # State sealed class
+├── di/
+│   └── HomeModule.kt         # Metro bindings
+└── ui/
+    ├── HomeScreen.kt         # Compose UI
+    └── HomeContent.kt        # UI components
+```
+
+### Component Interface Pattern
+
+```kotlin
+// feature/home/api/src/commonMain/kotlin/HomeComponent.kt
+interface HomeComponent {
+    val state: Value<HomeState>
+    val dialogSlot: Value<ChildSlot<*, DialogChild>>
+
+    fun onItemClick(item: HomeItem)
+    fun onRefresh()
+    fun showDeleteDialog(itemId: String)
+    fun dismissDialog()
+
+    interface Factory {
+        fun create(
+            componentContext: ComponentContext,
+            onNavigateToDetails: (String) -> Unit
+        ): HomeComponent
+    }
+}
+```
+
+### Factory with DI
+
+```kotlin
+// feature/home/impl/src/commonMain/kotlin/DefaultHomeComponent.kt
+@Inject
+class DefaultHomeComponent(
+    private val repository: HomeRepository,
+    @Assisted componentContext: ComponentContext,
+    @Assisted private val onNavigateToDetails: (String) -> Unit
+) : HomeComponent, ComponentContext by componentContext {
+
+    // Implementation...
+
+    @AssistedFactory
+    interface Factory : HomeComponent.Factory {
+        override fun create(
+            componentContext: ComponentContext,
+            onNavigateToDetails: (String) -> Unit
+        ): DefaultHomeComponent
     }
 }
 ```
 
 ## Deep Linking
 
+```kotlin
+class DefaultRootComponent(
+    componentContext: ComponentContext,
+    deepLink: DeepLink? = null
+) : RootComponent, ComponentContext by componentContext {
+
+    private val navigation = StackNavigation<Config>()
+
+    init {
+        deepLink?.let { handleDeepLink(it) }
+    }
+
+    private fun handleDeepLink(deepLink: DeepLink) {
+        when (deepLink) {
+            is DeepLink.ItemDetails -> {
+                navigation.replaceAll(
+                    Config.Home,
+                    Config.Details(deepLink.itemId)
+                )
+            }
+            is DeepLink.Settings -> {
+                navigation.replaceAll(Config.Home, Config.Settings)
+            }
+        }
+    }
+}
+
+sealed class DeepLink {
+    data class ItemDetails(val itemId: String) : DeepLink()
+    data object Settings : DeepLink()
+}
+
+// Parse in platform code
+fun parseDeepLink(uri: String): DeepLink? {
+    return when {
+        uri.contains("/item/") -> {
+            val itemId = uri.substringAfter("/item/")
+            DeepLink.ItemDetails(itemId)
+        }
+        uri.contains("/settings") -> DeepLink.Settings
+        else -> null
+    }
+}
+```
+
+## Result Passing
+
+### Callbacks
+
+```kotlin
+class DetailsComponent(
+    componentContext: ComponentContext,
+    private val itemId: String,
+    private val onResult: (DetailsResult) -> Unit
+) : ComponentContext by componentContext {
+
+    fun onSave(data: ItemData) {
+        // Save logic...
+        onResult(DetailsResult.Saved(data))
+    }
+
+    fun onDelete() {
+        // Delete logic...
+        onResult(DetailsResult.Deleted)
+    }
+}
+
+sealed class DetailsResult {
+    data class Saved(val data: ItemData) : DetailsResult()
+    data object Deleted : DetailsResult()
+}
+
+// In parent
+private fun createDetailsChild(
+    config: Config.Details,
+    context: ComponentContext
+): Child.Details = Child.Details(
+    DetailsComponent(
+        componentContext = context,
+        itemId = config.itemId,
+        onResult = { result ->
+            when (result) {
+                is DetailsResult.Saved -> refreshList()
+                DetailsResult.Deleted -> navigation.pop()
+            }
+        }
+    )
+)
+```
+
+## Platform Entry Points
+
 ### Android
 
 ```kotlin
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val root = handleDeepLink { uri ->
-            val itemId = uri?.extractItemId()
+        val deepLink = intent.data?.toString()?.let(::parseDeepLink)
 
-            RootComponent(
-                componentContext = defaultComponentContext(
-                    discardSavedState = itemId != null // Сбросить state при deep link
+        val graph = createGraph<AndroidAppGraph>()
+        val rootComponent = graph.rootComponentFactory.create(
+            componentContext = defaultComponentContext(),
+            deepLink = deepLink
+        )
+
+        setContent {
+            AppTheme {
+                RootContent(component = rootComponent)
+            }
+        }
+    }
+}
+```
+
+### iOS
+
+```kotlin
+fun MainViewController(deepLink: DeepLink? = null): UIViewController {
+    return ComposeUIViewController {
+        val rootComponent = remember {
+            val graph = createGraph<IosAppGraph>()
+            graph.rootComponentFactory.create(
+                componentContext = DefaultComponentContext(
+                    lifecycle = ApplicationLifecycle()
                 ),
-                initialItemId = itemId
+                deepLink = deepLink
             )
-        } ?: return
+        }
 
-        setContent { RootContent(root) }
+        AppTheme {
+            RootContent(component = rootComponent)
+        }
     }
-}
-
-// В компоненте
-class RootComponent(
-    componentContext: ComponentContext,
-    initialItemId: Long? = null
-) : ComponentContext by componentContext {
-
-    private val navigation = StackNavigation<Config>()
-
-    val stack = childStack(
-        source = navigation,
-        serializer = Config.serializer(),
-        initialStack = {
-            listOfNotNull(
-                Config.List,
-                initialItemId?.let { Config.Details(it) }
-            )
-        },
-        childFactory = ::createChild
-    )
 }
 ```
 
-### Web (Experimental)
+### Desktop
 
 ```kotlin
-class RootComponent(
-    componentContext: ComponentContext,
-    deepLinkUrl: String?
-) : ComponentContext by componentContext, WebNavigationOwner {
+fun main() = application {
+    val lifecycle = LifecycleRegistry()
 
-    private val navigation = StackNavigation<Config>()
-
-    private val _stack = childStack(
-        source = navigation,
-        serializer = Config.serializer(),
-        initialStack = { parseDeepLink(deepLinkUrl) }
-    )
-
-    override val webNavigation: WebNavigation<*> =
-        childStackWebNavigation(
-            navigator = navigation,
-            stack = _stack,
-            serializer = Config.serializer(),
-            pathMapper = { child ->
-                when (child.configuration) {
-                    is Config.List -> "/"
-                    is Config.Details -> "/details/${child.configuration.itemId}"
-                }
-            }
-        )
-}
-
-// Entry point
-fun main() {
-    val root = withWebHistory { stateKeeper, deepLink ->
-        RootComponent(
-            componentContext = DefaultComponentContext(
-                lifecycle = LifecycleRegistry(),
-                stateKeeper = stateKeeper
-            ),
-            deepLinkUrl = deepLink
+    val graph = createGraph<DesktopAppGraph>()
+    val rootComponent = runOnUiThread {
+        graph.rootComponentFactory.create(
+            componentContext = DefaultComponentContext(lifecycle)
         )
     }
-}
-```
 
-## Child Context
+    Window(onCloseRequest = ::exitApplication, title = "ChatKeep Admin") {
+        LifecycleController(lifecycle)
 
-Создание дочерних контекстов для fixed children:
-
-```kotlin
-class ParentComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
-
-    // Простой child context
-    val header = HeaderComponent(childContext(key = "header"))
-    val footer = FooterComponent(childContext(key = "footer"))
-
-    // С ручным управлением lifecycle
-    private val detailsLifecycle = LifecycleRegistry()
-    val details = DetailsComponent(
-        childContext(key = "details", lifecycle = detailsLifecycle)
-    )
-
-    fun showDetails() {
-        detailsLifecycle.resume()
-    }
-
-    fun hideDetails() {
-        detailsLifecycle.stop()
-    }
-}
-```
-
-## Configuration Requirements
-
-**КРИТИЧНО**: Конфигурации навигации должны:
-
-1. Быть **immutable** (data class или sealed class)
-2. Корректно реализовывать **equals()** и **hashCode()**
-3. Быть **@Serializable** (kotlinx-serialization)
-4. Быть **уникальными** в пределах navigation model (по умолчанию)
-
-```kotlin
-@Serializable
-sealed interface Config {
-    @Serializable
-    data object List : Config
-
-    @Serializable
-    data class Details(val itemId: Long) : Config
-
-    @Serializable
-    data class Edit(val itemId: Long, val field: String) : Config
-}
-```
-
-## Important Rules & Pitfalls
-
-### 1. Main Thread Navigation
-Навигация синхронная и ДОЛЖНА выполняться на Main thread:
-
-```kotlin
-// ПРАВИЛЬНО
-fun onButtonClick() {
-    navigation.push(Config.Details(itemId))
-}
-
-// НЕПРАВИЛЬНО - navigation из background thread
-scope.launch(Dispatchers.IO) {
-    val data = fetchData()
-    navigation.push(Config.Details(data.id)) // CRASH или undefined behavior
-}
-
-// ПРАВИЛЬНО - вернуться на main
-scope.launch(Dispatchers.IO) {
-    val data = fetchData()
-    withContext(Dispatchers.Main) {
-        navigation.push(Config.Details(data.id))
-    }
-}
-```
-
-### 2. Unique Keys для нескольких navigation models
-
-```kotlin
-class MyComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
-
-    // НЕПРАВИЛЬНО - одинаковые ключи по умолчанию
-    val stack1 = childStack(/*...*/)
-    val stack2 = childStack(/*...*/) // CRASH
-
-    // ПРАВИЛЬНО
-    val stack1 = childStack(key = "stack1", /*...*/)
-    val stack2 = childStack(key = "stack2", /*...*/)
-}
-```
-
-### 3. Не передавать parent context детям напрямую
-
-```kotlin
-// НЕПРАВИЛЬНО
-class Parent(componentContext: ComponentContext) : ComponentContext by componentContext {
-    val child = ChildComponent(componentContext) // CRASH with StateKeeper/InstanceKeeper
-}
-
-// ПРАВИЛЬНО - через navigation model или childContext
-class Parent(componentContext: ComponentContext) : ComponentContext by componentContext {
-    val child = ChildComponent(childContext("child"))
-}
-```
-
-### 4. Duplicate Configurations
-
-По умолчанию дубликаты запрещены:
-
-```kotlin
-// CRASH - duplicate Config.Details(1)
-navigation.push(Config.Details(1))
-navigation.push(Config.Details(1))
-
-// Решение 1: pushNew (игнорирует если уже на вершине)
-navigation.pushNew(Config.Details(1))
-
-// Решение 2: pushToFront (поднимает существующий)
-navigation.pushToFront(Config.Details(1))
-
-// Решение 3: Включить глобально (не рекомендуется)
-DecomposeSettings.duplicateConfigurationsEnabled = true
-```
-
-### 5. Back Stack Components не уничтожаются
-
-Компоненты в back stack продолжают работать (CREATED state):
-
-```kotlin
-class ListComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
-
-    private val scope = coroutineScope(Dispatchers.Main + SupervisorJob())
-
-    init {
-        // Этот код продолжит работать когда компонент в back stack!
-        scope.launch {
-            while (true) {
-                delay(1000)
-                updateData() // Может быть нежелательно
-            }
-        }
-    }
-
-    // ПРАВИЛЬНО - привязать к lifecycle
-    init {
-        lifecycle.doOnResume {
-            startUpdates()
-        }
-        lifecycle.doOnPause {
-            stopUpdates()
+        AppTheme {
+            RootContent(component = rootComponent)
         }
     }
 }
 ```
+
+## Best Practices
+
+### Do's
+- Keep components UI-agnostic (no Compose imports)
+- Use interfaces for component public API
+- Use `Value<T>` for observable state (not StateFlow)
+- Handle back navigation via `handleBackButton = true`
+- Use `@Serializable` for all Config classes
+- Preserve necessary state in StateKeeper
+- Use componentScope for coroutines
+
+### Don'ts
+- Don't put Compose code in components
+- Don't store Context/Activity in components
+- Don't use StateFlow for component state (use Value)
+- Don't skip Config serialization
+- Don't create ComponentContext manually
+- Don't forget to handle deep links
 
 ## Testing
 
 ```kotlin
-class MyComponentTest {
-
+class HomeComponentTest {
     @Test
-    fun `initial state is correct`() {
-        val component = MyComponent(
-            componentContext = DefaultComponentContext(
-                lifecycle = LifecycleRegistry()
-            )
+    fun `initial state is loading`() {
+        val component = DefaultHomeComponent(
+            componentContext = TestComponentContext(),
+            repository = FakeHomeRepository(),
+            onNavigateToDetails = {}
         )
 
-        assertEquals(0, component.state.value.count)
+        assertEquals(HomeState.Loading, component.state.value)
     }
 
     @Test
-    fun `increment updates state`() {
-        val component = MyComponent(
-            componentContext = DefaultComponentContext(
-                lifecycle = LifecycleRegistry()
-            )
+    fun `loads items successfully`() = runTest {
+        val fakeRepo = FakeHomeRepository(items = listOf(testItem))
+
+        val component = DefaultHomeComponent(
+            componentContext = TestComponentContext(),
+            repository = fakeRepo,
+            onNavigateToDetails = {}
         )
 
-        component.increment()
+        advanceUntilIdle()
 
-        assertEquals(1, component.state.value.count)
+        val state = component.state.value
+        assertTrue(state is HomeState.Success)
+        assertEquals(1, (state as HomeState.Success).items.size)
     }
+}
 
-    @Test
-    fun `navigation pushes correctly`() {
-        val lifecycle = LifecycleRegistry()
-        lifecycle.create()
-
-        val component = RootComponent(
-            componentContext = DefaultComponentContext(lifecycle = lifecycle)
-        )
-
-        component.onItemClicked(42L)
-
-        val activeChild = component.stack.value.active.instance
-        assertTrue(activeChild is Child.Details)
-        assertEquals(42L, (activeChild as Child.Details).component.itemId)
-    }
+// Test helper
+class TestComponentContext : ComponentContext {
+    override val lifecycle = LifecycleRegistry()
+    override val stateKeeper = StateKeeperDispatcher()
+    override val instanceKeeper = InstanceKeeperDispatcher()
+    override val backHandler = BackDispatcher()
 }
 ```
 
-## Supported Platforms
+## Resources
 
-- Android
-- JVM (Desktop)
-- iOS (arm64, x64, simulatorArm64)
-- macOS (arm64, x64)
-- watchOS (arm32, arm64, simulatorArm64, deviceArm64)
-- tvOS (arm64, x64, simulatorArm64)
-- wasmJs
-- js
-
-## References
-
-- [Official Documentation](https://arkivanov.github.io/Decompose/)
-- [GitHub Repository](https://github.com/arkivanov/Decompose)
-- [Sample Applications](https://github.com/arkivanov/Decompose/tree/master/sample)
+- [Decompose Docs](https://arkivanov.github.io/Decompose/)
+- [Decompose GitHub](https://github.com/arkivanov/Decompose)
+- [Decompose Template](https://github.com/arkivanov/Decompose-multiplatform-template)
