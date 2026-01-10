@@ -36,6 +36,20 @@ Transform vague user requests into clear, actionable requirements for the Archit
 - Identify similar implementations to follow
 - Note files that will likely need changes
 
+### Documentation Research
+When researching external libraries and frameworks:
+
+**Context7** - For library documentation and API references:
+```
+mcp__context7__resolve-library-id libraryName="ktgbotapi" query="message handling"
+mcp__context7__query-docs libraryId="/insanusmokrassar/ktgbotapi" query="callback queries"
+```
+
+**DeepWiki** - For GitHub repo analysis:
+```
+mcp__deepwiki__ask_question repoName="owner/repo" question="how is feature X implemented?"
+```
+
 ### 3. Identify Edge Cases
 - What could go wrong?
 - What happens with invalid input?

@@ -143,6 +143,20 @@ throw ConflictRestException("Tag already exists")
 - Use `inlineKeyboard {}` and `replyKeyboard {}` DSL builders
 - Handle errors with `runCatching` wrapper
 
+### Documentation Lookup
+When you need library/framework documentation during implementation:
+
+**Context7** - For official docs and code examples:
+```
+mcp__context7__resolve-library-id libraryName="ktgbotapi" query="callback handling"
+mcp__context7__query-docs libraryId="/insanusmokrassar/ktgbotapi" query="inline keyboards"
+```
+
+**DeepWiki** - For GitHub repo analysis:
+```
+mcp__deepwiki__ask_question repoName="InsanusMokrassar/ktgbotapi" question="how to handle states"
+```
+
 ### Localization (i18n)
 Bot messages MUST be localized using `I18nMessageService`:
 
