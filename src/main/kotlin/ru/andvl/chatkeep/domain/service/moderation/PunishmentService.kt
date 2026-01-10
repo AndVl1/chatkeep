@@ -28,7 +28,8 @@ class PunishmentService(
     private val punishmentRepository: PunishmentRepository,
     private val bot: TelegramBot,
     private val logChannelService: LogChannelService,
-    private val usernameCacheService: UsernameCacheService
+    private val usernameCacheService: UsernameCacheService,
+    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -89,6 +90,11 @@ class PunishmentService(
         }
 
         if (success) {
+            // Record metrics (skip WARN and NOTHING as they're tracked separately)
+            if (type != PunishmentType.WARN && type != PunishmentType.NOTHING) {
+                metricsService.recordPunishmentExecuted(type.name)
+            }
+
             // Map PunishmentType to ActionType for logging
             val actionType = ActionType.valueOf(type.name)
             logAction(chatId, userId, issuedById, actionType, duration, reason, source, messageText, chatTitle)

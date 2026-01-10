@@ -1,0 +1,61 @@
+# Environment files (security)
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+LICENSE
+
+# CI/CD and deployment
+.github/
+.gitlab-ci.yml
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Infrastructure
+infra/
+scripts/
+helm/
+k8s/
+
+# Claude AI
+.claude/
+
+# Frontend build artifacts
+mini-app/node_modules/
+mini-app/dist/
+mini-app/.vite/
+
+# Gradle build artifacts
+build/
+.gradle/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+*.coverprofile

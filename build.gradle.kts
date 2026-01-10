@@ -29,6 +29,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    // Metrics
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
+
     // OpenAPI / Swagger
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
 
@@ -42,6 +45,9 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.3")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.3")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.3")
+
+    // Rate Limiting
+    implementation("com.bucket4j:bucket4j-core:8.7.0")
 
     // Telegram Bot API
     implementation("dev.inmo:tgbotapi:30.0.2")

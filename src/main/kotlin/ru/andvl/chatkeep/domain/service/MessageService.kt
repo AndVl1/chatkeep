@@ -10,7 +10,8 @@ import java.time.Instant
 @Service
 class MessageService(
     private val messageRepository: MessageRepository,
-    private val chatService: ChatService
+    private val chatService: ChatService,
+    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -25,29 +26,42 @@ class MessageService(
         text: String,
         messageDate: Instant
     ): ChatMessage? {
-        if (!chatService.isCollectionEnabled(chatId)) {
-            logger.debug("Collection disabled for chat $chatId, skipping message")
-            return null
-        }
+        val startTime = System.currentTimeMillis()
 
-        if (messageRepository.existsByChatIdAndTelegramMessageId(chatId, telegramMessageId)) {
-            logger.debug("Message $telegramMessageId already exists in chat $chatId")
-            return null
-        }
+        try {
+            if (!chatService.isCollectionEnabled(chatId)) {
+                logger.debug("Collection disabled for chat $chatId, skipping message")
+                return null
+            }
 
-        val message = ChatMessage(
-            telegramMessageId = telegramMessageId,
-            chatId = chatId,
-            userId = userId,
-            username = username,
-            firstName = firstName,
-            lastName = lastName,
-            text = text,
-            messageDate = messageDate
-        )
+            if (messageRepository.existsByChatIdAndTelegramMessageId(chatId, telegramMessageId)) {
+                logger.debug("Message $telegramMessageId already exists in chat $chatId")
+                return null
+            }
 
-        return messageRepository.save(message).also {
-            logger.debug("Saved message ${it.id} from user $userId in chat $chatId")
+            val message = ChatMessage(
+                telegramMessageId = telegramMessageId,
+                chatId = chatId,
+                userId = userId,
+                username = username,
+                firstName = firstName,
+                lastName = lastName,
+                text = text,
+                messageDate = messageDate
+            )
+
+            return messageRepository.save(message).also {
+                logger.debug("Saved message ${it.id} from user $userId in chat $chatId")
+                metricsService.recordMessageSaved(true)
+
+                // Record save latency
+                val duration = System.currentTimeMillis() - startTime
+                metricsService.recordMessageProcessingTime("MessageService.saveMessage", duration)
+            }
+        } catch (e: Exception) {
+            metricsService.recordMessageSaved(false)
+            metricsService.recordServiceError("MessageService")
+            throw e
         }
     }
 

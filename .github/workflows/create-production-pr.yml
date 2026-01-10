@@ -1,0 +1,65 @@
+name: Create Production PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      description:
+        description: 'PR description (optional)'
+        required: false
+        type: string
+
+jobs:
+  create-pr:
+    name: Create PR to Production
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get commit summary
+        id: summary
+        run: |
+          # Get commits between production and main
+          COMMITS=$(git log --oneline production..main --pretty=format:"- %s (%h)" | head -20)
+
+          if [ -z "$COMMITS" ]; then
+            echo "No new commits to deploy"
+            exit 1
+          fi
+
+          # Create summary
+          cat > summary.md <<EOF
+          ## Changes to Deploy
+
+          $COMMITS
+
+          ## Checklist
+
+          - [ ] Backend changes tested locally
+          - [ ] Frontend changes tested locally
+          - [ ] Database migrations reviewed
+          - [ ] Environment variables updated (if needed)
+          - [ ] Monitoring configured (if needed)
+
+          EOF
+
+          echo "summary_created=true" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+          base: production
+          title: "Deploy to Production - $(date +'%Y-%m-%d')"
+          body-path: summary.md
+          labels: |
+            deployment
+            production

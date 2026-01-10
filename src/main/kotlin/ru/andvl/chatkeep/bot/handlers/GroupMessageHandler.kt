@@ -18,7 +18,8 @@ import java.time.Instant
 @Component
 class GroupMessageHandler(
     private val messageService: MessageService,
-    private val usernameCacheService: UsernameCacheService
+    private val usernameCacheService: UsernameCacheService,
+    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -32,8 +33,17 @@ class GroupMessageHandler(
             },
             markerFactory = null // Enable parallel processing of all messages
         ) { message ->
+            val startTime = System.currentTimeMillis()
             val textContent = message.content as TextContent
             val user = (message as? FromUserMessage)?.from ?: return@onContentMessage
+
+            // Record message received
+            val chatType = when (message.chat) {
+                is GroupChat -> "group"
+                is SupergroupChat -> "supergroup"
+                else -> "other"
+            }
+            metricsService.recordMessageReceived(chatType)
 
             withContext(Dispatchers.IO) {
                 try {
@@ -60,8 +70,13 @@ class GroupMessageHandler(
                             lastName = user.lastName
                         )
                     }
+
+                    // Record processing time
+                    val duration = System.currentTimeMillis() - startTime
+                    metricsService.recordMessageProcessingTime("GroupMessageHandler", duration)
                 } catch (e: Exception) {
                     logger.error("Failed to save message: ${e.message}", e)
+                    metricsService.recordHandlerError("GroupMessageHandler")
                 }
             }
         }

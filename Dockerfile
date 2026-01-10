@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM gradle:8.11-jdk17 AS builder
+FROM gradle:8.14-jdk17 AS builder
 
 WORKDIR /app
 

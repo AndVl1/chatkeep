@@ -56,12 +56,14 @@ class LockEnforcementHandlerTest {
         adminCacheService = mockk()
         warningService = mockk()
         punishmentService = mockk()
+        val metricsService = mockk<ru.andvl.chatkeep.metrics.BotMetricsService>(relaxed = true)
         handler = LockEnforcementHandler(
             lockSettingsService,
             lockDetectorRegistry,
             adminCacheService,
             warningService,
-            punishmentService
+            punishmentService,
+            metricsService
         )
     }
 

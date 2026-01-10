@@ -1,0 +1,3 @@
+telegram:
+  mini-app:
+    url: ${MINI_APP_URL:https://unmicrobial-unparticularising-shonta.ngrok-free.dev/}

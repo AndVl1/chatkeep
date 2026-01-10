@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'chatkeep'
+    environment: 'production'
+
+scrape_configs:
+  # Spring Boot application metrics
+  # Use 'chatkeep-app:8080' for production (Docker network)
+  # Use 'host.docker.internal:8080' for local development
+  - job_name: 'chatkeep-app'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['chatkeep-app:8080']
+        labels:
+          application: 'chatkeep'
+          service: 'backend'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          application: 'prometheus'
+
+# Alerting rules (optional)
+# rule_files:
+#   - 'alerts.yml'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#             - 'alertmanager:9093'

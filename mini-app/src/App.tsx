@@ -72,12 +72,14 @@ export function App() {
   const [sdkInitialized, setSdkInitialized] = useState(false);
 
   useEffect(() => {
+    // Check if we're inside Telegram (has initData)
+    const webApp = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
+    const isTelegramEnv = !!webApp?.initData && webApp.initData.length > 0;
+
     // In development mode, only restore initData (mockEnv provides window globals)
     if (import.meta.env.DEV) {
-      console.log('[SDK] Development mode - using mock environment');
       try {
         initData.restore();
-        console.log('[SDK] initData restored from mock environment');
       } catch (error) {
         console.warn('[SDK] Failed to restore initData:', error);
       }
@@ -85,23 +87,27 @@ export function App() {
       return;
     }
 
-    // Production: Initialize all SDK components
-    try {
-      const launchParams = retrieveLaunchParams();
-      console.log('[SDK] Launch params retrieved:', launchParams.platform);
+    // Production: Initialize SDK only if inside Telegram
+    if (isTelegramEnv) {
+      try {
+        retrieveLaunchParams();
 
-      miniApp.mount();
-      themeParams.mount();
-      viewport.mount();
-      initData.restore();
+        miniApp.mount();
+        themeParams.mount();
+        viewport.mount();
+        initData.restore();
 
-      miniApp.ready();
-      console.log('[SDK] Initialized successfully');
-      setSdkInitialized(true);
-    } catch (error) {
-      console.error('[SDK] Initialization failed:', error);
-      throw error; // Fail in production
+        miniApp.ready();
+        console.log('[SDK] Telegram Mini App initialized');
+      } catch (error) {
+        console.error('[SDK] Initialization failed:', error);
+        // Don't throw - allow web mode fallback
+      }
+    } else {
+      console.log('[SDK] Web mode - skipping Telegram SDK initialization');
     }
+
+    setSdkInitialized(true);
   }, []);
 
   if (!sdkInitialized) {

@@ -31,10 +31,88 @@ services:
       DB_USERNAME: ${DB_USERNAME:-chatkeep}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      MINI_APP_URL: ${MINI_APP_URL:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx:
+    image: nginx:alpine
+    container_name: chatkeep-nginx
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      # Main nginx configuration
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
+      # Virtual host configurations
+      - ./docker/nginx/sites:/etc/nginx/sites-enabled:ro
+      # Static files
+      - ./mini-app/dist:/var/www/mini-app:ro
+      # SSL certificates (uncomment after running setup-ssl.sh)
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Certbot webroot for ACME challenges
+      - ./certbot/webroot:/var/www/certbot:ro
+      # Basic auth for Prometheus
+      - ./docker/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
     ports:
-      - "8080:8080"
+      - "80:80"
+      # Uncomment after SSL setup
+      # - "443:443"
+    restart: always
+    healthcheck:
+      # Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: chatkeep-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: chatkeep-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://grafana.chatmoderatorbot.ru
+      - GF_SERVER_DOMAIN=grafana.chatmoderatorbot.ru
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    restart: always
+    depends_on:
+      - prometheus
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: chatkeep-tunnel
+    command: tunnel --no-autoupdate --url http://nginx:80
+    depends_on:
+      nginx:
+        condition: service_healthy
     restart: always
 
 volumes:
   postgres_data:
+  prometheus_data:
+  grafana_data:

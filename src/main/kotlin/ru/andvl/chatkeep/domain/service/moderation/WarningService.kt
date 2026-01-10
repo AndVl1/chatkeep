@@ -16,7 +16,8 @@ import kotlin.time.Duration.Companion.hours
 class WarningService(
     private val warningRepository: WarningRepository,
     private val moderationConfigRepository: ModerationConfigRepository,
-    private val punishmentService: PunishmentService
+    private val punishmentService: PunishmentService,
+    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -71,6 +72,9 @@ class WarningService(
 
         val saved = warningRepository.save(warning)
         logger.info("Issued warning: chatId=$chatId, userId=$userId, reason=$reason")
+
+        // Record metrics
+        metricsService.recordWarningIssued(reason ?: "no_reason")
 
         // Log the warning action (also sends to log channel)
         punishmentService.logAction(
