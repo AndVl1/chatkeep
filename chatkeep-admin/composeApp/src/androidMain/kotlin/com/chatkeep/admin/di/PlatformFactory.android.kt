@@ -8,7 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.chatkeep.admin.core.common.AndroidPlatformContext
 import com.chatkeep.admin.core.common.createDataStorePath
 import com.chatkeep.admin.core.data.local.DataStoreTokenStorage
-import com.chatkeep.admin.core.data.local.TokenStorage
+import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.network.createHttpClient
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*

@@ -5,15 +5,23 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.AppResult
 import com.chatkeep.admin.core.common.BuildConfig
+import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.common.componentScope
-import com.chatkeep.admin.core.domain.usecase.LoginUseCase
+import com.chatkeep.admin.core.network.AdminApiService
+import com.chatkeep.admin.feature.auth.data.repository.AuthRepositoryImpl
+import com.chatkeep.admin.feature.auth.domain.usecase.LoginUseCase
 import kotlinx.coroutines.launch
 
-class DefaultAuthComponent(
+internal class DefaultAuthComponent(
     componentContext: ComponentContext,
-    private val loginUseCase: LoginUseCase,
+    apiService: AdminApiService,
+    tokenStorage: TokenStorage,
     private val onSuccess: () -> Unit
 ) : AuthComponent, ComponentContext by componentContext {
+
+    // Internal dependencies created within the component
+    private val authRepository = AuthRepositoryImpl(apiService, tokenStorage)
+    private val loginUseCase = LoginUseCase(authRepository)
 
     private val _state = MutableValue<AuthComponent.AuthState>(AuthComponent.AuthState.Idle)
     override val state: Value<AuthComponent.AuthState> = _state
@@ -42,7 +50,7 @@ class DefaultAuthComponent(
             }
 
             // DEBUG ONLY: Using mock data for development
-            val mockTelegramData = com.chatkeep.admin.core.domain.repository.TelegramLoginData(
+            val mockTelegramData = TelegramLoginData(
                 id = 123456789L,
                 firstName = "Test",
                 lastName = "User",

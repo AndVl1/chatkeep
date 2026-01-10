@@ -4,14 +4,14 @@ import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.componentScope
-import com.chatkeep.admin.core.domain.model.Theme
-import com.chatkeep.admin.core.domain.usecase.SetThemeUseCase
-import com.chatkeep.admin.core.domain.repository.SettingsRepository
+import com.chatkeep.admin.feature.settings.Theme
+import com.chatkeep.admin.feature.settings.domain.SetThemeUseCase
+import com.chatkeep.admin.feature.settings.domain.SettingsRepository
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
-class DefaultSettingsComponent(
+internal class DefaultSettingsComponent(
     componentContext: ComponentContext,
     private val settingsRepository: SettingsRepository,
     private val setThemeUseCase: SetThemeUseCase,

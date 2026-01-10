@@ -34,7 +34,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(projects.core.common)
-            api(projects.core.domain)
+            api(projects.feature.dashboard.api)
             api(libs.decompose)
         }
     }

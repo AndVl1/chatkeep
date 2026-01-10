@@ -35,7 +35,6 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.feature.settings.api)
-            implementation(projects.core.domain)
             implementation(projects.core.ui)
 
             implementation(libs.decompose)
@@ -47,6 +46,25 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.components.resources)
         }
+
+        androidMain.dependencies {
+            implementation(projects.core.data) // For DataStore
+            implementation(libs.datastore.preferences.core)
+        }
+
+        iosMain.dependencies {
+            implementation(projects.core.data) // For DataStore
+            implementation(libs.datastore.preferences.core)
+        }
+
+        val desktopMain by getting {
+            dependencies {
+                implementation(projects.core.data) // For DataStore
+                implementation(libs.datastore.preferences.core)
+            }
+        }
+
+        // wasmJs: No DataStore dependency - uses InMemorySettingsRepository
     }
 }
 

@@ -1,7 +1,7 @@
 package com.chatkeep.admin.feature.dashboard
 
 import com.arkivanov.decompose.value.Value
-import com.chatkeep.admin.core.domain.model.DashboardInfo
+import com.chatkeep.admin.feature.dashboard.DashboardInfo
 
 interface DashboardComponent {
     val state: Value<DashboardState>

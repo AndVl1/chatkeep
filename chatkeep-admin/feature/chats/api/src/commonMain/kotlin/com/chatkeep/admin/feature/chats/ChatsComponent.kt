@@ -1,7 +1,7 @@
 package com.chatkeep.admin.feature.chats
 
 import com.arkivanov.decompose.value.Value
-import com.chatkeep.admin.core.domain.model.Chat
+import com.chatkeep.admin.feature.chats.Chat
 
 interface ChatsComponent {
     val state: Value<ChatsState>

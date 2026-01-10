@@ -1,7 +1,7 @@
 package com.chatkeep.admin.feature.deploy
 
 import com.arkivanov.decompose.value.Value
-import com.chatkeep.admin.core.domain.model.Workflow
+import com.chatkeep.admin.feature.deploy.Workflow
 
 interface DeployComponent {
     val state: Value<DeployState>

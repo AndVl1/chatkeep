@@ -19,7 +19,6 @@ rootProject.name = "chatkeep-admin"
 
 // Core modules
 include(":core:common")
-include(":core:domain")
 include(":core:data")
 include(":core:database")
 include(":core:network")

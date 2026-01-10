@@ -5,14 +5,20 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.AppResult
 import com.chatkeep.admin.core.common.componentScope
-import com.chatkeep.admin.core.domain.model.Chat
-import com.chatkeep.admin.core.domain.usecase.GetChatsUseCase
+import com.chatkeep.admin.core.network.AdminApiService
+import com.chatkeep.admin.feature.chats.Chat
+import com.chatkeep.admin.feature.chats.data.ChatsRepositoryImpl
+import com.chatkeep.admin.feature.chats.domain.GetChatsUseCase
 import kotlinx.coroutines.launch
 
-class DefaultChatsComponent(
+internal class DefaultChatsComponent(
     componentContext: ComponentContext,
-    private val getChatsUseCase: GetChatsUseCase
+    apiService: AdminApiService
 ) : ChatsComponent, ComponentContext by componentContext {
+
+    // Internal dependencies created within the component
+    private val chatsRepository = ChatsRepositoryImpl(apiService)
+    private val getChatsUseCase = GetChatsUseCase(chatsRepository)
 
     private val _state = MutableValue<ChatsComponent.ChatsState>(ChatsComponent.ChatsState.Loading)
     override val state: Value<ChatsComponent.ChatsState> = _state

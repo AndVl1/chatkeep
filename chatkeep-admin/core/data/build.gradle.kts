@@ -30,13 +30,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.core.common)
-            implementation(projects.core.domain)
-            implementation(projects.core.network)
             implementation(libs.datastore.preferences.core)
             implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.kotlinx.serialization.json)
-            implementation(libs.kotlinx.datetime)
-            implementation(libs.ktor.client.core)
         }
     }
 }

@@ -1,143 +1,81 @@
 # TEAM STATE
 
 ## Classification
-- Type: FEATURE
+- Type: REFACTOR
 - Complexity: COMPLEX
-- Workflow: FULL 7-PHASE
+- Workflow: STANDARD (architecture approach defined by compose-arch skill)
 
 ## Task
-Build a Compose Multiplatform admin app for Chatkeep bot with:
-- Telegram authentication (static allowlist of admin users)
-- Deployment status viewing
-- Workflow triggers for deployment
-- Chat statistics (messages per day, chat names)
-- Cross-platform support (Android, iOS, Desktop, WASM)
+Refactor chatkeep-admin mobile app architecture to follow compose-arch patterns:
+- Move data/domain layers from separate super-modules into feature module `impl/` directories
+- Make data/domain classes `internal`
+- Follow feature slice structure: api/ (public interfaces + models) and impl/ (implementation + data + domain)
+- Verify build compiles
+- Manual QA on Android device
 
 ## Progress
-- [x] Phase 1: Discovery - COMPLETED
+- [x] Phase 0: Classification - COMPLETED
+- [x] Phase 1: Discovery - COMPLETED (branch: feat/chatkeep-admin-app)
 - [x] Phase 2: Exploration - COMPLETED
 - [x] Phase 3: Questions - COMPLETED
-- [x] Phase 4: Architecture - COMPLETED
-- [x] Phase 5: Implementation - COMPLETED
-- [x] Phase 6: Review - COMPLETED
-- [x] Phase 6.5: Review Fixes - COMPLETED
-- [x] Phase 7: Summary - COMPLETED
+- [ ] Phase 5: Implementation - pending
+- [ ] Phase 6: Review - pending
+- [ ] Phase 7: Summary - pending
 
-## Phase 7 Summary
+## Current State Analysis (from git status)
 
-### Delivered
-Full-stack Compose Multiplatform admin app for Chatkeep Telegram bot with:
-- Backend Admin API (8 endpoints)
-- Mobile app with Clean Architecture
-- Multi-platform support: Android, iOS, Desktop, WASM
-- Security fixes for production readiness
+### Deleted files (core/domain, core/data cleanup):
+- core/domain module - DELETED (correct - should be in feature/impl/)
+- core/data repository/mapper files - DELETED (correct - should be in feature/impl/)
 
-### Backend Implementation (14 files)
-- AdminAuthController - JWT login with allowlist
-- AdminDashboardController - Service status, deploy info
-- AdminChatsController - Chat list with message counts
-- AdminWorkflowsController - GitHub workflow triggers
-- AdminLogsController - Docker logs viewer
-- AdminActionsController - Bot restart with audit trail
-- AdminAuthFilter - JWT validation middleware
-- GitHubService - GitHub API integration
-- LogService - Log retrieval with sanitization
-- AdminProperties - Config with ADMIN_USER_IDS
+### New files created (in feature modules):
+- feature/*/impl/data/ directories - NEW
+- feature/*/impl/domain/ directories - NEW
+- Domain models moved to feature/*/api/ - NEW
 
-### Mobile Implementation (100+ files)
-**Domain Layer:**
-- Models: Admin, AuthState, DashboardInfo, Chat, Workflow, Logs, Settings
-- Repository interfaces (7)
-- UseCases (8): Login, GetDashboard, GetChats, GetWorkflows, TriggerWorkflow, GetLogs, RestartBot, SetTheme
+### Changes to verify:
+1. All use cases moved to feature/*/impl/domain/usecase/
+2. All repositories moved to feature/*/impl/domain/repository/ (interfaces) and feature/*/impl/data/ (implementations)
+3. All classes in impl/ marked as `internal`
+4. Build compiles successfully
+5. App works correctly on Android
 
-**Data Layer:**
-- AdminApiService with Ktor client
-- DTOs with kotlinx.serialization
-- Repository implementations
-- TokenStorage with DataStore
-- Mappers for DTO<->Domain
+## Target Structure (per compose-arch SKILL.md)
 
-**Presentation Layer:**
-- 6 features: Auth, Dashboard, Chats, Deploy, Logs, Settings
-- Component/UI separation (api/impl modules)
-- Decompose for navigation
-- Material 3 design system
-- Adaptive navigation (bottom bar/rail)
-
-### Security Fixes (Phase 6.5)
-1. **BuildConfig expect/actual** - Mock auth gated behind debug mode
-2. **Audit trail logging** - Admin actions logged with user ID
-3. **Log sanitization** - Sensitive data redacted (JWT, tokens, passwords)
-
-### Deployment Infrastructure
-- Nginx config for admin.chatmoderatorbot.ru
-- Docker Compose volume mounts
-- GitHub Actions CI/CD with WASM build
-
-### Build Status
-- Backend: PASS ✅
-- Mobile Debug: PASS ✅
-
-## Key Decisions
-- **Architecture**: Clean Architecture (Domain → Data → Presentation)
-- **UseCases**: Yes - separate business logic from Components
-- **Repositories**: Yes - interfaces in domain, implementations in data
-- **DI**: Manual (can upgrade to Metro later)
-
-## Chosen Approach
-**Clean Architecture** with:
-- Domain layer: UseCases, Repository interfaces, Models
-- Data layer: Repository implementations, DataSources, ApiService
-- Presentation layer: Decompose Components, Compose UI
-- Feature modules with api/impl separation
-
-## Phase 4 Output - Architecture Design
-
-### Layer Structure
 ```
-domain/
-├── model/          # Domain models (Admin, Chat, DashboardInfo, etc.)
-├── repository/     # Repository interfaces
-└── usecase/        # UseCases (GetDashboardUseCase, LoginUseCase, etc.)
-
-data/
-├── repository/     # Repository implementations
-├── datasource/     # DataSources (remote, local)
-└── mapper/         # DTO <-> Domain mappers
-
-presentation/
-├── feature/*/api/  # Component interfaces
-└── feature/*/impl/ # Component implementations + UI
+feature/<name>/
+├── api/
+│   └── src/commonMain/kotlin/
+│       ├── <Name>Component.kt    # Interface (public)
+│       └── <Name>Models.kt       # Domain models (public)
+└── impl/
+    └── src/commonMain/kotlin/
+        ├── screen/               # internal
+        ├── view/                 # internal
+        ├── component/            # internal
+        │   └── Default<Name>Component.kt
+        ├── domain/               # internal
+        │   ├── usecase/
+        │   │   └── Get<Name>UseCase.kt
+        │   └── repository/       # (interface if needed internally)
+        │       └── <Name>Repository.kt
+        └── data/                 # internal
+            └── datasource/
+                └── <Name>RepositoryImpl.kt
 ```
 
-### Features to Implement
-1. **Auth**: Login with Telegram, token management
-2. **Dashboard**: Service status, deploy info, quick stats
-3. **Chats**: List with messages today/yesterday, trend
-4. **Deploy**: Workflow list, trigger, status
-5. **Logs**: View last 100 lines
-6. **Settings**: Theme switch, logout
+## Phase 2 Output - Exploration Findings
 
-### Backend API Endpoints (new)
-```
-POST /api/v1/admin/auth/login
-GET  /api/v1/admin/auth/me
-GET  /api/v1/admin/dashboard
-GET  /api/v1/admin/chats
-GET  /api/v1/admin/workflows
-POST /api/v1/admin/workflows/{id}/trigger
-GET  /api/v1/admin/logs
-POST /api/v1/admin/actions/restart
-```
+### Files needing `internal` modifier (30 total):
+- 8 UseCase classes
+- 7 RepositoryImpl classes
+- 8 DefaultComponent classes
+- 7 Repository interfaces
 
-### Implementation Phases
-1. Backend API + Auth
-2. Mobile Auth feature
-3. Dashboard + Chats
-4. Deploy workflows
-5. Logs + Quick Actions
-6. Settings + UI polish
-7. Deployment (nginx, WASM)
+### Settings Feature Decision
+- Use expect/actual pattern for SettingsRepository
+- DataStore where available (Android/iOS/Desktop)
+- InMemory for WASM
 
 ## Recovery
-Phase 4 complete. User chose Clean Architecture. Starting Phase 5 Implementation.
+Phase 3 complete. Proceed to Phase 5 implementation.

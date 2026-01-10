@@ -7,13 +7,18 @@ import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.feature.chats.DefaultChatsComponent
+import com.chatkeep.admin.feature.chats.domain.GetChatsUseCase
 import com.chatkeep.admin.feature.dashboard.DefaultDashboardComponent
+import com.chatkeep.admin.feature.dashboard.domain.usecase.GetDashboardUseCase
+import com.chatkeep.admin.feature.dashboard.domain.usecase.RestartBotUseCase
 import com.chatkeep.admin.feature.deploy.DefaultDeployComponent
+import com.chatkeep.admin.feature.deploy.domain.GetWorkflowsUseCase
+import com.chatkeep.admin.feature.deploy.domain.TriggerWorkflowUseCase
 import com.chatkeep.admin.feature.settings.DefaultSettingsComponent
-import com.chatkeep.admin.core.domain.usecase.*
-import com.chatkeep.admin.core.domain.repository.SettingsRepository
+import com.chatkeep.admin.feature.settings.domain.SettingsRepository
+import com.chatkeep.admin.feature.settings.domain.SetThemeUseCase
 
-class DefaultMainComponent(
+internal class DefaultMainComponent(
     componentContext: ComponentContext,
     private val getDashboardUseCase: GetDashboardUseCase,
     private val restartBotUseCase: RestartBotUseCase,

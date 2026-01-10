@@ -8,7 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import com.chatkeep.admin.core.domain.model.Theme
+import com.chatkeep.admin.feature.settings.Theme
 import com.chatkeep.admin.feature.settings.SettingsComponent
 
 @OptIn(ExperimentalMaterial3Api::class)

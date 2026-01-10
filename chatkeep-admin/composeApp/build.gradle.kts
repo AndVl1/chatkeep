@@ -52,8 +52,6 @@ kotlin {
             implementation(projects.core.common)
             implementation(projects.core.ui)
             implementation(projects.core.network)
-            implementation(projects.core.domain)
-            implementation(projects.core.data)
 
             // Feature modules
             implementation(projects.feature.auth.api)
@@ -84,15 +82,15 @@ kotlin {
 
             // Serialization
             implementation(libs.kotlinx.serialization.json)
-
-            // DataStore
-            implementation(libs.datastore.preferences.core)
         }
 
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.cio)
+
+            // Core modules with platform-specific dependencies
+            implementation(projects.core.data)
 
             // DataStore preferences delegate for Android
             implementation("androidx.datastore:datastore-preferences:1.1.1")
@@ -102,17 +100,24 @@ kotlin {
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.ktor.client.cio)
+
+                // Core modules with platform-specific dependencies
+                implementation(projects.core.data)
             }
         }
 
         val wasmJsMain by getting {
             dependencies {
                 implementation(libs.ktor.client.cio)
+                // Note: core:data not included for WASM (DataStore not supported)
             }
         }
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
+
+            // Core modules with platform-specific dependencies
+            implementation(projects.core.data)
         }
     }
 }

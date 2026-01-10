@@ -4,6 +4,7 @@ description: "Mobile developer - implements Kotlin Multiplatform features with C
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 model: sonnet
 color: cyan
+skills: kmp, compose, compose-arch, decompose, metro-di-mobile
 ---
 
 # Mobile Developer

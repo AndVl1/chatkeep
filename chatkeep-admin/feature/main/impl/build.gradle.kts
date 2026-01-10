@@ -43,7 +43,6 @@ kotlin {
             implementation(projects.feature.deploy.impl)
             implementation(projects.feature.settings.api)
             implementation(projects.feature.settings.impl)
-            implementation(projects.core.domain)
             implementation(projects.core.ui)
 
             implementation(libs.decompose)

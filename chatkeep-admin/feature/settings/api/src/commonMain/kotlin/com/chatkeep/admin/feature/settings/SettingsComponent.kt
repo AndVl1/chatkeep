@@ -1,7 +1,7 @@
 package com.chatkeep.admin.feature.settings
 
 import com.arkivanov.decompose.value.Value
-import com.chatkeep.admin.core.domain.model.Theme
+import com.chatkeep.admin.feature.settings.Theme
 
 interface SettingsComponent {
     val state: Value<SettingsState>

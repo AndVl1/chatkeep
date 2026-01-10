@@ -8,7 +8,7 @@ import com.chatkeep.admin.core.common.componentScope
 import com.chatkeep.admin.core.network.ApiService
 import kotlinx.coroutines.launch
 
-class DefaultHomeComponent(
+internal class DefaultHomeComponent(
     componentContext: ComponentContext,
     private val apiService: ApiService,
     private val onNavigateToDetails: (itemId: String) -> Unit

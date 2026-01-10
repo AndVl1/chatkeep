@@ -17,7 +17,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import com.chatkeep.admin.core.domain.model.LogsData
+import com.chatkeep.admin.feature.logs.LogsData
 import com.chatkeep.admin.feature.logs.LogsComponent
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -10,8 +10,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import com.chatkeep.admin.core.domain.model.DashboardInfo
-import com.chatkeep.admin.core.domain.model.Trend
+import com.chatkeep.admin.feature.dashboard.DashboardInfo
+import com.chatkeep.admin.feature.dashboard.Trend
 import com.chatkeep.admin.feature.dashboard.DashboardComponent
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.seconds

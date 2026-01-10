@@ -5,16 +5,22 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.AppResult
 import com.chatkeep.admin.core.common.componentScope
-import com.chatkeep.admin.core.domain.model.Workflow
-import com.chatkeep.admin.core.domain.usecase.GetWorkflowsUseCase
-import com.chatkeep.admin.core.domain.usecase.TriggerWorkflowUseCase
+import com.chatkeep.admin.core.network.AdminApiService
+import com.chatkeep.admin.feature.deploy.Workflow
+import com.chatkeep.admin.feature.deploy.data.WorkflowsRepositoryImpl
+import com.chatkeep.admin.feature.deploy.domain.GetWorkflowsUseCase
+import com.chatkeep.admin.feature.deploy.domain.TriggerWorkflowUseCase
 import kotlinx.coroutines.launch
 
-class DefaultDeployComponent(
+internal class DefaultDeployComponent(
     componentContext: ComponentContext,
-    private val getWorkflowsUseCase: GetWorkflowsUseCase,
-    private val triggerWorkflowUseCase: TriggerWorkflowUseCase
+    apiService: AdminApiService
 ) : DeployComponent, ComponentContext by componentContext {
+
+    // Internal dependencies created within the component
+    private val workflowsRepository = WorkflowsRepositoryImpl(apiService)
+    private val getWorkflowsUseCase = GetWorkflowsUseCase(workflowsRepository)
+    private val triggerWorkflowUseCase = TriggerWorkflowUseCase(workflowsRepository)
 
     private val _state = MutableValue<DeployComponent.DeployState>(DeployComponent.DeployState.Loading)
     override val state: Value<DeployComponent.DeployState> = _state

@@ -1,7 +1,7 @@
 package com.chatkeep.admin.feature.logs
 
 import com.arkivanov.decompose.value.Value
-import com.chatkeep.admin.core.domain.model.LogsData
+import com.chatkeep.admin.feature.logs.LogsData
 
 interface LogsComponent {
     val state: Value<LogsState>

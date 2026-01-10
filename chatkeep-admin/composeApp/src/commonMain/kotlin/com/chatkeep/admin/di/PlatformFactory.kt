@@ -2,7 +2,7 @@ package com.chatkeep.admin.di
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import com.chatkeep.admin.core.data.local.TokenStorage
+import com.chatkeep.admin.core.common.TokenStorage
 import io.ktor.client.*
 
 /**

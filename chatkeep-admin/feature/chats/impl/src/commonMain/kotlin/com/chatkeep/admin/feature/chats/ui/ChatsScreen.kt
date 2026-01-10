@@ -13,8 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import com.chatkeep.admin.core.domain.model.Chat
-import com.chatkeep.admin.core.domain.model.Trend
+import com.chatkeep.admin.feature.chats.Chat
+import com.chatkeep.admin.feature.dashboard.Trend
 import com.chatkeep.admin.feature.chats.ChatsComponent
 
 @OptIn(ExperimentalMaterial3Api::class)

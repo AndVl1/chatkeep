@@ -35,7 +35,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.feature.auth.api)
-            implementation(projects.core.domain)
+            implementation(projects.core.network)
             implementation(projects.core.ui)
 
             implementation(libs.decompose)

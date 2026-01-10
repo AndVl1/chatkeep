@@ -5,10 +5,10 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.AppResult
 import com.chatkeep.admin.core.common.componentScope
-import com.chatkeep.admin.core.domain.usecase.GetLogsUseCase
+import com.chatkeep.admin.feature.logs.domain.GetLogsUseCase
 import kotlinx.coroutines.launch
 
-class DefaultLogsComponent(
+internal class DefaultLogsComponent(
     componentContext: ComponentContext,
     private val getLogsUseCase: GetLogsUseCase
 ) : LogsComponent, ComponentContext by componentContext {

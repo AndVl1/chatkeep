@@ -5,12 +5,30 @@ import androidx.datastore.preferences.core.Preferences
 import com.arkivanov.decompose.ComponentContext
 import com.chatkeep.admin.DefaultRootComponent
 import com.chatkeep.admin.RootComponent
-import com.chatkeep.admin.core.data.local.TokenStorage
-import com.chatkeep.admin.core.data.remote.AdminApiService
-import com.chatkeep.admin.core.data.remote.AdminApiServiceImpl
-import com.chatkeep.admin.core.data.repository.*
-import com.chatkeep.admin.core.domain.repository.*
-import com.chatkeep.admin.core.domain.usecase.*
+import com.chatkeep.admin.core.common.TokenStorage
+import com.chatkeep.admin.core.network.AdminApiService
+import com.chatkeep.admin.core.network.AdminApiServiceImpl
+import com.chatkeep.admin.feature.auth.domain.repository.AuthRepository
+import com.chatkeep.admin.feature.auth.data.repository.AuthRepositoryImpl
+import com.chatkeep.admin.feature.dashboard.domain.repository.DashboardRepository
+import com.chatkeep.admin.feature.dashboard.domain.repository.ActionsRepository
+import com.chatkeep.admin.feature.dashboard.data.repository.DashboardRepositoryImpl
+import com.chatkeep.admin.feature.dashboard.data.repository.ActionsRepositoryImpl
+import com.chatkeep.admin.feature.chats.domain.ChatsRepository
+import com.chatkeep.admin.feature.chats.data.ChatsRepositoryImpl
+import com.chatkeep.admin.feature.deploy.domain.WorkflowsRepository
+import com.chatkeep.admin.feature.deploy.data.WorkflowsRepositoryImpl
+import com.chatkeep.admin.feature.logs.domain.LogsRepository
+import com.chatkeep.admin.feature.logs.data.LogsRepositoryImpl
+import com.chatkeep.admin.feature.settings.domain.SettingsRepository
+import com.chatkeep.admin.feature.settings.data.SettingsRepositoryImpl
+import com.chatkeep.admin.feature.auth.domain.usecase.LoginUseCase
+import com.chatkeep.admin.feature.dashboard.domain.usecase.GetDashboardUseCase
+import com.chatkeep.admin.feature.dashboard.domain.usecase.RestartBotUseCase
+import com.chatkeep.admin.feature.chats.domain.GetChatsUseCase
+import com.chatkeep.admin.feature.deploy.domain.usecase.GetWorkflowsUseCase
+import com.chatkeep.admin.feature.deploy.domain.usecase.TriggerWorkflowUseCase
+import com.chatkeep.admin.feature.settings.domain.SetThemeUseCase
 import io.ktor.client.*
 
 /**
@@ -25,7 +43,9 @@ class AppFactory(
 ) {
     // API Service
     val apiService: AdminApiService by lazy {
-        AdminApiServiceImpl(httpClient, tokenStorage)
+        AdminApiServiceImpl(httpClient) {
+            runCatching { kotlinx.coroutines.runBlocking { tokenStorage.getToken() } }.getOrNull()
+        }
     }
 
     // Repositories

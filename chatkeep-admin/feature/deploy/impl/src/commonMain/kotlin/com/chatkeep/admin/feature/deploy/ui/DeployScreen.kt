@@ -12,8 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import com.chatkeep.admin.core.domain.model.Workflow
-import com.chatkeep.admin.core.domain.model.WorkflowStatus
+import com.chatkeep.admin.feature.deploy.Workflow
+import com.chatkeep.admin.feature.deploy.WorkflowStatus
 import com.chatkeep.admin.feature.deploy.DeployComponent
 import kotlinx.datetime.Instant
 
