@@ -2,6 +2,7 @@
 name: developer
 model: sonnet
 description: Backend developer - implements Kotlin/Spring services and Telegram bots following Architect's design exactly. USE PROACTIVELY for implementation.
+color: green
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
 skills: kotlin-spring-patterns, kotlin-spring-boot, ktgbotapi, ktgbotapi-patterns, jooq-patterns, ktor-client

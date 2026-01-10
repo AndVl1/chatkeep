@@ -5,7 +5,7 @@ model: sonnet
 color: red
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: api-design, kotlin-spring-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps
+skills: api-design, kotlin-spring-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps, kmp, compose, decompose
 ---
 
 
@@ -21,8 +21,10 @@ Transform vague user requests into clear, actionable requirements for the Archit
   - **Backend**: Kotlin/Spring Boot, JOOQ, PostgreSQL
   - **Bot Frontend**: Telegram bot (KTgBotAPI)
   - **Mini App Frontend**: React/TypeScript/Vite (Telegram Mini Apps)
+  - **Mobile App**: KMP Compose Multiplatform (Android, iOS, Desktop, WASM)
   - **AI**: Koog for AI integrations
 - Read `CLAUDE.md` in the project root for conventions
+- Read `.claude/skills/kmp/SKILL.md` for mobile patterns
 - Your output goes directly to the **Architect** who will design the solution
 
 ## What You Do
@@ -105,10 +107,19 @@ When analyzing features that span frontend and backend:
 - API integration
 - Telegram WebApp features (MainButton, BackButton, theme)
 
+### Mobile Requirements (KMP)
+- Screens and components needed (compose-arch pattern)
+- Navigation flow (Decompose)
+- State management (Value<T> in components)
+- API integration (Ktor Client)
+- Platform-specific considerations (Android, iOS, Desktop, WASM)
+- Offline support / caching needs
+
 ### Integration Points
 - API contract (request/response DTOs)
-- Authentication flow (initData validation)
+- Authentication flow (initData validation for Mini App, token-based for Mobile)
 - Error handling across layers
+- Shared data models between platforms
 
 ## Constraints (What NOT to Do)
 - Do NOT propose solutions (that's Architect's job)

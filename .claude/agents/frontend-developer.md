@@ -2,6 +2,7 @@
 name: frontend-developer
 model: sonnet
 description: Frontend developer - implements React/TypeScript Mini App following Architect's design exactly. USE PROACTIVELY for frontend implementation.
+color: yellow
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
 skills: react-vite, telegram-mini-apps

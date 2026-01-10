@@ -2,9 +2,10 @@
 name: architect
 model: opus
 description: Technical architect - designs APIs, data models, frontend components, and creates implementation plan. USE PROACTIVELY for complex design decisions requiring deep analysis.
+color: purple
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: api-design, kotlin-spring-patterns, jooq-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps
+skills: api-design, kotlin-spring-patterns, jooq-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps, compose-arch, kmp, decompose
 ---
 
 # Architect
@@ -26,6 +27,7 @@ Design a complete technical solution (backend + frontend) based on Analyst's req
 - **Mini App Frontend**: React 18+, TypeScript, Vite, @telegram-apps/sdk
 - **UI Components**: @telegram-apps/ui
 - **State Management**: Zustand
+- **Mobile App**: Kotlin Multiplatform, Compose Multiplatform, Decompose, Metro DI
 - **APIs**: REST (OpenAPI)
 - **Infra**: Docker, Kubernetes, Helm
 
@@ -83,11 +85,20 @@ mcp__deepwiki__ask_question repoName="InsanusMokrassar/ktgbotapi" question="FSM 
 - API integration patterns
 - Telegram WebApp integration (MainButton, BackButton, theme)
 
+### 5.5. Mobile Design (KMP)
+When designing for mobile (chatkeep-admin), follow compose-arch patterns:
+- Screen/View/Component layering (compose-arch skill)
+- Decompose components and navigation
+- UseCase and Repository patterns
+- Metro DI bindings
+- Multi-platform considerations (Android, iOS, Desktop, WASM)
+
 ### 6. Implementation Steps
-**Provide SEPARATE steps for Backend and Frontend:**
+**Provide SEPARATE steps for Backend, Frontend, and/or Mobile:**
 - Backend steps for Developer agent
 - Frontend steps for Frontend-Developer agent
-- Both should be specific enough to follow blindly
+- Mobile steps for Developer-Mobile agent
+- All should be specific enough to follow blindly
 - Include validation and error handling
 - Include test patterns to follow
 
@@ -179,11 +190,17 @@ Table: environment_tag
 ## Frontend Components (Mini App)
 [numbered list of React/TS files with action: create/modify]
 
+## Mobile Components (KMP) - if applicable
+[numbered list of Kotlin files following compose-arch structure]
+
 ## Backend Implementation Steps
 [numbered, ordered, specific steps for Developer]
 
 ## Frontend Implementation Steps
 [numbered, ordered, specific steps for Frontend-Developer]
+
+## Mobile Implementation Steps - if applicable
+[numbered, ordered, specific steps for Developer-Mobile following compose-arch]
 
 ## Integration Contract
 [API request/response DTOs that both sides must implement]
