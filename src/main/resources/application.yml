@@ -31,6 +31,14 @@ jwt:
   secret: ${JWT_SECRET:}
   expiration-hours: ${JWT_EXPIRATION_HOURS:24}
 
+admin:
+  user-ids: ${ADMIN_USER_IDS:}
+
+github:
+  token: ${GITHUB_PAT:}
+  owner: ${GITHUB_OWNER:AndVl1}
+  repo: ${GITHUB_REPO:chatkeep}
+
 admin-logs:
   path: ${ADMIN_LOGS_PATH:/tmp/chatkeep/admin-logs}
 

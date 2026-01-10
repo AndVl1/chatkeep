@@ -1,0 +1,93 @@
+package com.chatkeep.admin.feature.dashboard
+
+import com.arkivanov.decompose.ComponentContext
+import com.arkivanov.decompose.value.MutableValue
+import com.arkivanov.decompose.value.Value
+import com.chatkeep.admin.core.common.AppResult
+import com.chatkeep.admin.core.common.componentScope
+import com.chatkeep.admin.core.domain.usecase.GetDashboardUseCase
+import com.chatkeep.admin.core.domain.usecase.RestartBotUseCase
+import kotlinx.coroutines.launch
+
+class DefaultDashboardComponent(
+    componentContext: ComponentContext,
+    private val getDashboardUseCase: GetDashboardUseCase,
+    private val restartBotUseCase: RestartBotUseCase
+) : DashboardComponent, ComponentContext by componentContext {
+
+    private val _state = MutableValue<DashboardComponent.DashboardState>(DashboardComponent.DashboardState.Loading)
+    override val state: Value<DashboardComponent.DashboardState> = _state
+
+    private val scope = componentScope()
+
+    init {
+        loadData()
+    }
+
+    override fun onRefresh() {
+        loadData()
+    }
+
+    override fun onRestartClick() {
+        val currentState = _state.value
+        if (currentState is DashboardComponent.DashboardState.Success) {
+            _state.value = currentState.copy(showRestartDialog = true)
+        }
+    }
+
+    override fun onConfirmRestart() {
+        val currentState = _state.value
+        if (currentState is DashboardComponent.DashboardState.Success) {
+            _state.value = currentState.copy(
+                showRestartDialog = false,
+                isRestarting = true
+            )
+            performRestart()
+        }
+    }
+
+    override fun onDismissDialog() {
+        val currentState = _state.value
+        if (currentState is DashboardComponent.DashboardState.Success) {
+            _state.value = currentState.copy(showRestartDialog = false)
+        }
+    }
+
+    private fun loadData() {
+        scope.launch {
+            _state.value = DashboardComponent.DashboardState.Loading
+            when (val result = getDashboardUseCase()) {
+                is AppResult.Success -> {
+                    _state.value = DashboardComponent.DashboardState.Success(result.data)
+                }
+                is AppResult.Error -> {
+                    _state.value = DashboardComponent.DashboardState.Error(result.message)
+                }
+                is AppResult.Loading -> {
+                    _state.value = DashboardComponent.DashboardState.Loading
+                }
+            }
+        }
+    }
+
+    private fun performRestart() {
+        scope.launch {
+            when (val result = restartBotUseCase()) {
+                is AppResult.Success -> {
+                    // Reload dashboard after restart
+                    loadData()
+                }
+                is AppResult.Error -> {
+                    val currentState = _state.value
+                    if (currentState is DashboardComponent.DashboardState.Success) {
+                        _state.value = currentState.copy(isRestarting = false)
+                    }
+                    _state.value = DashboardComponent.DashboardState.Error(result.message)
+                }
+                is AppResult.Loading -> {
+                    // Keep showing restarting state
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,51 @@
+package com.chatkeep.admin.feature.settings
+
+import com.arkivanov.decompose.ComponentContext
+import com.arkivanov.decompose.value.MutableValue
+import com.arkivanov.decompose.value.Value
+import com.chatkeep.admin.core.common.componentScope
+import com.chatkeep.admin.core.domain.model.Theme
+import com.chatkeep.admin.core.domain.usecase.SetThemeUseCase
+import com.chatkeep.admin.core.domain.repository.SettingsRepository
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+
+class DefaultSettingsComponent(
+    componentContext: ComponentContext,
+    private val settingsRepository: SettingsRepository,
+    private val setThemeUseCase: SetThemeUseCase,
+    private val onLogout: () -> Unit
+) : SettingsComponent, ComponentContext by componentContext {
+
+    private val _state = MutableValue(
+        SettingsComponent.SettingsState(
+            theme = Theme.SYSTEM,
+            appVersion = "1.0.0"
+        )
+    )
+    override val state: Value<SettingsComponent.SettingsState> = _state
+
+    private val scope = componentScope()
+
+    init {
+        settingsRepository.settings
+            .onEach { settings ->
+                _state.value = SettingsComponent.SettingsState(
+                    theme = settings.theme,
+                    appVersion = "1.0.0"
+                )
+            }
+            .launchIn(scope)
+    }
+
+    override fun onThemeChange(theme: Theme) {
+        scope.launch {
+            setThemeUseCase(theme)
+        }
+    }
+
+    override fun onLogoutClick() {
+        onLogout()
+    }
+}

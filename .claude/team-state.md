@@ -6,94 +6,138 @@
 - Workflow: FULL 7-PHASE
 
 ## Task
-Create comprehensive documentation and agents for Kotlin Multiplatform mobile development:
-1. Fill SKILL files: kmp, compose, metro-di-mobile, decompose
-2. Create developer-mobile subagent
-3. Create init-mobile agent and command
-4. Multi-module architecture with Decompose, Ktor, Room, Metro DI, DataStore
-5. Platforms: Android, iOS, Desktop, WASM with shared Compose UI
-6. Project should be standalone-capable (can be extracted to separate repo)
+Build a Compose Multiplatform admin app for Chatkeep bot with:
+- Telegram authentication (static allowlist of admin users)
+- Deployment status viewing
+- Workflow triggers for deployment
+- Chat statistics (messages per day, chat names)
+- Cross-platform support (Android, iOS, Desktop, WASM)
 
 ## Progress
 - [x] Phase 1: Discovery - COMPLETED
 - [x] Phase 2: Exploration - COMPLETED
 - [x] Phase 3: Questions - COMPLETED
-- [x] Phase 4: Architecture - COMPLETED (single approach for documentation task)
+- [x] Phase 4: Architecture - COMPLETED
 - [x] Phase 5: Implementation - COMPLETED
 - [x] Phase 6: Review - COMPLETED
+- [x] Phase 6.5: Review Fixes - COMPLETED
 - [x] Phase 7: Summary - COMPLETED
-
-## Phase 5 Output
-
-### Files Created
-
-**Skills:**
-- .claude/skills/kmp/SKILL.md - KMP fundamentals, source sets, expect/actual, module structure
-- .claude/skills/compose/SKILL.md - Compose MP UI patterns, theming, resources, components
-- .claude/skills/metro-di-mobile/SKILL.md - Metro DI setup, patterns, Decompose integration
-- .claude/skills/decompose/SKILL.md - Navigation, components, state preservation
-
-**Agents:**
-- .claude/agents/developer-mobile.md - Mobile developer for implementing KMP features
-- .claude/agents/init-mobile.md - Project initializer for creating new KMP projects
-
-**Commands:**
-- .claude/commands/init-mobile.md - User command to invoke init-mobile agent
-
-### Key Patterns Documented
-
-1. **Multi-module structure**: Feature-based + api/impl separation
-2. **Navigation**: Decompose Child Stack with serializable configs
-3. **DI**: Metro @DependencyGraph with @BindingContainer per feature
-4. **Components**: Interface + @Inject implementation with @AssistedFactory
-5. **State**: Value<T> for component state, AppResult<T> for operations
-6. **UI**: Compose screens observing component state via subscribeAsState()
-
-## Phase 3 Answers
-1. **Module structure**: Feature-based + api/impl for features
-2. **Database**: Room for mobile + JVM (skip WASM database)
-3. **Project name**: chatkeep-admin (directory ./chatkeep-admin/)
-4. **Init scope**: Full buildable project that compiles and runs immediately
-
-## Key Decisions
-- Use **Metro DI** for compile-time dependency injection
-- Use **Decompose** for navigation and component architecture
-- Use **Room** for database (with BundledSQLiteDriver)
-- Use **DataStore Preferences** for simple key-value storage
-- Use **Compose Multiplatform** for shared UI
-- Use **Ktor Client** for HTTP (already documented)
-- **Feature-based modules** with api/impl separation
-
-## Phase 6 Output (Review)
-
-Code-reviewer identified and fixed:
-1. **Fixed**: Broken GitHub URL in decompose/SKILL.md (missing slash)
-2. **Fixed**: Added missing imports to componentScope() extension
-3. **Fixed**: Added WASM limitations section to kmp/SKILL.md
 
 ## Phase 7 Summary
 
-### Deliverables
-| Type | File | Description |
-|------|------|-------------|
-| Skill | kmp/SKILL.md | KMP fundamentals, source sets, expect/actual |
-| Skill | compose/SKILL.md | Compose MP UI, theming, resources |
-| Skill | metro-di-mobile/SKILL.md | Metro DI setup, patterns |
-| Skill | decompose/SKILL.md | Navigation, components, state |
-| Agent | developer-mobile.md | Implements KMP features |
-| Agent | init-mobile.md | Creates new KMP projects |
-| Command | init-mobile.md | User command for project init |
+### Delivered
+Full-stack Compose Multiplatform admin app for Chatkeep Telegram bot with:
+- Backend Admin API (8 endpoints)
+- Mobile app with Clean Architecture
+- Multi-platform support: Android, iOS, Desktop, WASM
+- Security fixes for production readiness
 
-### Commit
-`34f013a` - feat: add comprehensive KMP mobile development infrastructure
+### Backend Implementation (14 files)
+- AdminAuthController - JWT login with allowlist
+- AdminDashboardController - Service status, deploy info
+- AdminChatsController - Chat list with message counts
+- AdminWorkflowsController - GitHub workflow triggers
+- AdminLogsController - Docker logs viewer
+- AdminActionsController - Bot restart with audit trail
+- AdminAuthFilter - JWT validation middleware
+- GitHubService - GitHub API integration
+- LogService - Log retrieval with sanitization
+- AdminProperties - Config with ADMIN_USER_IDS
 
-### Branch
-`feat/mobile-development-infrastructure`
+### Mobile Implementation (100+ files)
+**Domain Layer:**
+- Models: Admin, AuthState, DashboardInfo, Chat, Workflow, Logs, Settings
+- Repository interfaces (7)
+- UseCases (8): Login, GetDashboard, GetChats, GetWorkflows, TriggerWorkflow, GetLogs, RestartBot, SetTheme
 
-### Next Steps
-1. Create PR to merge into main
-2. Test `/init-mobile` command to generate chatkeep-admin project
-3. Verify generated project builds on all platforms
+**Data Layer:**
+- AdminApiService with Ktor client
+- DTOs with kotlinx.serialization
+- Repository implementations
+- TokenStorage with DataStore
+- Mappers for DTO<->Domain
+
+**Presentation Layer:**
+- 6 features: Auth, Dashboard, Chats, Deploy, Logs, Settings
+- Component/UI separation (api/impl modules)
+- Decompose for navigation
+- Material 3 design system
+- Adaptive navigation (bottom bar/rail)
+
+### Security Fixes (Phase 6.5)
+1. **BuildConfig expect/actual** - Mock auth gated behind debug mode
+2. **Audit trail logging** - Admin actions logged with user ID
+3. **Log sanitization** - Sensitive data redacted (JWT, tokens, passwords)
+
+### Deployment Infrastructure
+- Nginx config for admin.chatmoderatorbot.ru
+- Docker Compose volume mounts
+- GitHub Actions CI/CD with WASM build
+
+### Build Status
+- Backend: PASS ✅
+- Mobile Debug: PASS ✅
+
+## Key Decisions
+- **Architecture**: Clean Architecture (Domain → Data → Presentation)
+- **UseCases**: Yes - separate business logic from Components
+- **Repositories**: Yes - interfaces in domain, implementations in data
+- **DI**: Manual (can upgrade to Metro later)
+
+## Chosen Approach
+**Clean Architecture** with:
+- Domain layer: UseCases, Repository interfaces, Models
+- Data layer: Repository implementations, DataSources, ApiService
+- Presentation layer: Decompose Components, Compose UI
+- Feature modules with api/impl separation
+
+## Phase 4 Output - Architecture Design
+
+### Layer Structure
+```
+domain/
+├── model/          # Domain models (Admin, Chat, DashboardInfo, etc.)
+├── repository/     # Repository interfaces
+└── usecase/        # UseCases (GetDashboardUseCase, LoginUseCase, etc.)
+
+data/
+├── repository/     # Repository implementations
+├── datasource/     # DataSources (remote, local)
+└── mapper/         # DTO <-> Domain mappers
+
+presentation/
+├── feature/*/api/  # Component interfaces
+└── feature/*/impl/ # Component implementations + UI
+```
+
+### Features to Implement
+1. **Auth**: Login with Telegram, token management
+2. **Dashboard**: Service status, deploy info, quick stats
+3. **Chats**: List with messages today/yesterday, trend
+4. **Deploy**: Workflow list, trigger, status
+5. **Logs**: View last 100 lines
+6. **Settings**: Theme switch, logout
+
+### Backend API Endpoints (new)
+```
+POST /api/v1/admin/auth/login
+GET  /api/v1/admin/auth/me
+GET  /api/v1/admin/dashboard
+GET  /api/v1/admin/chats
+GET  /api/v1/admin/workflows
+POST /api/v1/admin/workflows/{id}/trigger
+GET  /api/v1/admin/logs
+POST /api/v1/admin/actions/restart
+```
+
+### Implementation Phases
+1. Backend API + Auth
+2. Mobile Auth feature
+3. Dashboard + Chats
+4. Deploy workflows
+5. Logs + Quick Actions
+6. Settings + UI polish
+7. Deployment (nginx, WASM)
 
 ## Recovery
-Task completed. All 7 phases finished.
+Phase 4 complete. User chose Clean Architecture. Starting Phase 5 Implementation.
