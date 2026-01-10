@@ -100,13 +100,15 @@ Based on classification, select workflow:
 - State management (Zustand)
 - Telegram WebApp API usage
 
-**manual-qa** (UI Testing):
-- Chrome browser automation via MCP tools
-- Network request verification
-- Console error checking
-- JavaScript state inspection
-- Screenshot-based verification
+**manual-qa** (UI Testing - Web & Mobile):
+- Chrome browser automation via MCP tools (Mini App)
+- Android/iOS device automation via MCP mobile tools
+- Network request verification (web) / Logcat analysis (mobile)
+- Console error checking / Crash detection
+- JavaScript state inspection / UI hierarchy inspection
+- Screenshot-based verification on all platforms
 - Telegram Mini App testing
+- KMP Mobile App testing (Android emulators, iOS simulators)
 
 **developer-mobile** (KMP Mobile App):
 - Kotlin Multiplatform with Compose UI
@@ -485,6 +487,16 @@ Please answer these before I proceed.
     - UseCase patterns (Result<T> return)
     - Decompose navigation correctness
     Report issues with confidence score (0-100)."
+
+   Agent (manual-qa):
+   "Test KMP Mobile App on Android/iOS:
+    - Launch app: launch_app(package: 'com.chatkeep.admin')
+    - Navigate through new features: get_ui(), tap(), swipe()
+    - Verify all screens render correctly: screenshot()
+    - Check for crashes: get_logs(level: 'E')
+    - Test state preservation on back navigation
+    - Verify loading/error/empty states visible
+    - Report any UI/UX issues found with screenshots."
 
    Agent (code-reviewer):
    "Review KMP implementation for:
