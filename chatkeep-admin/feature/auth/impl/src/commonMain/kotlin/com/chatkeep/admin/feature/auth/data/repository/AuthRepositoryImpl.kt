@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-internal class AuthRepositoryImpl(
+class AuthRepositoryImpl(
     private val apiService: AdminApiService,
     private val tokenStorage: TokenStorage
 ) : AuthRepository {

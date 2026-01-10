@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * In-memory settings repository for WASM platform.
  * Settings are not persisted between sessions.
  */
-internal actual class SettingsRepositoryImpl() : SettingsRepository {
+actual class SettingsRepositoryImpl() : SettingsRepository {
 
     private val _settings = MutableStateFlow(UserSettings(Theme.SYSTEM))
     actual override val settings: StateFlow<UserSettings> = _settings.asStateFlow()

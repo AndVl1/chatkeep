@@ -6,7 +6,7 @@ import com.chatkeep.admin.feature.auth.AuthState
 import com.chatkeep.admin.feature.auth.TelegramLoginData
 import kotlinx.coroutines.flow.StateFlow
 
-internal interface AuthRepository {
+interface AuthRepository {
     val authState: StateFlow<AuthState>
     suspend fun login(telegramData: TelegramLoginData): AppResult<Admin>
     suspend fun logout()

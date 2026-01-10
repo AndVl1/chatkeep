@@ -1,32 +1,23 @@
 package com.chatkeep.admin.feature.main
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
-import com.chatkeep.admin.feature.chats.DefaultChatsComponent
-import com.chatkeep.admin.feature.chats.domain.GetChatsUseCase
-import com.chatkeep.admin.feature.dashboard.DefaultDashboardComponent
-import com.chatkeep.admin.feature.dashboard.domain.usecase.GetDashboardUseCase
-import com.chatkeep.admin.feature.dashboard.domain.usecase.RestartBotUseCase
-import com.chatkeep.admin.feature.deploy.DefaultDeployComponent
-import com.chatkeep.admin.feature.deploy.domain.GetWorkflowsUseCase
-import com.chatkeep.admin.feature.deploy.domain.TriggerWorkflowUseCase
-import com.chatkeep.admin.feature.settings.DefaultSettingsComponent
-import com.chatkeep.admin.feature.settings.domain.SettingsRepository
-import com.chatkeep.admin.feature.settings.domain.SetThemeUseCase
+import com.chatkeep.admin.core.network.AdminApiService
+import com.chatkeep.admin.feature.chats.createChatsComponent
+import com.chatkeep.admin.feature.dashboard.createDashboardComponent
+import com.chatkeep.admin.feature.deploy.createDeployComponent
+import com.chatkeep.admin.feature.settings.createSettingsComponent
 
 internal class DefaultMainComponent(
     componentContext: ComponentContext,
-    private val getDashboardUseCase: GetDashboardUseCase,
-    private val restartBotUseCase: RestartBotUseCase,
-    private val getChatsUseCase: GetChatsUseCase,
-    private val getWorkflowsUseCase: GetWorkflowsUseCase,
-    private val triggerWorkflowUseCase: TriggerWorkflowUseCase,
-    private val settingsRepository: SettingsRepository,
-    private val setThemeUseCase: SetThemeUseCase,
+    private val apiService: AdminApiService,
+    private val dataStore: DataStore<Preferences>,
     private val onLogout: () -> Unit
 ) : MainComponent, ComponentContext by componentContext {
 
@@ -46,30 +37,27 @@ internal class DefaultMainComponent(
         context: ComponentContext
     ): MainComponent.Child = when (config) {
         MainComponent.Config.Dashboard -> MainComponent.Child.Dashboard(
-            DefaultDashboardComponent(
+            createDashboardComponent(
                 componentContext = context,
-                getDashboardUseCase = getDashboardUseCase,
-                restartBotUseCase = restartBotUseCase
+                apiService = apiService
             )
         )
         MainComponent.Config.Chats -> MainComponent.Child.Chats(
-            DefaultChatsComponent(
+            createChatsComponent(
                 componentContext = context,
-                getChatsUseCase = getChatsUseCase
+                apiService = apiService
             )
         )
         MainComponent.Config.Deploy -> MainComponent.Child.Deploy(
-            DefaultDeployComponent(
+            createDeployComponent(
                 componentContext = context,
-                getWorkflowsUseCase = getWorkflowsUseCase,
-                triggerWorkflowUseCase = triggerWorkflowUseCase
+                apiService = apiService
             )
         )
         MainComponent.Config.Settings -> MainComponent.Child.Settings(
-            DefaultSettingsComponent(
+            createSettingsComponent(
                 componentContext = context,
-                settingsRepository = settingsRepository,
-                setThemeUseCase = setThemeUseCase,
+                dataStore = dataStore,
                 onLogout = onLogout
             )
         )

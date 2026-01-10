@@ -5,7 +5,7 @@ import com.chatkeep.admin.feature.settings.UserSettings
 import com.chatkeep.admin.feature.settings.domain.SettingsRepository
 import kotlinx.coroutines.flow.StateFlow
 
-internal expect class SettingsRepositoryImpl : SettingsRepository {
+expect class SettingsRepositoryImpl : SettingsRepository {
     override val settings: StateFlow<UserSettings>
     override suspend fun setTheme(theme: Theme)
 }

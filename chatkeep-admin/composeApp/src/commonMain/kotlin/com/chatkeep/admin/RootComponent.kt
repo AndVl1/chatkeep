@@ -6,21 +6,17 @@ import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.common.componentScope
-import com.chatkeep.admin.feature.auth.AuthState
-import com.chatkeep.admin.feature.auth.domain.repository.AuthRepository
-import com.chatkeep.admin.feature.settings.domain.SettingsRepository
-import com.chatkeep.admin.feature.auth.domain.usecase.LoginUseCase
-import com.chatkeep.admin.feature.dashboard.domain.usecase.GetDashboardUseCase
-import com.chatkeep.admin.feature.dashboard.domain.usecase.RestartBotUseCase
-import com.chatkeep.admin.feature.chats.domain.GetChatsUseCase
-import com.chatkeep.admin.feature.deploy.domain.usecase.GetWorkflowsUseCase
-import com.chatkeep.admin.feature.deploy.domain.usecase.TriggerWorkflowUseCase
-import com.chatkeep.admin.feature.settings.domain.SetThemeUseCase
+import com.chatkeep.admin.core.network.AdminApiService
 import com.chatkeep.admin.feature.auth.AuthComponent
-import com.chatkeep.admin.feature.auth.DefaultAuthComponent
-import com.chatkeep.admin.feature.main.DefaultMainComponent
+import com.chatkeep.admin.feature.auth.AuthState
+import com.chatkeep.admin.feature.auth.createAuthComponent
+import com.chatkeep.admin.feature.auth.domain.repository.AuthRepository
 import com.chatkeep.admin.feature.main.MainComponent
+import com.chatkeep.admin.feature.main.createMainComponent
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -36,14 +32,9 @@ interface RootComponent {
 class DefaultRootComponent(
     componentContext: ComponentContext,
     private val authRepository: AuthRepository,
-    private val getDashboardUseCase: GetDashboardUseCase,
-    private val restartBotUseCase: RestartBotUseCase,
-    private val getChatsUseCase: GetChatsUseCase,
-    private val getWorkflowsUseCase: GetWorkflowsUseCase,
-    private val triggerWorkflowUseCase: TriggerWorkflowUseCase,
-    private val settingsRepository: SettingsRepository,
-    private val setThemeUseCase: SetThemeUseCase,
-    private val loginUseCase: LoginUseCase
+    private val apiService: AdminApiService,
+    private val tokenStorage: TokenStorage,
+    private val dataStore: DataStore<Preferences>
 ) : RootComponent, ComponentContext by componentContext {
 
     private val navigation = StackNavigation<Config>()
@@ -104,23 +95,19 @@ class DefaultRootComponent(
     }
 
     private fun createAuthComponent(context: ComponentContext): AuthComponent {
-        return DefaultAuthComponent(
+        return createAuthComponent(
             componentContext = context,
-            loginUseCase = loginUseCase,
+            apiService = apiService,
+            tokenStorage = tokenStorage,
             onSuccess = { /* Auth state change will trigger navigation */ }
         )
     }
 
     private fun createMainComponent(context: ComponentContext): MainComponent {
-        return DefaultMainComponent(
+        return createMainComponent(
             componentContext = context,
-            getDashboardUseCase = getDashboardUseCase,
-            restartBotUseCase = restartBotUseCase,
-            getChatsUseCase = getChatsUseCase,
-            getWorkflowsUseCase = getWorkflowsUseCase,
-            triggerWorkflowUseCase = triggerWorkflowUseCase,
-            settingsRepository = settingsRepository,
-            setThemeUseCase = setThemeUseCase,
+            apiService = apiService,
+            dataStore = dataStore,
             onLogout = {
                 scope.launch {
                     authRepository.logout()
