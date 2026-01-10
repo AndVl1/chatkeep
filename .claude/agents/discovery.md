@@ -2,6 +2,7 @@
 name: discovery
 model: sonnet
 description: Repository discovery agent - analyzes codebases to generate context files for team workflows
+color: yellow
 tools: Read, Glob, Grep, Bash
 ---
 

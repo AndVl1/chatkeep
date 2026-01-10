@@ -2,6 +2,7 @@
 name: init-mobile
 model: sonnet
 description: Mobile project initializer - creates new KMP Compose Multiplatform project with full structure, builds, and runs on all targets.
+color: cyan
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
 skills: kmp, compose, decompose, metro-di-mobile, ktor-client

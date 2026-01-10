@@ -1,10 +1,9 @@
 ---
 name: developer-mobile
-model: sonnet
-description: Mobile developer - implements Kotlin Multiplatform features with Compose UI following Architect's design exactly. USE PROACTIVELY for KMP implementation.
+description: "Mobile developer - implements Kotlin Multiplatform features with Compose UI following Architect's design exactly. USE PROACTIVELY for KMP implementation."
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
-permissionMode: acceptEdits
-skills: kmp, compose, compose-arch, decompose, metro-di-mobile, ktor-client
+model: sonnet
+color: cyan
 ---
 
 # Mobile Developer

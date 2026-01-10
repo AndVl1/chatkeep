@@ -2,6 +2,7 @@
 name: architect
 model: opus
 description: Technical architect - designs APIs, data models, frontend components, and creates implementation plan. USE PROACTIVELY for complex design decisions requiring deep analysis.
+color: purple
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
 skills: api-design, kotlin-spring-patterns, jooq-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps, compose-arch, kmp, decompose
