@@ -49,11 +49,34 @@ grep "class.*Repository" --type kotlin
 
 ### For External Questions
 ```
-1. Search official documentation first
-2. Check GitHub issues/discussions
-3. Look for blog posts from trusted sources
-4. Verify information is current (2024-2025)
+1. Use Context7 MCP for library documentation first
+2. Use DeepWiki MCP for GitHub repo analysis
+3. Search official documentation via WebSearch
+4. Check GitHub issues/discussions
+5. Look for blog posts from trusted sources
+6. Verify information is current (2024-2025)
 ```
+
+### Documentation MCP Tools
+**Context7** - For library/framework documentation:
+```
+# Resolve library ID first
+mcp__context7__resolve-library-id libraryName="spring-boot" query="transaction management"
+# Then query docs
+mcp__context7__query-docs libraryId="/spring-projects/spring-boot" query="@Transactional usage"
+```
+
+**DeepWiki** - For GitHub repo analysis:
+```
+mcp__deepwiki__ask_question repoName="owner/repo" question="how does feature X work?"
+```
+
+| Need | Tool |
+|------|------|
+| Library docs (Spring, React, ktgbotapi) | Context7 |
+| Framework API reference | Context7 |
+| GitHub repo architecture | DeepWiki |
+| Open-source implementations | DeepWiki |
 
 ## Example Output
 

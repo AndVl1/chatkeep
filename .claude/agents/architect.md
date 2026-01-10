@@ -29,6 +29,27 @@ Design a complete technical solution (backend + frontend) based on Analyst's req
 - **APIs**: REST (OpenAPI)
 - **Infra**: Docker, Kubernetes, Helm
 
+## Documentation Research
+When designing solutions, use these MCP tools for documentation:
+
+**Context7** - For library/framework docs and best practices:
+```
+mcp__context7__resolve-library-id libraryName="spring-boot" query="transaction propagation"
+mcp__context7__query-docs libraryId="/spring-projects/spring-boot" query="@Transactional patterns"
+```
+
+**DeepWiki** - For GitHub repo analysis and patterns:
+```
+mcp__deepwiki__ask_question repoName="InsanusMokrassar/ktgbotapi" question="FSM state management"
+```
+
+| Need | Tool |
+|------|------|
+| Library patterns (Spring, React) | Context7 |
+| Framework best practices | Context7 |
+| Open-source architecture | DeepWiki |
+| Implementation examples | DeepWiki |
+
 ## What You Do
 
 ### 1. Architecture Decision

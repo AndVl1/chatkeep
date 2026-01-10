@@ -140,6 +140,48 @@ To get implementation details, use:
 mcp__deepwiki__ask_question with repoName="MRK-YT/Rose-Bot"
 ```
 
+## Documentation Sources
+
+When researching libraries and frameworks, use these MCP tools:
+
+### Context7 MCP
+For up-to-date documentation and code examples of any library/framework:
+```
+# First, resolve library ID
+mcp__context7__resolve-library-id with libraryName="ktgbotapi" query="how to handle callbacks"
+
+# Then query documentation
+mcp__context7__query-docs with libraryId="/insanusmokrassar/ktgbotapi" query="callback handling"
+```
+
+Use Context7 for:
+- Official documentation with code examples
+- API references
+- Best practices and patterns
+- Version-specific information
+
+### DeepWiki MCP
+For understanding GitHub repositories and their architecture:
+```
+mcp__deepwiki__ask_question with repoName="owner/repo" question="how does X work?"
+mcp__deepwiki__read_wiki_structure with repoName="owner/repo"
+```
+
+Use DeepWiki for:
+- Understanding project architecture
+- Finding implementation patterns in open-source projects
+- Learning how specific features are implemented
+
+### When to Use Which
+| Need | Tool |
+|------|------|
+| Library docs (Spring, React, ktgbotapi) | Context7 |
+| Framework patterns | Context7 |
+| GitHub repo analysis | DeepWiki |
+| Open-source implementation examples | DeepWiki |
+| API reference | Context7 |
+| Codebase architecture | DeepWiki |
+
 ## Git Workflow
 
 **IMPORTANT: ALL features and fixes MUST be developed in separate branches.**
@@ -296,3 +338,12 @@ Sub-agent Safety
 
 Sub-agents MUST follow the same bash command rules.
 If a sub-agent is not explicitly responsible for executing commands, it MUST NOT output bash commands at all.
+
+### Clarifying Questions
+
+**All clarifying questions MUST be asked via `AskUserQuestionTool`.**
+
+- NEVER ask questions in plain text output
+- ALWAYS use the `AskUserQuestion` tool for any clarifications
+- This applies to BOTH main agent and ALL sub-agents
+- Provide clear, structured options when possible

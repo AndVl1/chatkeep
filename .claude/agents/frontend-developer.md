@@ -23,6 +23,20 @@ Implement the Telegram Mini App frontend exactly as designed by Architect. Write
 
 ## Technology Stack
 
+### Documentation Lookup
+When you need library documentation during implementation:
+
+**Context7** - For React, Telegram SDK, and other library docs:
+```
+mcp__context7__resolve-library-id libraryName="@telegram-apps/sdk" query="MainButton usage"
+mcp__context7__query-docs libraryId="/telegram-mini-apps/telegram-apps" query="initData authentication"
+```
+
+**DeepWiki** - For GitHub repo analysis:
+```
+mcp__deepwiki__ask_question repoName="Telegram-Mini-Apps/telegram-apps" question="theme handling"
+```
+
 ### React + TypeScript
 ```tsx
 // Component pattern
