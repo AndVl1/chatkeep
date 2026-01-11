@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import com.arkivanov.decompose.defaultComponentContext
 import com.chatkeep.admin.core.common.BuildConfig
 import com.chatkeep.admin.core.common.DeepLinkData
@@ -46,7 +47,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(
                 rootComponent = rootComponent!!,
-                settingsRepository = appFactory.settingsRepository
+                settingsRepository = appFactory.settingsRepository,
+                onThemeChanged = { darkTheme ->
+                    // Update system bar appearance
+                    WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = !darkTheme
+                        isAppearanceLightNavigationBars = !darkTheme
+                    }
+                }
             )
         }
 

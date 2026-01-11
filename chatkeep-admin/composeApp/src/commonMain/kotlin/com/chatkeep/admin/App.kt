@@ -17,7 +17,11 @@ import com.chatkeep.admin.feature.auth.ui.AuthScreen
 import com.chatkeep.admin.feature.main.ui.MainScreen
 
 @Composable
-fun App(rootComponent: RootComponent, settingsRepository: SettingsRepository) {
+fun App(
+    rootComponent: RootComponent,
+    settingsRepository: SettingsRepository,
+    onThemeChanged: (Boolean) -> Unit = {}
+) {
     val settings by settingsRepository.settings.collectAsState()
 
     val darkTheme = when (settings.theme) {
@@ -26,7 +30,7 @@ fun App(rootComponent: RootComponent, settingsRepository: SettingsRepository) {
         Theme.SYSTEM -> isSystemInDarkTheme()
     }
 
-    AppTheme(darkTheme = darkTheme) {
+    AppTheme(darkTheme = darkTheme, onThemeChanged = onThemeChanged) {
         RootContent(component = rootComponent)
     }
 }
