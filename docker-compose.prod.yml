@@ -36,6 +36,7 @@ services:
       TELEGRAM_ADMINBOT_TOKEN: ${TELEGRAM_ADMIN_BOT_TOKEN:-}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       MINI_APP_URL: ${MINI_APP_URL:-}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     restart: always
     healthcheck:
