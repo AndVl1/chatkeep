@@ -9,13 +9,14 @@ import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.common.componentScope
 import com.chatkeep.admin.core.common.openInBrowser
 import com.chatkeep.admin.core.network.AdminApiService
-import com.chatkeep.admin.feature.auth.data.repository.AuthRepositoryImpl
+import com.chatkeep.admin.feature.auth.domain.repository.AuthRepository
 import com.chatkeep.admin.feature.auth.domain.usecase.LoginUseCase
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 internal class DefaultAuthComponent(
     componentContext: ComponentContext,
+    authRepository: AuthRepository,
     apiService: AdminApiService,
     tokenStorage: TokenStorage,
     private val baseUrl: String,
@@ -29,8 +30,7 @@ internal class DefaultAuthComponent(
         }
     }
 
-    // Internal dependencies created within the component
-    private val authRepository = AuthRepositoryImpl(apiService, tokenStorage)
+    // Use injected repository (shared with RootComponent for navigation)
     private val loginUseCase = LoginUseCase(authRepository)
 
     private val _state = MutableValue<AuthComponent.AuthState>(AuthComponent.AuthState.Idle)
@@ -98,9 +98,8 @@ internal class DefaultAuthComponent(
         val stateToken = generateStateToken()
         expectedStateToken = stateToken
 
-        // Build OAuth URL using main domain (required for Telegram Login Widget)
-        // Widget only works on the domain configured in bot settings: chatmoderatorbot.ru
-        val oauthUrl = "https://chatmoderatorbot.ru/auth/telegram-login?state=$stateToken"
+        // Build OAuth URL using admin subdomain (configured in BotFather for @ChatAutoModAdminbot)
+        val oauthUrl = "https://admin.chatmoderatorbot.ru/auth/telegram-login?state=$stateToken"
 
         // Open browser
         try {

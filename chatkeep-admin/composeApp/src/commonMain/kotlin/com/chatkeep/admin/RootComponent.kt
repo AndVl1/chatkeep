@@ -100,6 +100,7 @@ class DefaultRootComponent(
     private fun createAuthComponent(context: ComponentContext): AuthComponent {
         return createAuthComponent(
             componentContext = context,
+            authRepository = authRepository,
             apiService = apiService,
             tokenStorage = tokenStorage,
             baseUrl = baseUrl,
