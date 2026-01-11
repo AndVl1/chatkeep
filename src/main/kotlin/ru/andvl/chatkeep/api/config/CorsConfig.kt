@@ -30,6 +30,7 @@ class CorsConfig {
         val source = UrlBasedCorsConfigurationSource().apply {
             registerCorsConfiguration("/api/v1/miniapp/**", config)
             registerCorsConfiguration("/api/v1/auth/**", config)
+            registerCorsConfiguration("/api/v1/admin/**", config)
         }
 
         return CorsFilter(source)

@@ -24,6 +24,7 @@ spring:
 telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
+    username: ${TELEGRAM_BOT_USERNAME:}
   mini-app:
     url: ${MINI_APP_URL:}
 
