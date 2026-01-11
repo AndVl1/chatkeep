@@ -74,34 +74,34 @@ data class DeepLinkData(
 
         /**
          * Decodes URL-encoded strings.
-         * Handles %XX escapes and + as space.
+         * Handles %XX escapes (including multi-byte UTF-8 sequences) and + as space.
          */
         private fun urlDecode(value: String): String {
-            return buildString {
-                var i = 0
-                while (i < value.length) {
-                    when {
-                        value[i] == '+' -> {
-                            append(' ')
-                            i++
-                        }
-                        value[i] == '%' && i + 2 < value.length -> {
-                            try {
-                                val hex = value.substring(i + 1, i + 3)
-                                append(hex.toInt(16).toChar())
-                                i += 3
-                            } catch (e: NumberFormatException) {
-                                append(value[i])
-                                i++
-                            }
-                        }
-                        else -> {
-                            append(value[i])
+            val bytes = mutableListOf<Byte>()
+            var i = 0
+            while (i < value.length) {
+                when {
+                    value[i] == '+' -> {
+                        bytes.add(' '.code.toByte())
+                        i++
+                    }
+                    value[i] == '%' && i + 2 < value.length -> {
+                        try {
+                            val hex = value.substring(i + 1, i + 3)
+                            bytes.add(hex.toInt(16).toByte())
+                            i += 3
+                        } catch (e: NumberFormatException) {
+                            bytes.add(value[i].code.toByte())
                             i++
                         }
                     }
+                    else -> {
+                        bytes.add(value[i].code.toByte())
+                        i++
+                    }
                 }
             }
+            return bytes.toByteArray().decodeToString()
         }
     }
 }
