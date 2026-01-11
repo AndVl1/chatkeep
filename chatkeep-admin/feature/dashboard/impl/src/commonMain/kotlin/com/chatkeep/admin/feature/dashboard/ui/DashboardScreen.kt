@@ -100,58 +100,52 @@ private fun DashboardContent(
     onConfirmRestart: () -> Unit,
     onDismissDialog: () -> Unit
 ) {
-    PullToRefreshBox(
-        isRefreshing = false,
-        onRefresh = onRefresh,
-        modifier = Modifier.fillMaxSize()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        // Service Status Card
+        ServiceStatusCard(
+            running = dashboard.serviceStatus.running,
+            uptime = dashboard.serviceStatus.uptime
+        )
+
+        // Deploy Info Card
+        DeployInfoCard(
+            commitSha = dashboard.deployInfo.commitSha,
+            deployedAt = dashboard.deployInfo.deployedAt,
+            imageVersion = dashboard.deployInfo.imageVersion
+        )
+
+        // Quick Stats Card
+        QuickStatsCard(
+            totalChats = dashboard.quickStats.totalChats,
+            messagesToday = dashboard.quickStats.messagesToday,
+            messagesYesterday = dashboard.quickStats.messagesYesterday,
+            trend = dashboard.quickStats.trend
+        )
+
+        // Restart Button
+        Button(
+            onClick = onRestartClick,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isRestarting,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
+            )
         ) {
-            // Service Status Card
-            ServiceStatusCard(
-                running = dashboard.serviceStatus.running,
-                uptime = dashboard.serviceStatus.uptime
-            )
-
-            // Deploy Info Card
-            DeployInfoCard(
-                commitSha = dashboard.deployInfo.commitSha,
-                deployedAt = dashboard.deployInfo.deployedAt,
-                imageVersion = dashboard.deployInfo.imageVersion
-            )
-
-            // Quick Stats Card
-            QuickStatsCard(
-                totalChats = dashboard.quickStats.totalChats,
-                messagesToday = dashboard.quickStats.messagesToday,
-                messagesYesterday = dashboard.quickStats.messagesYesterday,
-                trend = dashboard.quickStats.trend
-            )
-
-            // Restart Button
-            Button(
-                onClick = onRestartClick,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isRestarting,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
+            if (isRestarting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onError,
+                    strokeWidth = 2.dp
                 )
-            ) {
-                if (isRestarting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onError,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Restarting...")
-                } else {
-                    Text("Restart Bot")
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Restarting...")
+            } else {
+                Text("Restart Bot")
             }
         }
     }

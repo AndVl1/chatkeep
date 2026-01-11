@@ -42,8 +42,7 @@ fun ChatsScreen(component: ChatsComponent) {
                     } else {
                         ChatsContent(
                             chats = currentState.chats,
-                            onChatClick = component::onChatClick,
-                            onRefresh = component::onRefresh
+                            onChatClick = component::onChatClick
                         )
                     }
                 }
@@ -110,24 +109,17 @@ private fun EmptyContent() {
 @Composable
 private fun ChatsContent(
     chats: List<Chat>,
-    onChatClick: (Chat) -> Unit,
-    onRefresh: () -> Unit
+    onChatClick: (Chat) -> Unit
 ) {
-    PullToRefreshBox(
-        isRefreshing = false,
-        onRefresh = onRefresh,
-        modifier = Modifier.fillMaxSize()
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(chats, key = { it.chatId }) { chat ->
-                ChatItem(
-                    chat = chat,
-                    onClick = { onChatClick(chat) }
-                )
-            }
+        items(chats, key = { it.chatId }) { chat ->
+            ChatItem(
+                chat = chat,
+                onClick = { onChatClick(chat) }
+            )
         }
     }
 }
