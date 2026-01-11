@@ -91,6 +91,32 @@ private fun ErrorContent(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
+private fun EmptyStateContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "No Workflows",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "No CI/CD workflows configured. Add workflows in GitHub Actions.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
 private fun DeployContent(
     workflows: List<Workflow>,
     triggering: Boolean,
@@ -99,16 +125,20 @@ private fun DeployContent(
     onConfirmTrigger: () -> Unit,
     onDismissDialog: () -> Unit
 ) {
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(workflows, key = { it.id }) { workflow ->
-            WorkflowItem(
-                workflow = workflow,
-                enabled = !triggering,
-                onTriggerClick = { onTriggerClick(workflow) }
-            )
+    if (workflows.isEmpty()) {
+        EmptyStateContent()
+    } else {
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(workflows, key = { it.id }) { workflow ->
+                WorkflowItem(
+                    workflow = workflow,
+                    enabled = !triggering,
+                    onTriggerClick = { onTriggerClick(workflow) }
+                )
+            }
         }
     }
 
