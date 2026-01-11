@@ -199,7 +199,7 @@ private fun ServiceStatusCard(running: Boolean, uptime: Long) {
 }
 
 @Composable
-private fun DeployInfoCard(commitSha: String, deployedAt: Instant, imageVersion: String) {
+private fun DeployInfoCard(commitSha: String?, deployedAt: Instant?, imageVersion: String?) {
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -213,9 +213,9 @@ private fun DeployInfoCard(commitSha: String, deployedAt: Instant, imageVersion:
                 fontWeight = FontWeight.Bold
             )
 
-            InfoRow("Commit", commitSha.take(8))
-            InfoRow("Deployed", formatTimestamp(deployedAt))
-            InfoRow("Image", imageVersion)
+            InfoRow("Commit", commitSha?.take(8) ?: "N/A")
+            InfoRow("Deployed", deployedAt?.let { formatTimestamp(it) } ?: "N/A")
+            InfoRow("Image", imageVersion ?: "N/A")
         }
     }
 }

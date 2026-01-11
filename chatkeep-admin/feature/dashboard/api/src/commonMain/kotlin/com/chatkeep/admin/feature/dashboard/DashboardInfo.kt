@@ -14,9 +14,9 @@ data class ServiceStatus(
 )
 
 data class DeployInfo(
-    val commitSha: String,
-    val deployedAt: Instant,
-    val imageVersion: String
+    val commitSha: String?,
+    val deployedAt: Instant?,
+    val imageVersion: String?
 )
 
 data class QuickStats(

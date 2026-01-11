@@ -51,9 +51,9 @@ data class ServiceStatusDto(
 
 @Serializable
 data class DeployInfoDto(
-    val commitSha: String,
-    val deployedAt: String,
-    val imageVersion: String
+    val commitSha: String?,
+    val deployedAt: String?,
+    val imageVersion: String?
 )
 
 @Serializable

@@ -23,7 +23,7 @@ internal class DashboardRepositoryImpl(
                 ),
                 deployInfo = DeployInfo(
                     commitSha = response.deployInfo.commitSha,
-                    deployedAt = Instant.parse(response.deployInfo.deployedAt),
+                    deployedAt = response.deployInfo.deployedAt?.let { Instant.parse(it) },
                     imageVersion = response.deployInfo.imageVersion
                 ),
                 quickStats = QuickStats(
