@@ -25,6 +25,9 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
     username: ${TELEGRAM_BOT_USERNAME:}
+  adminbot:
+    username: ${TELEGRAM_ADMINBOT_USERNAME:}
+    token: ${TELEGRAM_ADMINBOT_TOKEN:}
   mini-app:
     url: ${MINI_APP_URL:}
 

@@ -10,6 +10,8 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
+import io.ktor.http.withCharset
+import io.ktor.utils.io.charsets.Charsets
 
 class AdminApiServiceImpl(
     private val httpClient: HttpClient,
@@ -18,7 +20,7 @@ class AdminApiServiceImpl(
 
     override suspend fun login(request: LoginRequest): LoginResponse {
         return httpClient.post("/api/v1/admin/auth/login") {
-            contentType(ContentType.Application.Json)
+            contentType(ContentType.Application.Json.withCharset(Charsets.UTF_8))
             setBody(request)
         }.body()
     }

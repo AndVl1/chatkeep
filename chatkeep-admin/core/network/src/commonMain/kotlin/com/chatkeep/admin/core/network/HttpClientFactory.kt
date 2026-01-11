@@ -8,6 +8,9 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
 fun createHttpClient(baseUrl: String? = null): HttpClient = HttpClient {
+    // Throw exception on non-2xx responses instead of trying to parse error body as success DTO
+    expectSuccess = true
+
     install(ContentNegotiation) {
         json(Json {
             prettyPrint = true

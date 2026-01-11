@@ -1,15 +1,20 @@
 package com.chatkeep.admin.core.network
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // Auth DTOs
 @Serializable
 data class LoginRequest(
     val id: Long,
+    @SerialName("first_name")
     val firstName: String,
+    @SerialName("last_name")
     val lastName: String? = null,
     val username: String? = null,
+    @SerialName("photo_url")
     val photoUrl: String? = null,
+    @SerialName("auth_date")
     val authDate: Long,
     val hash: String
 )
@@ -17,6 +22,7 @@ data class LoginRequest(
 @Serializable
 data class LoginResponse(
     val token: String,
+    val expiresIn: Long? = null,
     val user: AdminResponse
 )
 

@@ -19,6 +19,7 @@ import ru.andvl.chatkeep.api.dto.TelegramUserResponse
 import ru.andvl.chatkeep.api.dto.TokenResponse
 import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.UnauthorizedException
+import ru.andvl.chatkeep.config.AdminBotProperties
 import ru.andvl.chatkeep.config.AdminProperties
 
 @RestController
@@ -27,7 +28,8 @@ import ru.andvl.chatkeep.config.AdminProperties
 class AdminAuthController(
     private val telegramAuthService: TelegramAuthService,
     private val jwtService: JwtService,
-    private val adminProperties: AdminProperties
+    private val adminProperties: AdminProperties,
+    private val adminBotProperties: AdminBotProperties
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -51,8 +53,18 @@ class AdminAuthController(
             "hash" to request.hash
         ).filter { it.value.isNotEmpty() }
 
-        // Validate Telegram Login Widget hash
-        if (!telegramAuthService.validateLoginWidgetHash(data)) {
+        // Validate Telegram Login Widget hash using admin bot token
+        val botToken = adminBotProperties.token.ifEmpty {
+            logger.warn("Admin bot token not configured, falling back to main bot token")
+            null
+        }
+        val isValid = if (botToken != null) {
+            telegramAuthService.validateLoginWidgetHash(data, botToken)
+        } else {
+            telegramAuthService.validateLoginWidgetHash(data)
+        }
+
+        if (!isValid) {
             logger.warn("Invalid Telegram login widget hash for user ${request.id}")
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ErrorResponse(code = "INVALID_HASH", message = "Invalid Telegram data"))
