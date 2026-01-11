@@ -151,6 +151,18 @@
             // Hide login widget
             document.getElementById('telegram-login-widget').style.display = 'none';
 
+            // Build auth data object
+            const authData = {
+                id: user.id,
+                first_name: user.first_name,
+                auth_date: user.auth_date,
+                hash: user.hash,
+                state: state,
+                last_name: user.last_name || null,
+                username: user.username || null,
+                photo_url: user.photo_url || null
+            };
+
             // Build deeplink URL with all Telegram user data and state
             const params = new URLSearchParams({
                 id: user.id,
@@ -165,29 +177,57 @@
             if (user.username) params.append('username', user.username);
             if (user.photo_url) params.append('photo_url', user.photo_url);
 
-            const deeplinkUrl = `chatkeep://auth/callback?${params.toString()}`;
-
-            // Use Android Intent URL format for better compatibility with Chrome
-            const isAndroid = /Android/i.test(navigator.userAgent);
-            const intentUrl = `intent://auth/callback?${params.toString()}#Intent;scheme=chatkeep;package=com.chatkeep.admin;end`;
-
-            // Set the href on the button - user tap will trigger intent
-            const redirectUrl = isAndroid ? intentUrl : deeplinkUrl;
-            document.getElementById('open-app-btn').href = redirectUrl;
+            // Detect environment: WASM (desktop browser) vs mobile
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const hasOpener = window.opener !== null;
 
             // Show redirect section with button
             document.getElementById('redirect-section').style.display = 'block';
 
-            // Also try auto-redirect via hidden iframe (more reliable on some browsers)
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = redirectUrl;
-            document.body.appendChild(iframe);
+            if (!isMobile && hasOpener) {
+                // WASM environment: use postMessage to communicate with opener window
+                document.getElementById('open-app-btn').onclick = function(e) {
+                    e.preventDefault();
+                    window.opener.postMessage({
+                        type: 'chatkeep-auth',
+                        data: authData
+                    }, '*');
+                    window.close();
+                };
+                document.getElementById('open-app-btn').href = '#';
 
-            // Remove iframe after attempt
-            setTimeout(() => {
-                document.body.removeChild(iframe);
-            }, 1000);
+                // Also try auto-posting after a short delay
+                setTimeout(() => {
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'chatkeep-auth',
+                            data: authData
+                        }, '*');
+                    }
+                }, 500);
+            } else {
+                // Mobile environment: use deeplinks
+                const deeplinkUrl = `chatkeep://auth/callback?${params.toString()}`;
+
+                // Use Android Intent URL format for better compatibility with Chrome
+                const isAndroid = /Android/i.test(navigator.userAgent);
+                const intentUrl = `intent://auth/callback?${params.toString()}#Intent;scheme=chatkeep;package=com.chatkeep.admin;end`;
+
+                // Set the href on the button - user tap will trigger intent
+                const redirectUrl = isAndroid ? intentUrl : deeplinkUrl;
+                document.getElementById('open-app-btn').href = redirectUrl;
+
+                // Also try auto-redirect via hidden iframe (more reliable on some browsers)
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = redirectUrl;
+                document.body.appendChild(iframe);
+
+                // Remove iframe after attempt
+                setTimeout(() => {
+                    document.body.removeChild(iframe);
+                }, 1000);
+            }
         }
     </script>
 </body>

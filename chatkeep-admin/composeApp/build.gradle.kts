@@ -125,6 +125,12 @@ kotlin {
     }
 }
 
+compose.desktop {
+    application {
+        mainClass = "com.chatkeep.admin.MainKt"
+    }
+}
+
 android {
     namespace = "com.chatkeep.admin"
     compileSdk = 35
