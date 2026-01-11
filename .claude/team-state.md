@@ -1,81 +1,91 @@
 # TEAM STATE
 
 ## Classification
-- Type: REFACTOR
-- Complexity: COMPLEX
-- Workflow: STANDARD (architecture approach defined by compose-arch skill)
+- Type: BUG_FIX
+- Complexity: MEDIUM
+- Workflow: STANDARD
 
 ## Task
-Refactor chatkeep-admin mobile app architecture to follow compose-arch patterns:
-- Move data/domain layers from separate super-modules into feature module `impl/` directories
-- Make data/domain classes `internal`
-- Follow feature slice structure: api/ (public interfaces + models) and impl/ (implementation + data + domain)
-- Verify build compiles
-- Manual QA on Android device
+Fix mobile admin app auth flow - nginx doesn't proxy /auth/ to backend
+
+## Server Credentials
+- IP: 89.125.243.104
+- User: root
+- Password: YrB2k5Sc9Y3E7y2
+- Deploy path: /root/chatkeep
 
 ## Progress
-- [x] Phase 0: Classification - COMPLETED
-- [x] Phase 1: Discovery - COMPLETED (branch: feat/chatkeep-admin-app)
-- [x] Phase 2: Exploration - COMPLETED
-- [x] Phase 3: Questions - COMPLETED
+- [x] Phase 1: Discovery - COMPLETED (identified nginx config issue)
 - [x] Phase 5: Implementation - COMPLETED
-- [x] Phase 6: Review - COMPLETED
+- [x] Phase 6: Review/Testing - COMPLETED (manual-qa passed)
 - [x] Phase 7: Summary - COMPLETED
 
-## Current State Analysis (from git status)
+## Root Cause (FIXED)
+Nginx config didn't proxy `/auth/` to backend and SSL was not configured.
 
-### Deleted files (core/domain, core/data cleanup):
-- core/domain module - DELETED (correct - should be in feature/impl/)
-- core/data repository/mapper files - DELETED (correct - should be in feature/impl/)
+## Fixes Applied
+1. Added `/auth/` proxy to `admin.chatmoderatorbot.ru.conf`
+2. Added `/auth/` and `/api/` proxy to `default.conf` for tunnel access
+3. Obtained SSL certificate for admin.chatmoderatorbot.ru via Let's Encrypt
+4. Enabled HTTPS (port 443) in docker-compose.prod.yml
+5. Configured HTTP → HTTPS redirect
 
-### New files created (in feature modules):
-- feature/*/impl/data/ directories - NEW
-- feature/*/impl/domain/ directories - NEW
-- Domain models moved to feature/*/api/ - NEW
+## Test Results (manual-qa)
+- App launch: PASS
+- Auth screen: PASS
+- Login button: PASS
+- Browser opens Telegram Widget: PASS
+- HTTPS connection: PASS
+- No errors in logs: PASS
 
-### Changes to verify:
-1. All use cases moved to feature/*/impl/domain/usecase/
-2. All repositories moved to feature/*/impl/domain/repository/ (interfaces) and feature/*/impl/data/ (implementations)
-3. All classes in impl/ marked as `internal`
-4. Build compiles successfully
-5. App works correctly on Android
+## Phase 4 Output - Architecture Design
 
-## Target Structure (per compose-arch SKILL.md)
+### Deeplink OAuth Flow
+1. User clicks "Login with Telegram" → app opens browser
+2. Browser loads `https://admin.chatmoderatorbot.ru/auth/telegram-login?state=<csrf>`
+3. Page shows Telegram Login Widget
+4. User authenticates with Telegram
+5. Widget callback triggers redirect to `chatkeep://auth/callback?id=...&hash=...&state=...`
+6. App receives deeplink, validates state, calls backend login
+7. Backend validates Telegram hash, returns JWT
+8. App stores token, navigates to main screen
 
-```
-feature/<name>/
-├── api/
-│   └── src/commonMain/kotlin/
-│       ├── <Name>Component.kt    # Interface (public)
-│       └── <Name>Models.kt       # Domain models (public)
-└── impl/
-    └── src/commonMain/kotlin/
-        ├── screen/               # internal
-        ├── view/                 # internal
-        ├── component/            # internal
-        │   └── Default<Name>Component.kt
-        ├── domain/               # internal
-        │   ├── usecase/
-        │   │   └── Get<Name>UseCase.kt
-        │   └── repository/       # (interface if needed internally)
-        │       └── <Name>Repository.kt
-        └── data/                 # internal
-            └── datasource/
-                └── <Name>RepositoryImpl.kt
-```
+### Implementation Plan
 
-## Phase 2 Output - Exploration Findings
+#### Backend Changes
+1. Add `/api/v1/admin/**` to CORS config
+2. Create Telegram Login Widget HTML page (served at /auth/telegram-login)
+3. Page redirects to deeplink after auth
 
-### Files needing `internal` modifier (30 total):
-- 8 UseCase classes
-- 7 RepositoryImpl classes
-- 8 DefaultComponent classes
-- 7 Repository interfaces
+#### Mobile App Changes
+1. Update API URL to `admin.chatmoderatorbot.ru` (all platforms)
+2. Add deeplink config (Android manifest, iOS Info.plist)
+3. Create PlatformBrowser expect/actual (open URLs)
+4. Update DefaultAuthComponent for OAuth flow
+5. Handle deeplink in MainActivity (Android)
 
-### Settings Feature Decision
-- Use expect/actual pattern for SettingsRepository
-- DataStore where available (Android/iOS/Desktop)
-- InMemory for WASM
+### Files to Create/Modify
+
+#### Backend
+- `CorsConfig.kt` - add admin CORS
+- `TelegramLoginPageController.kt` - NEW - serve login widget page
+- `resources/templates/telegram-login.html` - NEW - login widget HTML
+
+#### Mobile (all platforms)
+- `PlatformFactory.android.kt` - API URL
+- `PlatformFactory.ios.kt` - API URL
+- `PlatformFactory.jvm.kt` - API URL
+- `PlatformFactory.wasmJs.kt` - API URL
+
+#### Mobile (Android specific)
+- `AndroidManifest.xml` - deeplink intent filter
+- `MainActivity.kt` - handle deeplink intent
+
+#### Mobile (common)
+- `PlatformBrowser.kt` - NEW expect/actual for browser open
+- `DeepLinkData.kt` - NEW parse deeplink params
+- `DefaultAuthComponent.kt` - OAuth flow logic
+- `AuthComponent.kt` - add deeplink handling
 
 ## Recovery
-Phase 3 complete. Proceed to Phase 5 implementation.
+Phase 5: Launch developer + developer-mobile agents in parallel.
