@@ -27,5 +27,5 @@ actual fun createPlatformTokenStorage(dataStore: DataStore<Preferences>): TokenS
 }
 
 actual fun getApiBaseUrl(): String {
-    return System.getenv("API_BASE_URL") ?: "https://api.chatmoderatorbot.ru"
+    return System.getenv("API_BASE_URL") ?: "https://admin.chatmoderatorbot.ru"
 }

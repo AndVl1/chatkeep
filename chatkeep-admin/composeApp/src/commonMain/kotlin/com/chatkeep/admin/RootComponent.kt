@@ -8,6 +8,7 @@ import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import com.chatkeep.admin.core.common.DeepLinkData
 import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.common.componentScope
 import com.chatkeep.admin.core.network.AdminApiService
@@ -22,6 +23,7 @@ import kotlinx.serialization.Serializable
 
 interface RootComponent {
     val childStack: Value<ChildStack<*, Child>>
+    fun handleDeepLink(data: DeepLinkData)
 
     sealed class Child {
         data class Auth(val component: AuthComponent) : Child()
@@ -34,7 +36,8 @@ class DefaultRootComponent(
     private val authRepository: AuthRepository,
     private val apiService: AdminApiService,
     private val tokenStorage: TokenStorage,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val baseUrl: String
 ) : RootComponent, ComponentContext by componentContext {
 
     private val navigation = StackNavigation<Config>()
@@ -99,6 +102,7 @@ class DefaultRootComponent(
             componentContext = context,
             apiService = apiService,
             tokenStorage = tokenStorage,
+            baseUrl = baseUrl,
             onSuccess = { /* Auth state change will trigger navigation */ }
         )
     }
@@ -114,5 +118,15 @@ class DefaultRootComponent(
                 }
             }
         )
+    }
+
+    override fun handleDeepLink(data: DeepLinkData) {
+        // Get the current active child
+        val currentChild = childStack.value.active.instance
+
+        // If we're on the Auth screen, forward the deeplink to the AuthComponent
+        if (currentChild is RootComponent.Child.Auth) {
+            currentChild.component.onDeepLinkReceived(data)
+        }
     }
 }

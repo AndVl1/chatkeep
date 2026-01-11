@@ -16,6 +16,8 @@ actual object BuildConfig {
      */
     fun init(appContext: Context) {
         context = appContext.applicationContext
+        // Also initialize browser context
+        initBrowserContext(appContext)
     }
 
     actual val isDebug: Boolean

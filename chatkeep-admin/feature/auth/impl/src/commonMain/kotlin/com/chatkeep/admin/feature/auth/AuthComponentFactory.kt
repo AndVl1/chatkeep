@@ -12,12 +12,14 @@ fun createAuthComponent(
     componentContext: ComponentContext,
     apiService: AdminApiService,
     tokenStorage: TokenStorage,
+    baseUrl: String,
     onSuccess: () -> Unit
 ): AuthComponent {
     return DefaultAuthComponent(
         componentContext = componentContext,
         apiService = apiService,
         tokenStorage = tokenStorage,
+        baseUrl = baseUrl,
         onSuccess = onSuccess
     )
 }

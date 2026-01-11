@@ -5,17 +5,21 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.AppResult
 import com.chatkeep.admin.core.common.BuildConfig
+import com.chatkeep.admin.core.common.DeepLinkData
 import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.common.componentScope
+import com.chatkeep.admin.core.common.openInBrowser
 import com.chatkeep.admin.core.network.AdminApiService
 import com.chatkeep.admin.feature.auth.data.repository.AuthRepositoryImpl
 import com.chatkeep.admin.feature.auth.domain.usecase.LoginUseCase
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 internal class DefaultAuthComponent(
     componentContext: ComponentContext,
     apiService: AdminApiService,
     tokenStorage: TokenStorage,
+    private val baseUrl: String,
     private val onSuccess: () -> Unit
 ) : AuthComponent, ComponentContext by componentContext {
 
@@ -28,39 +32,45 @@ internal class DefaultAuthComponent(
 
     private val scope = componentScope()
 
+    // Store state token for validation
+    private var expectedStateToken: String? = null
+
     override fun onLoginClick() {
-        performLogin()
+        performOAuthLogin()
     }
 
     override fun onRetry() {
-        performLogin()
+        performOAuthLogin()
     }
 
-    private fun performLogin() {
+    override fun onDeepLinkReceived(data: DeepLinkData) {
         scope.launch {
-            _state.value = AuthComponent.AuthState.Loading
-
-            // SECURITY: Mock authentication ONLY works in debug mode
-            if (!BuildConfig.isDebug) {
-                _state.value = AuthComponent.AuthState.Error(
-                    "Telegram Login Widget integration required. " +
-                    "Mock authentication is disabled in production builds."
-                )
+            // Validate state token
+            if (data.state != expectedStateToken) {
+                _state.value = AuthComponent.AuthState.Error("Invalid state token. Possible CSRF attack.")
+                expectedStateToken = null
                 return@launch
             }
 
-            // DEBUG ONLY: Using mock data for development
-            val mockTelegramData = TelegramLoginData(
-                id = 123456789L,
-                firstName = "Test",
-                lastName = "User",
-                username = "testuser",
-                photoUrl = null,
-                authDate = 1704067200L, // Mock timestamp: 2024-01-01
-                hash = "mock_hash_for_development"
+            // Clear expected token
+            expectedStateToken = null
+
+            // Set loading state
+            _state.value = AuthComponent.AuthState.Loading
+
+            // Convert DeepLinkData to TelegramLoginData
+            val telegramData = TelegramLoginData(
+                id = data.id,
+                firstName = data.firstName,
+                lastName = data.lastName,
+                username = data.username,
+                photoUrl = data.photoUrl,
+                authDate = data.authDate,
+                hash = data.hash
             )
 
-            when (val result = loginUseCase(mockTelegramData)) {
+            // Perform login
+            when (val result = loginUseCase(telegramData)) {
                 is AppResult.Success -> {
                     _state.value = AuthComponent.AuthState.Success
                     onSuccess()
@@ -73,5 +83,30 @@ internal class DefaultAuthComponent(
                 }
             }
         }
+    }
+
+    private fun performOAuthLogin() {
+        // Generate random state token for CSRF protection
+        val stateToken = generateStateToken()
+        expectedStateToken = stateToken
+
+        // Build OAuth URL
+        val oauthUrl = "$baseUrl/auth/telegram-login?state=$stateToken"
+
+        // Open browser
+        try {
+            openInBrowser(oauthUrl)
+            _state.value = AuthComponent.AuthState.Idle  // Keep idle while waiting for callback
+        } catch (e: Exception) {
+            _state.value = AuthComponent.AuthState.Error("Failed to open browser: ${e.message}")
+            expectedStateToken = null
+        }
+    }
+
+    private fun generateStateToken(): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        return (1..32)
+            .map { chars[Random.nextInt(chars.length)] }
+            .joinToString("")
     }
 }

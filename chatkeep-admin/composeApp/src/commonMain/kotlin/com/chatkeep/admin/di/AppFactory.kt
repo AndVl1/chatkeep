@@ -50,7 +50,8 @@ class AppFactory(
             authRepository = authRepository,
             apiService = apiService,
             tokenStorage = tokenStorage,
-            dataStore = dataStore
+            dataStore = dataStore,
+            baseUrl = baseUrl
         )
     }
 }

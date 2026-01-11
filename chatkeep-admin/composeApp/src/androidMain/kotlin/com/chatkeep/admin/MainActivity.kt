@@ -1,10 +1,12 @@
 package com.chatkeep.admin
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.arkivanov.decompose.defaultComponentContext
 import com.chatkeep.admin.core.common.BuildConfig
+import com.chatkeep.admin.core.common.DeepLinkData
 import com.chatkeep.admin.core.network.createHttpClient
 import com.chatkeep.admin.di.AppFactory
 import com.chatkeep.admin.di.createPlatformDataStore
@@ -12,6 +14,9 @@ import com.chatkeep.admin.di.createPlatformTokenStorage
 import com.chatkeep.admin.di.getApiBaseUrl
 
 class MainActivity : ComponentActivity() {
+
+    private var rootComponent: RootComponent? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -33,15 +38,36 @@ class MainActivity : ComponentActivity() {
         )
 
         // Create root component
-        val rootComponent = appFactory.createRootComponent(
+        rootComponent = appFactory.createRootComponent(
             componentContext = defaultComponentContext()
         )
 
         setContent {
             App(
-                rootComponent = rootComponent,
+                rootComponent = rootComponent!!,
                 settingsRepository = appFactory.settingsRepository
             )
+        }
+
+        // Handle deeplink from initial intent
+        handleDeepLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Handle deeplink from new intent (when app is already running)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+
+        // Check if this is our auth callback deeplink
+        if (uri.scheme == "chatkeep" && uri.host == "auth" && uri.path == "/callback") {
+            val deepLinkData = DeepLinkData.fromUrl(uri.toString())
+            if (deepLinkData != null) {
+                rootComponent?.handleDeepLink(deepLinkData)
+            }
         }
     }
 }

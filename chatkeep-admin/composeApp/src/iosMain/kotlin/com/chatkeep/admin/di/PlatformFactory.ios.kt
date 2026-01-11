@@ -29,5 +29,5 @@ actual fun createPlatformTokenStorage(dataStore: DataStore<Preferences>): TokenS
 }
 
 actual fun getApiBaseUrl(): String {
-    return "https://api.chatmoderatorbot.ru"
+    return "https://admin.chatmoderatorbot.ru"
 }
