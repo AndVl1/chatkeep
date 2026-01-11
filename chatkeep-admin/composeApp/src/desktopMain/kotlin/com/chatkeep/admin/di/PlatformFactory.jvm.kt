@@ -7,12 +7,7 @@ import com.chatkeep.admin.core.common.DesktopPlatformContext
 import com.chatkeep.admin.core.common.createDataStorePath
 import com.chatkeep.admin.core.data.local.DataStoreTokenStorage
 import com.chatkeep.admin.core.common.TokenStorage
-import com.chatkeep.admin.core.network.createHttpClient
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
 import okio.Path.Companion.toPath
-
-actual fun createPlatformHttpClient(): HttpClient = createHttpClient(CIO.create())
 
 actual fun createPlatformDataStore(context: Any): Any {
     val platformContext = DesktopPlatformContext()

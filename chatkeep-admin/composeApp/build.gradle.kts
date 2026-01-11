@@ -103,6 +103,9 @@ kotlin {
 
                 // Core modules with platform-specific dependencies
                 implementation(projects.core.data)
+
+                // DataStore for Desktop
+                implementation(libs.datastore.preferences.core)
             }
         }
 
