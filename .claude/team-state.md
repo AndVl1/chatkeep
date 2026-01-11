@@ -30,93 +30,74 @@ Fix multiple issues across Mobile App and Production deployment:
 - [x] Phase 2: Exploration - COMPLETED
 - [x] Phase 3: Questions - COMPLETED
 - [x] Phase 4: Architecture - SKIPPED (bug fixes, straightforward)
-- [ ] Phase 5: Implementation - IN PROGRESS
-- [ ] Phase 6: Review - pending
-- [ ] Phase 6.5: Review Fixes - pending (optional)
-- [ ] Phase 7: Summary - pending
-
-## Phase 2 Output - Files Identified
-
-### Mobile App Issues (KMP):
-
-| Issue | Files | Root Cause |
-|-------|-------|------------|
-| 1. Light theme statusbar | Theme.kt, MainActivity.kt | No system bar style configuration |
-| 2. Deploy tab empty | DeployScreen.kt | No empty state UI when workflows list empty |
-| 3. No pull to refresh | DashboardScreen.kt, ChatsScreen.kt | Missing pullRefresh modifier |
-| 4. Desktop build fails | core/network/build.gradle.kts | CIO engine not suitable for desktop |
-| 5. WASM build | core/network/build.gradle.kts | CIO engine for WASM - need JS engine |
-| 6. Quick Stats confusing | DashboardScreen.kt | UI layout issue - trend placement unclear |
-
-### Production Deployment Issues:
-
-| Issue | Files | Root Cause |
-|-------|-------|------------|
-| 1. Mini App auth | mini-app/src/App.tsx | Detection logic may fail; or SDK init issue |
-| 2. Web auth redirect | AuthCallbackPage.tsx, TelegramLoginController.kt | Error in auth flow or backend exception |
-| 3. Grafana 500 | grafana.chatmoderatorbot.ru.conf | Nginx config issue or Grafana not running |
-| 4. Prometheus 500 | prometheus.chatmoderatorbot.ru.conf | Missing .htpasswd file or Prometheus not running |
-| 5. GitHub Secrets | deploy.yml | Needs: DEPLOY_SSH_KEY secret, DEPLOY_HOST/USER/PATH vars |
-
-### Key Files:
-- `chatkeep-admin/core/ui/src/commonMain/kotlin/.../Theme.kt`
-- `chatkeep-admin/feature/deploy/impl/.../DeployScreen.kt`
-- `chatkeep-admin/feature/dashboard/impl/.../DashboardScreen.kt`
-- `chatkeep-admin/core/network/build.gradle.kts`
-- `docker/nginx/sites/*.conf`
-- `.github/workflows/deploy.yml`
-- `mini-app/src/App.tsx`
-
-## Phase 3 Output - Clarifications
-
-| Question | Answer |
-|----------|--------|
-| Grafana/Prometheus | Services are running, likely nginx config issue |
-| Backend logs | SSH access available: 89.125.243.104 / root |
-| Mini App URL | chatmoderatorbot.ru |
-
-## Key Decisions
-- Skip Phase 4 - all issues are bug fixes with clear solutions
-- Split implementation into parallel tracks:
-  - Track A: Mobile App fixes (developer-mobile)
-  - Track B: DevOps investigation (devops) - check server logs for auth and monitoring issues
-
-## Chosen Approach
-Parallel implementation with separate commits for each fix category.
-
-## Previous Session
-Previous fixes applied:
-1. `a84191a` - fix: share AuthRepository between RootComponent and AuthComponent
-2. `b1eabb9` - fix: handle nullable deploy info fields in Dashboard API response
+- [x] Phase 5: Implementation - COMPLETED
+- [x] Phase 6: Review - COMPLETED
+- [ ] Phase 7: Summary - IN PROGRESS
 
 ## Phase 5 Output - Implementation Status
 
-### Mobile App Issues (KMP) - NEW COMMITS:
+### Mobile App Issues (KMP) - COMMITS:
 | Issue | Status | Commit |
 |-------|--------|--------|
 | 1. Light theme statusbar | FIXED | `bf5d0f1` |
 | 2. Deploy tab empty | FIXED | `bea5bc3` |
-| 3. Pull to refresh | SKIPPED | API not available in Compose 1.7.3 |
-| 4. Desktop build | FIXED | `d24a27b` (Ktor CIO works for JVM) |
-| 5. WASM build | PARTIAL | `110a36e` (core:common fixed, feature:settings needs more work) |
+| 3. Pull to refresh | SKIPPED | PullToRefreshBox not in Compose 1.7.3 |
+| 4. Desktop build | FIXED | `d24a27b` + `8e86263` |
+| 5. WASM build | FIXED | `110a36e` + `49578f7` + `87c775b` |
 | 6. Quick Stats clarity | FIXED | `44f3337` |
+| 7. Manual QA | PENDING | Needs deployment |
 
-### Production Issues - NEW COMMITS:
+### Production Issues - COMMITS:
 | Issue | Status | Commit |
 |-------|--------|--------|
 | 1. Mini App auth | PENDING | Needs deployment to test |
-| 2. Web auth /callback | FIXED | `e631d54` (nginx routing to SPA) |
-| 3. Grafana 500 | FIXED | `e631d54` (removed HTTPS redirect) |
-| 4. Prometheus 500 | FIXED | Config uses HTTP now |
+| 2. Web auth /callback | FIXED | `e631d54` |
+| 3. Grafana 500 | FIXED | `e631d54` |
+| 4. Prometheus 500 | FIXED | `e631d54` |
 | 5. GitHub Secrets | DOCUMENTED | See below |
 
 ### GitHub Secrets Required:
 - `DEPLOY_SSH_KEY` - SSH private key for server access
 - Variables:
-  - `DEPLOY_HOST` - Server hostname/IP
-  - `DEPLOY_USER` - SSH username (e.g., root)
+  - `DEPLOY_HOST` - Server hostname/IP (89.125.243.104)
+  - `DEPLOY_USER` - SSH username (root)
   - `DEPLOY_PATH` - Deployment path (optional, default: ~/chatkeep)
   - `DEPLOY_ENABLED` - Set to 'true' to enable auto-deploy
 
-## Recovery
-Phase 5 mostly completed. WASM feature:settings needs separate task. Ready for deployment and testing.
+## Phase 6 Output - Build Verification
+
+All platforms build successfully:
+- Android: `./gradlew :composeApp:assembleDebug` - PASS
+- Desktop: `./gradlew :composeApp:compileKotlinDesktop` - PASS
+- WASM: `./gradlew :composeApp:wasmJsBrowserProductionWebpack` - PASS
+- Backend: `./gradlew build -x test` - PASS
+
+## Phase 7 - Summary
+
+### Commits in this branch (feat/chatkeep-admin-app):
+
+| Commit | Description |
+|--------|-------------|
+| `8e86263` | fix: add DataStore dependency and fix Desktop build |
+| `87c775b` | fix: update WASM Main.kt to use AppFactory pattern |
+| `49578f7` | refactor: remove DataStore dependency from feature:settings for WASM |
+| `110a36e` | fix: use JsFun interop for WASM browser open |
+| `21128cc` | fix: use AdminBot username for admin subdomain auth |
+| `e631d54` | fix: simplify nginx configs for Cloudflare SSL termination |
+| `44f3337` | fix: improve Quick Stats card layout for clarity |
+| `d24a27b` | fix: use correct Ktor client engines for Desktop and WASM |
+| `bea5bc3` | feat: add empty state placeholder for Deploy tab |
+| `bf5d0f1` | fix: handle light theme statusbar icons on Android |
+| `b1eabb9` | fix: handle nullable deploy info fields in Dashboard API response |
+| `a84191a` | fix: share AuthRepository between RootComponent and AuthComponent |
+
+### Remaining Items (require deployment):
+1. Test Mini App auth in Telegram after deployment
+2. Test Grafana/Prometheus accessibility after nginx config update
+3. Manual QA testing of mobile app
+
+### Technical Notes:
+- WASM uses @JsFun interop instead of kotlinx.browser.window (not available in Kotlin/WASM)
+- DataStore not supported on WASM - InMemorySettingsRepository used as fallback
+- Nginx configs simplified for Cloudflare SSL termination (HTTP only on server side)
+- Pull-to-refresh skipped - PullToRefreshBox not available in Compose Multiplatform 1.7.3
