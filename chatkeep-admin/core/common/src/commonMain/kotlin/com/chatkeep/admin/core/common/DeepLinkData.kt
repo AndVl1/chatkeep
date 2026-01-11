@@ -64,12 +64,44 @@ data class DeepLinkData(
                 .mapNotNull { param ->
                     val parts = param.split('=', limit = 2)
                     if (parts.size == 2) {
-                        parts[0] to parts[1]
+                        parts[0] to urlDecode(parts[1])
                     } else {
                         null
                     }
                 }
                 .toMap()
+        }
+
+        /**
+         * Decodes URL-encoded strings.
+         * Handles %XX escapes and + as space.
+         */
+        private fun urlDecode(value: String): String {
+            return buildString {
+                var i = 0
+                while (i < value.length) {
+                    when {
+                        value[i] == '+' -> {
+                            append(' ')
+                            i++
+                        }
+                        value[i] == '%' && i + 2 < value.length -> {
+                            try {
+                                val hex = value.substring(i + 1, i + 3)
+                                append(hex.toInt(16).toChar())
+                                i += 3
+                            } catch (e: NumberFormatException) {
+                                append(value[i])
+                                i++
+                            }
+                        }
+                        else -> {
+                            append(value[i])
+                            i++
+                        }
+                    }
+                }
+            }
         }
     }
 }

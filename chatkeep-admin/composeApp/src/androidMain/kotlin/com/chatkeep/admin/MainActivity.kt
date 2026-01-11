@@ -2,6 +2,7 @@ package com.chatkeep.admin
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.arkivanov.decompose.defaultComponentContext
@@ -49,8 +50,10 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        // Handle deeplink from initial intent
-        handleDeepLink(intent)
+        // Handle deeplink from initial intent - deferred to ensure component is ready
+        window.decorView.post {
+            handleDeepLink(intent)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -62,12 +65,27 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent?) {
         val uri = intent?.data ?: return
 
+        Log.d(TAG, "Handling deeplink: $uri")
+
         // Check if this is our auth callback deeplink
         if (uri.scheme == "chatkeep" && uri.host == "auth" && uri.path == "/callback") {
-            val deepLinkData = DeepLinkData.fromUrl(uri.toString())
-            if (deepLinkData != null) {
-                rootComponent?.handleDeepLink(deepLinkData)
+            try {
+                val deepLinkData = DeepLinkData.fromUrl(uri.toString())
+                if (deepLinkData != null) {
+                    Log.d(TAG, "Deeplink parsed successfully, forwarding to root component")
+                    rootComponent?.handleDeepLink(deepLinkData)
+                } else {
+                    Log.e(TAG, "Failed to parse deeplink: missing required parameters in $uri")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing deeplink: ${e.message}", e)
             }
+        } else {
+            Log.d(TAG, "Ignoring non-auth deeplink: $uri")
         }
+    }
+
+    companion object {
+        private const val TAG = "ChatKeepAuth"
     }
 }

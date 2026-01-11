@@ -4,7 +4,6 @@ import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.AppResult
-import com.chatkeep.admin.core.common.BuildConfig
 import com.chatkeep.admin.core.common.DeepLinkData
 import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.common.componentScope
@@ -23,6 +22,13 @@ internal class DefaultAuthComponent(
     private val onSuccess: () -> Unit
 ) : AuthComponent, ComponentContext by componentContext {
 
+    init {
+        // Validate baseUrl for security
+        require(baseUrl.startsWith("https://") || baseUrl.startsWith("http://localhost")) {
+            "Base URL must use HTTPS (or localhost for development)"
+        }
+    }
+
     // Internal dependencies created within the component
     private val authRepository = AuthRepositoryImpl(apiService, tokenStorage)
     private val loginUseCase = LoginUseCase(authRepository)
@@ -32,7 +38,9 @@ internal class DefaultAuthComponent(
 
     private val scope = componentScope()
 
-    // Store state token for validation
+    // Store state token for CSRF validation
+    // Note: In-memory storage means token is lost on process death during OAuth
+    // This is acceptable as user will need to retry login in that rare case
     private var expectedStateToken: String? = null
 
     override fun onLoginClick() {
