@@ -1,7 +1,8 @@
 package com.chatkeep.admin.core.common
 
-import kotlinx.browser.window
+@JsFun("(url) => { window.open(url, '_blank'); }")
+private external fun jsOpenWindow(url: String)
 
 actual fun openInBrowser(url: String) {
-    window.open(url, "_blank")
+    jsOpenWindow(url)
 }

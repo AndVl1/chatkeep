@@ -47,6 +47,12 @@ kotlin {
             dependencies {
             }
         }
+
+        val wasmJsMain by getting {
+            dependencies {
+                // No additional dependencies needed - using JS interop
+            }
+        }
     }
 }
 
