@@ -16,7 +16,7 @@ import okio.Path.Companion.toPath
 @OptIn(ExperimentalForeignApi::class)
 actual fun createPlatformHttpClient(): HttpClient = createHttpClient(Darwin.create())
 
-actual fun createPlatformDataStore(context: Any): DataStore<Preferences> {
+actual fun createPlatformDataStore(context: Any): Any {
     val platformContext = IosPlatformContext()
     val path = createDataStorePath(platformContext)
     return PreferenceDataStoreFactory.createWithPath(
@@ -24,8 +24,9 @@ actual fun createPlatformDataStore(context: Any): DataStore<Preferences> {
     )
 }
 
-actual fun createPlatformTokenStorage(dataStore: DataStore<Preferences>): TokenStorage {
-    return DataStoreTokenStorage(dataStore)
+actual fun createPlatformTokenStorage(dataStore: Any): TokenStorage {
+    @Suppress("UNCHECKED_CAST")
+    return DataStoreTokenStorage(dataStore as DataStore<Preferences>)
 }
 
 actual fun getApiBaseUrl(): String {

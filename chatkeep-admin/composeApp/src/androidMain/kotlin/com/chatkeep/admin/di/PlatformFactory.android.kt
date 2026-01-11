@@ -15,13 +15,14 @@ import io.ktor.client.engine.cio.*
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "chatkeep_admin_prefs")
 
-actual fun createPlatformDataStore(context: Any): DataStore<Preferences> {
+actual fun createPlatformDataStore(context: Any): Any {
     require(context is Context) { "Expected Android Context" }
     return context.dataStore
 }
 
-actual fun createPlatformTokenStorage(dataStore: DataStore<Preferences>): TokenStorage {
-    return DataStoreTokenStorage(dataStore)
+actual fun createPlatformTokenStorage(dataStore: Any): TokenStorage {
+    @Suppress("UNCHECKED_CAST")
+    return DataStoreTokenStorage(dataStore as DataStore<Preferences>)
 }
 
 actual fun getApiBaseUrl(): String {

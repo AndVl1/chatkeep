@@ -6,8 +6,6 @@ import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import com.chatkeep.admin.core.common.DeepLinkData
 import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.common.componentScope
@@ -18,8 +16,19 @@ import com.chatkeep.admin.feature.auth.createAuthComponent
 import com.chatkeep.admin.feature.auth.domain.repository.AuthRepository
 import com.chatkeep.admin.feature.main.MainComponent
 import com.chatkeep.admin.feature.main.createMainComponent
+import com.chatkeep.admin.feature.settings.domain.SettingsRepository
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+
+/**
+ * Platform-specific factory for creating SettingsRepository from DataStore.
+ * For WASM, this creates an in-memory repository (ignores dataStore parameter).
+ * For other platforms, this creates a DataStore-based repository.
+ *
+ * Note: Parameter type is Any to avoid DataStore dependency in WASM.
+ * Platform implementations should cast to DataStore<Preferences> as needed.
+ */
+expect fun createSettingsRepository(dataStore: Any): SettingsRepository
 
 interface RootComponent {
     val childStack: Value<ChildStack<*, Child>>
@@ -36,7 +45,7 @@ class DefaultRootComponent(
     private val authRepository: AuthRepository,
     private val apiService: AdminApiService,
     private val tokenStorage: TokenStorage,
-    private val dataStore: DataStore<Preferences>,
+    private val dataStore: Any,
     private val baseUrl: String
 ) : RootComponent, ComponentContext by componentContext {
 
@@ -112,7 +121,7 @@ class DefaultRootComponent(
         return createMainComponent(
             componentContext = context,
             apiService = apiService,
-            dataStore = dataStore,
+            settingsRepository = createSettingsRepository(dataStore),
             onLogout = {
                 scope.launch {
                     authRepository.logout()

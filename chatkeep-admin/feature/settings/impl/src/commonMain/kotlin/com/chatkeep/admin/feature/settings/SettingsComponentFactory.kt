@@ -1,21 +1,19 @@
 package com.chatkeep.admin.feature.settings
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import com.arkivanov.decompose.ComponentContext
-import com.chatkeep.admin.feature.settings.data.SettingsRepositoryImpl
+import com.chatkeep.admin.feature.settings.data.InMemorySettingsRepository
+import com.chatkeep.admin.feature.settings.domain.SettingsRepository
 import com.chatkeep.admin.feature.settings.domain.SetThemeUseCase
 
 /**
  * Factory function to create a SettingsComponent.
- * This is the public API for creating settings components from outside the impl module.
+ * This version accepts a repository, useful when you need platform-specific dependencies.
  */
 fun createSettingsComponent(
     componentContext: ComponentContext,
-    dataStore: DataStore<Preferences>,
+    settingsRepository: SettingsRepository,
     onLogout: () -> Unit
 ): SettingsComponent {
-    val settingsRepository = createSettingsRepository(dataStore)
     val setThemeUseCase = SetThemeUseCase(settingsRepository)
 
     return DefaultSettingsComponent(
@@ -27,6 +25,13 @@ fun createSettingsComponent(
 }
 
 /**
- * Platform-specific factory for creating SettingsRepositoryImpl.
+ * Factory function for WASM (no external dependencies needed).
+ * This creates an in-memory settings repository.
  */
-expect fun createSettingsRepository(dataStore: DataStore<Preferences>): SettingsRepositoryImpl
+fun createSettingsComponent(
+    componentContext: ComponentContext,
+    onLogout: () -> Unit
+): SettingsComponent {
+    val settingsRepository = InMemorySettingsRepository()
+    return createSettingsComponent(componentContext, settingsRepository, onLogout)
+}

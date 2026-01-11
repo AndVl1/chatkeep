@@ -17,7 +17,11 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 
-actual class SettingsRepositoryImpl(
+/**
+ * DataStore-based settings repository for Android.
+ * Settings are persisted using DataStore.
+ */
+class DataStoreSettingsRepository(
     private val dataStore: DataStore<Preferences>
 ) : SettingsRepository {
 
@@ -25,7 +29,7 @@ actual class SettingsRepositoryImpl(
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val _settings = MutableStateFlow(UserSettings(Theme.SYSTEM))
-    actual override val settings: StateFlow<UserSettings> = _settings.asStateFlow()
+    override val settings: StateFlow<UserSettings> = _settings.asStateFlow()
 
     init {
         // Load settings from DataStore
@@ -38,7 +42,7 @@ actual class SettingsRepositoryImpl(
             .launchIn(scope)
     }
 
-    actual override suspend fun setTheme(theme: Theme) {
+    override suspend fun setTheme(theme: Theme) {
         dataStore.edit { preferences ->
             preferences[themeKey] = theme.name
         }

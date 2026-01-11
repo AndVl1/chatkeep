@@ -1,7 +1,5 @@
 package com.chatkeep.admin.feature.main
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
@@ -13,11 +11,12 @@ import com.chatkeep.admin.feature.chats.createChatsComponent
 import com.chatkeep.admin.feature.dashboard.createDashboardComponent
 import com.chatkeep.admin.feature.deploy.createDeployComponent
 import com.chatkeep.admin.feature.settings.createSettingsComponent
+import com.chatkeep.admin.feature.settings.domain.SettingsRepository
 
 internal class DefaultMainComponent(
     componentContext: ComponentContext,
     private val apiService: AdminApiService,
-    private val dataStore: DataStore<Preferences>,
+    private val settingsRepository: SettingsRepository,
     private val onLogout: () -> Unit
 ) : MainComponent, ComponentContext by componentContext {
 
@@ -57,7 +56,7 @@ internal class DefaultMainComponent(
         MainComponent.Config.Settings -> MainComponent.Child.Settings(
             createSettingsComponent(
                 componentContext = context,
-                dataStore = dataStore,
+                settingsRepository = settingsRepository,
                 onLogout = onLogout
             )
         )
