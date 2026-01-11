@@ -27,9 +27,7 @@ class AppFactory(
 ) {
     // API Service
     val apiService: AdminApiService by lazy {
-        AdminApiServiceImpl(httpClient) {
-            runCatching { kotlinx.coroutines.runBlocking { tokenStorage.getToken() } }.getOrNull()
-        }
+        AdminApiServiceImpl(httpClient, createTokenProvider(tokenStorage))
     }
 
     // AuthRepository is needed by RootComponent to observe auth state and handle logout

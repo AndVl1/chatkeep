@@ -19,4 +19,12 @@ class InMemoryTokenStorage : TokenStorage {
     override suspend fun clearToken() {
         token = null
     }
+
+    /**
+     * Synchronous getter for WASM platform where runBlocking is not available.
+     * Safe to use because InMemoryTokenStorage doesn't perform async operations.
+     */
+    fun getTokenSync(): String? {
+        return token
+    }
 }
