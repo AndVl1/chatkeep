@@ -117,9 +117,9 @@
         <p class="subtitle">Sign in with your Telegram account to access the admin panel</p>
 
         <div class="login-widget" id="telegram-login-widget">
-            <script async
-                    src="https://telegram.org/js/telegram-widget.js?22"
-                    th:attr="data-telegram-login=${botUsername}"
+            <!-- Telegram Login Widget - loads synchronously to ensure proper initialization -->
+            <script src="https://telegram.org/js/telegram-widget.js?22"
+                    th:data-telegram-login="${botUsername}"
                     data-size="large"
                     data-radius="8"
                     data-onauth="onTelegramAuth(user)"
@@ -132,6 +132,12 @@
             Redirecting to app...
         </div>
 
+        <div class="redirect-section" id="redirect-section" style="display: none;">
+            <p style="color: #48bb78; margin-bottom: 20px; font-weight: 500;">✓ Authenticated successfully!</p>
+            <a id="open-app-btn" href="#" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">Open ChatKeep Admin</a>
+            <p style="color: #a0aec0; font-size: 12px; margin-top: 16px;">Tap the button above to return to the app</p>
+        </div>
+
         <div class="footer">
             Secure authentication via Telegram
         </div>
@@ -142,8 +148,7 @@
         const state = [[${state}]];
 
         function onTelegramAuth(user) {
-            // Show loading indicator
-            document.getElementById('loading').classList.add('active');
+            // Hide login widget
             document.getElementById('telegram-login-widget').style.display = 'none';
 
             // Build deeplink URL with all Telegram user data and state
@@ -162,17 +167,27 @@
 
             const deeplinkUrl = `chatkeep://auth/callback?${params.toString()}`;
 
-            // Redirect to deeplink
-            window.location.href = deeplinkUrl;
+            // Use Android Intent URL format for better compatibility with Chrome
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const intentUrl = `intent://auth/callback?${params.toString()}#Intent;scheme=chatkeep;package=com.chatkeep.admin;end`;
 
-            // Fallback: if deeplink doesn't work after 2 seconds, show error
+            // Set the href on the button - user tap will trigger intent
+            const redirectUrl = isAndroid ? intentUrl : deeplinkUrl;
+            document.getElementById('open-app-btn').href = redirectUrl;
+
+            // Show redirect section with button
+            document.getElementById('redirect-section').style.display = 'block';
+
+            // Also try auto-redirect via hidden iframe (more reliable on some browsers)
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = redirectUrl;
+            document.body.appendChild(iframe);
+
+            // Remove iframe after attempt
             setTimeout(() => {
-                if (document.hasFocus()) {
-                    alert('Unable to open ChatKeep Admin app. Please ensure the app is installed.');
-                    document.getElementById('loading').classList.remove('active');
-                    document.getElementById('telegram-login-widget').style.display = 'flex';
-                }
-            }, 2000);
+                document.body.removeChild(iframe);
+            }, 1000);
         }
     </script>
 </body>
