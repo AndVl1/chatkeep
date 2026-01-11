@@ -98,8 +98,9 @@ internal class DefaultAuthComponent(
         val stateToken = generateStateToken()
         expectedStateToken = stateToken
 
-        // Build OAuth URL
-        val oauthUrl = "$baseUrl/auth/telegram-login?state=$stateToken"
+        // Build OAuth URL using main domain (required for Telegram Login Widget)
+        // Widget only works on the domain configured in bot settings: chatmoderatorbot.ru
+        val oauthUrl = "https://chatmoderatorbot.ru/auth/telegram-login?state=$stateToken"
 
         // Open browser
         try {
