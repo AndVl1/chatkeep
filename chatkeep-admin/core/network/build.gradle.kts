@@ -52,13 +52,15 @@ kotlin {
 
         val desktopMain by getting {
             dependencies {
+                // CIO works for JVM/Desktop
                 implementation(libs.ktor.client.cio)
             }
         }
 
         val wasmJsMain by getting {
             dependencies {
-                implementation(libs.ktor.client.cio)
+                // WASM needs JS engine, not CIO
+                implementation(libs.ktor.client.js)
             }
         }
     }
