@@ -78,6 +78,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
+          cache-disabled: true
 
       - name: Build WASM
         run: ./gradlew -p chatkeep-admin :composeApp:wasmJsBrowserProductionWebpack
