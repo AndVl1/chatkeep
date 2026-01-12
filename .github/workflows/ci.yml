@@ -80,7 +80,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build WASM
-        run: ./gradlew -p chatkeep-admin :composeApp:wasmJsBrowserProductionWebpack
+        working-directory: chatkeep-admin
+        run: ./gradlew :composeApp:wasmJsBrowserProductionWebpack
 
       - name: Upload WASM artifact
         uses: actions/upload-artifact@v4
@@ -107,7 +108,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android
-        run: ./gradlew -p chatkeep-admin :composeApp:assembleDebug
+        working-directory: chatkeep-admin
+        run: ./gradlew :composeApp:assembleDebug
 
   admin-desktop:
     name: Admin Desktop Build
@@ -127,4 +129,5 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Desktop
-        run: ./gradlew -p chatkeep-admin :composeApp:desktopJar
+        working-directory: chatkeep-admin
+        run: ./gradlew :composeApp:desktopJar
