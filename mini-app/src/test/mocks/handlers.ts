@@ -13,7 +13,7 @@ import {
   mockNewPattern,
 } from './data';
 
-const API_BASE = '/api/v1/miniapp';
+const API_BASE = 'http://localhost:8080/api/v1/miniapp';
 
 // Mutable state for tests to manipulate
 let chatsData = [...mockChats];

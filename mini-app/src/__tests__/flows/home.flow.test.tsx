@@ -103,20 +103,19 @@ describe('Home Page Flow', () => {
       setMockError('chats', 500, 'Internal server error');
       renderWithProviders(<HomePage />);
 
+      // Wait for error header "Error" to appear
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
-
-      // Should show error message
-      expect(screen.getByText(/error/i)).toBeInTheDocument();
     });
 
     it('should allow retry when error occurs', async () => {
       setMockError('chats', 500, 'Internal server error');
       const { user } = renderWithProviders(<HomePage />);
 
+      // Wait for error state
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
 
       // Clear error for retry

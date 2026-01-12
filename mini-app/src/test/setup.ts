@@ -103,5 +103,5 @@ const eventListeners: Record<string, Array<(event: any) => void>> = {};
 };
 
 // Mock environment variables
-// Use relative URL for MSW to intercept
-vi.stubEnv('VITE_API_URL', '/api/v1/miniapp');
+// Use full URL for MSW to intercept in Node.js environment
+vi.stubEnv('VITE_API_URL', 'http://localhost:8080/api/v1/miniapp');

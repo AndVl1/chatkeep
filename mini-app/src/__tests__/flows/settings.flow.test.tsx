@@ -177,8 +177,8 @@ describe('Settings Page Flow', () => {
         vi.advanceTimersByTime(500);
       });
 
-      // Input should show new value
-      expect(maxWarningsInput).toHaveValue(5);
+      // Input should show new value (as string since HTML inputs are strings)
+      expect(maxWarningsInput).toHaveValue('5');
     });
   });
 
@@ -206,7 +206,8 @@ describe('Settings Page Flow', () => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
 
-      expect(screen.getByRole('button', { name: /blocklist/i })).toBeInTheDocument();
+      // Button text is "Blocked Words & Phrases"
+      expect(screen.getByRole('button', { name: /blocked words/i })).toBeInTheDocument();
     });
 
     it('should have configure locks button', async () => {
@@ -219,19 +220,26 @@ describe('Settings Page Flow', () => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
 
-      expect(screen.getByRole('button', { name: /locks/i })).toBeInTheDocument();
+      // Button text is "Configure Locks"
+      expect(screen.getByRole('button', { name: /configure locks/i })).toBeInTheDocument();
     });
   });
 
   describe('Error State', () => {
+    // Error tests need real timers since fake timers interfere with MSW
+    beforeEach(() => {
+      vi.useRealTimers();
+    });
+
     it('should display error when API fails', async () => {
       setMockError('settings', 500, 'Internal server error');
       renderWithProviders(<SettingsPage />, {
         initialEntries: [`/chat/${chatId}/settings`],
       });
 
+      // Wait for error header "Error" to appear
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
     });
 
@@ -241,8 +249,9 @@ describe('Settings Page Flow', () => {
         initialEntries: [`/chat/${chatId}/settings`],
       });
 
+      // Wait for error state
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
 
       clearMockError();
@@ -263,7 +272,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
     });
   });

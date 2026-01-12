@@ -258,8 +258,9 @@ describe('Blocklist Page Flow', () => {
         initialEntries: [`/chat/${chatId}/blocklist`],
       });
 
+      // Wait for error header "Error" to appear
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
     });
 
@@ -269,8 +270,9 @@ describe('Blocklist Page Flow', () => {
         initialEntries: [`/chat/${chatId}/blocklist`],
       });
 
+      // Wait for error state
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
 
       clearMockError();

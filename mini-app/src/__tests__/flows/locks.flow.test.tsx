@@ -240,8 +240,9 @@ describe('Locks Page Flow', () => {
         initialEntries: [`/chat/${chatId}/locks`],
       });
 
+      // Wait for error header "Error" to appear
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
     });
 
@@ -251,8 +252,9 @@ describe('Locks Page Flow', () => {
         initialEntries: [`/chat/${chatId}/locks`],
       });
 
+      // Wait for error state
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
 
       clearMockError();
@@ -272,8 +274,9 @@ describe('Locks Page Flow', () => {
         initialEntries: [`/chat/999/locks`],
       });
 
+      // Wait for error header "Error" to appear
       await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
       });
     });
   });

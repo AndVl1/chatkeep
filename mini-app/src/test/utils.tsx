@@ -5,7 +5,7 @@
 import React, { type PropsWithChildren } from 'react';
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter, MemoryRouter, type MemoryRouterProps } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, type MemoryRouterProps } from 'react-router-dom';
 import { AppRoot } from '@telegram-apps/telegram-ui';
 import { ConfirmDialogProvider } from '@/components/common/ConfirmDialog';
 import { ToastProvider } from '@/components/common/Toast';
@@ -39,27 +39,47 @@ export function resetAllStores() {
   });
 }
 
-interface WrapperOptions {
-  route?: string;
-  routerType?: 'browser' | 'memory';
+/**
+ * Custom render options with routing support
+ */
+export interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
+  /**
+   * The current URL path, e.g., "/chat/100/settings"
+   */
   initialEntries?: MemoryRouterProps['initialEntries'];
+  /**
+   * The route pattern with params, e.g., "/chat/:chatId/settings"
+   * If provided, the component will be rendered inside a Route with this path
+   */
+  routePath?: string;
 }
 
 /**
- * Creates a wrapper component with all necessary providers
+ * Creates a wrapper with all providers, optionally with routing
  */
-function createWrapper(options: WrapperOptions = {}) {
-  const { routerType = 'memory', initialEntries = ['/'] } = options;
+function createTestWrapper(
+  options: CustomRenderOptions,
+  componentToRender: React.ReactElement
+): React.FC<PropsWithChildren> {
+  const { initialEntries = ['/'], routePath } = options;
 
-  return function Wrapper({ children }: PropsWithChildren) {
-    const Router = routerType === 'browser' ? BrowserRouter : MemoryRouter;
-    const routerProps = routerType === 'memory' ? { initialEntries } : {};
+  return function TestWrapper({ children }: PropsWithChildren) {
+    // If routePath is provided, wrap the component in Routes
+    const content = routePath ? (
+      <Routes>
+        <Route path={routePath} element={children} />
+      </Routes>
+    ) : (
+      children
+    );
 
     return (
       <AppRoot>
         <ToastProvider>
           <ConfirmDialogProvider>
-            <Router {...routerProps}>{children}</Router>
+            <MemoryRouter initialEntries={initialEntries}>
+              {content}
+            </MemoryRouter>
           </ConfirmDialogProvider>
         </ToastProvider>
       </AppRoot>
@@ -68,34 +88,51 @@ function createWrapper(options: WrapperOptions = {}) {
 }
 
 /**
- * Custom render function that wraps component with all providers
+ * Infer route path from initial entry URL
+ * Converts URLs like "/chat/100/settings" to route patterns like "/chat/:chatId/settings"
  */
-export interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  route?: string;
-  routerType?: 'browser' | 'memory';
-  initialEntries?: MemoryRouterProps['initialEntries'];
+function inferRoutePath(url: string): string {
+  const segments = url.split('/');
+  return segments.map((segment, index) => {
+    // Common param patterns
+    if (/^\d+$/.test(segment)) {
+      // Look at previous segment to determine param name
+      const prev = segments[index - 1];
+      if (prev === 'chat') return ':chatId';
+      if (prev === 'blocklist') return ':patternId';
+      return ':id';
+    }
+    return segment;
+  }).join('/');
 }
 
+/**
+ * Custom render function that wraps component with all providers
+ * Automatically handles route parameters when initialEntries contains URLs with IDs
+ */
 export function renderWithProviders(
   ui: React.ReactElement,
   options: CustomRenderOptions = {}
 ): RenderResult & { user: ReturnType<typeof userEvent.setup> } {
-  const { route, routerType, initialEntries, ...renderOptions } = options;
-
   // Reset stores before each render
   resetAllStores();
 
-  const wrapper = createWrapper({
-    route,
-    routerType,
-    initialEntries: initialEntries || (route ? [route] : ['/']),
-  });
+  // Auto-infer route path if not provided but initialEntries has params
+  let routePath = options.routePath;
+  if (!routePath && options.initialEntries && options.initialEntries.length > 0) {
+    const firstEntry = options.initialEntries[0];
+    const url = typeof firstEntry === 'string' ? firstEntry : firstEntry.pathname || '/';
+    if (url !== '/' && url.includes('/')) {
+      routePath = inferRoutePath(url);
+    }
+  }
 
+  const wrapper = createTestWrapper({ ...options, routePath }, ui);
   const user = userEvent.setup();
 
   return {
     user,
-    ...render(ui, { wrapper, ...renderOptions }),
+    ...render(ui, { wrapper, ...options }),
   };
 }
 
