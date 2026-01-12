@@ -24,12 +24,24 @@ spring:
 telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
+    username: ${TELEGRAM_BOT_USERNAME:}
+  adminbot:
+    username: ${TELEGRAM_ADMINBOT_USERNAME:}
+    token: ${TELEGRAM_ADMINBOT_TOKEN:}
   mini-app:
     url: ${MINI_APP_URL:}
 
 jwt:
   secret: ${JWT_SECRET:}
   expiration-hours: ${JWT_EXPIRATION_HOURS:24}
+
+admin:
+  user-ids: ${ADMIN_USER_IDS:}
+
+github:
+  token: ${GITHUB_PAT:}
+  owner: ${GITHUB_OWNER:AndVl1}
+  repo: ${GITHUB_REPO:chatkeep}
 
 admin-logs:
   path: ${ADMIN_LOGS_PATH:/tmp/chatkeep/admin-logs}

@@ -31,8 +31,12 @@ services:
       DB_USERNAME: ${DB_USERNAME:-chatkeep}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-chatmoderatorbot}
+      TELEGRAM_ADMINBOT_USERNAME: ${TELEGRAM_ADMIN_BOT_USERNAME:-chatautomodadminbot}
+      TELEGRAM_ADMINBOT_TOKEN: ${TELEGRAM_ADMIN_BOT_TOKEN:-}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       MINI_APP_URL: ${MINI_APP_URL:-}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     restart: always
     healthcheck:
@@ -56,16 +60,16 @@ services:
       - ./docker/nginx/sites:/etc/nginx/sites-enabled:ro
       # Static files
       - ./mini-app/dist:/var/www/mini-app:ro
-      # SSL certificates (uncomment after running setup-ssl.sh)
-      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable:/var/www/admin:ro
+      # SSL certificates from Let's Encrypt
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       # Certbot webroot for ACME challenges
       - ./certbot/webroot:/var/www/certbot:ro
       # Basic auth for Prometheus
       - ./docker/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
     ports:
       - "80:80"
-      # Uncomment after SSL setup
-      # - "443:443"
+      - "443:443"
     restart: always
     healthcheck:
       # Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues

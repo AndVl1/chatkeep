@@ -182,6 +182,42 @@ Use DeepWiki for:
 | API reference | Context7 |
 | Codebase architecture | DeepWiki |
 
+## Mobile Admin App (chatkeep-admin)
+
+Admin panel application for Chatkeep built with Kotlin Multiplatform.
+
+### Technology Stack
+- **Language**: Kotlin 2.1.0
+- **UI**: Compose Multiplatform 1.7.3
+- **Navigation**: Decompose 3.2.0
+- **HTTP**: Ktor Client 3.1.1
+- **Database**: Room 2.7.0 (Android/iOS/Desktop)
+- **Preferences**: DataStore 1.1.1
+- **Platforms**: Android, iOS, Desktop (JVM), Web (WASM)
+
+### Commands
+```bash
+cd chatkeep-admin
+
+# Build all
+./gradlew assemble
+
+# Run Android
+./gradlew :composeApp:installDebug
+
+# Run Desktop
+./gradlew :composeApp:run
+
+# iOS: open iosApp/iosApp.xcodeproj in Xcode
+```
+
+### Structure
+- `core/` - shared modules (common, network, ui, data, database)
+- `feature/` - feature modules with api/impl separation
+- `composeApp/` - platform entry points
+
+---
+
 ## Mobile Development (KMP)
 
 The project includes infrastructure for Kotlin Multiplatform mobile development.

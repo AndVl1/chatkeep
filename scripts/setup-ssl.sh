@@ -18,6 +18,7 @@ DOMAINS=(
     "api.chatmoderatorbot.ru"
     "grafana.chatmoderatorbot.ru"
     "prometheus.chatmoderatorbot.ru"
+    "admin.chatmoderatorbot.ru"
 )
 
 echo "=========================================="

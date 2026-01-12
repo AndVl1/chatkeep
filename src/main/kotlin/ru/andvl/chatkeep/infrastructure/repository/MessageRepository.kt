@@ -17,4 +17,30 @@ interface MessageRepository : CrudRepository<ChatMessage, Long> {
     fun countUniqueUsersByChatId(chatId: Long): Long
 
     fun existsByChatIdAndTelegramMessageId(chatId: Long, telegramMessageId: Long): Boolean
+
+    @Query("""
+        SELECT COUNT(*) FROM messages
+        WHERE DATE(message_date AT TIME ZONE 'UTC') = CURRENT_DATE
+    """)
+    fun countMessagesToday(): Long
+
+    @Query("""
+        SELECT COUNT(*) FROM messages
+        WHERE DATE(message_date AT TIME ZONE 'UTC') = CURRENT_DATE - INTERVAL '1 day'
+    """)
+    fun countMessagesYesterday(): Long
+
+    @Query("""
+        SELECT COUNT(*) FROM messages
+        WHERE chat_id = :chatId
+        AND DATE(message_date AT TIME ZONE 'UTC') = CURRENT_DATE
+    """)
+    fun countMessagesTodayByChatId(chatId: Long): Long
+
+    @Query("""
+        SELECT COUNT(*) FROM messages
+        WHERE chat_id = :chatId
+        AND DATE(message_date AT TIME ZONE 'UTC') = CURRENT_DATE - INTERVAL '1 day'
+    """)
+    fun countMessagesYesterdayByChatId(chatId: Long): Long
 }

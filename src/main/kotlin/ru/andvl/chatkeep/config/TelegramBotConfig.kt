@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-@EnableConfigurationProperties(AdminLogsProperties::class)
+@EnableConfigurationProperties(AdminLogsProperties::class, AdminProperties::class, BotProperties::class, AdminBotProperties::class)
 class TelegramBotConfig {
     @Bean
     fun telegramBot(

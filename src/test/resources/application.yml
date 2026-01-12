@@ -15,6 +15,7 @@ spring:
 telegram:
   bot:
     token: test-token
+    username: test_bot
 
 jwt:
   secret: test-secret-key-for-testing-at-least-32-chars-long

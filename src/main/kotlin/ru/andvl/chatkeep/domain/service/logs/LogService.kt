@@ -1,0 +1,129 @@
+package ru.andvl.chatkeep.domain.service.logs
+
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Service
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
+import kotlin.streams.asSequence
+
+@Service
+class LogService {
+
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    // Regex patterns to match sensitive data
+    private val sensitivePatterns = listOf(
+        // JWT tokens (format: eyJ...eyJ...signature)
+        Regex("eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+"),
+        // Telegram bot tokens (format: digits:base64)
+        Regex("\\d{8,10}:[A-Za-z0-9_-]{35}"),
+        // GitHub Personal Access Tokens
+        Regex("ghp_[A-Za-z0-9]{36}"),
+        // Generic password patterns
+        Regex("(?i)(password|passwd|pwd)\\s*[=:]\\s*[^\\s,;\"']+"),
+        // Database password in connection strings
+        Regex("(?i)DB_PASSWORD\\s*[=:]\\s*[^\\s,;\"']+"),
+        // Generic API keys and secrets (case insensitive)
+        Regex("(?i)(api[_-]?key|apikey|secret|token)\\s*[=:]\\s*[^\\s,;\"']+"),
+        // Authorization headers
+        Regex("(?i)Authorization\\s*[=:]\\s*[^\\s,;\"']+"),
+        // Bearer tokens
+        Regex("(?i)Bearer\\s+[A-Za-z0-9_-]+"),
+        // Base64 encoded strings that look like tokens (long base64 strings)
+        Regex("\\b[A-Za-z0-9+/]{40,}={0,2}\\b")
+    )
+
+    /**
+     * Gets the most recent N lines from application logs.
+     * Attempts to read from multiple possible log sources:
+     * 1. Docker logs (if running in container)
+     * 2. Log file at /var/log/chatkeep/app.log
+     * 3. Log file at /tmp/chatkeep/app.log
+     * 4. Fallback to runtime logs if available
+     *
+     * All logs are sanitized to remove sensitive data before being returned.
+     */
+    fun getRecentLogs(lines: Int = 100): List<String> {
+        // Try Docker logs first
+        val dockerLogs = tryDockerLogs(lines)
+        if (dockerLogs.isNotEmpty()) {
+            logger.debug("Retrieved $lines lines from Docker logs")
+            return sanitizeLogs(dockerLogs)
+        }
+
+        // Try log files
+        val logPaths = listOf(
+            "/var/log/chatkeep/app.log",
+            "/tmp/chatkeep/app.log",
+            "logs/spring.log",
+            "spring.log"
+        )
+
+        for (logPath in logPaths) {
+            val fileLogs = tryReadLogFile(logPath, lines)
+            if (fileLogs.isNotEmpty()) {
+                logger.debug("Retrieved $lines lines from log file: $logPath")
+                return sanitizeLogs(fileLogs)
+            }
+        }
+
+        // Fallback
+        logger.warn("No log source available, returning empty list")
+        return listOf("No log data available. Logs may not be configured or accessible.")
+    }
+
+    /**
+     * Sanitizes log lines by redacting sensitive data patterns.
+     *
+     * @param lines Raw log lines that may contain sensitive data
+     * @return Sanitized log lines with sensitive data replaced by [REDACTED]
+     */
+    private fun sanitizeLogs(lines: List<String>): List<String> {
+        return lines.map { line ->
+            var sanitized = line
+            sensitivePatterns.forEach { pattern ->
+                sanitized = pattern.replace(sanitized, "[REDACTED]")
+            }
+            sanitized
+        }
+    }
+
+    private fun tryDockerLogs(lines: Int): List<String> {
+        return try {
+            val process = ProcessBuilder("docker", "logs", "--tail", lines.toString(), "chatkeep-app")
+                .redirectErrorStream(true)
+                .start()
+
+            val logs = process.inputStream.bufferedReader().readLines()
+            process.waitFor()
+
+            if (process.exitValue() == 0) {
+                logs
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            logger.debug("Failed to read Docker logs: ${e.message}")
+            emptyList()
+        }
+    }
+
+    private fun tryReadLogFile(filePath: String, lines: Int): List<String> {
+        return try {
+            val file = File(filePath)
+            if (!file.exists() || !file.canRead()) {
+                return emptyList()
+            }
+
+            // Read last N lines efficiently
+            Files.lines(Paths.get(filePath)).use { stream ->
+                val allLines = stream.asSequence().toList()
+                allLines.takeLast(lines)
+            }
+        } catch (e: Exception) {
+            logger.debug("Failed to read log file $filePath: ${e.message}")
+            emptyList()
+        }
+    }
+}

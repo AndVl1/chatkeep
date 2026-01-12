@@ -108,6 +108,14 @@ open class TelegramAuthService(
      * See: https://core.telegram.org/widgets/login#checking-authorization
      */
     fun validateLoginWidgetHash(data: Map<String, String>): Boolean {
+        return validateLoginWidgetHash(data, botToken)
+    }
+
+    /**
+     * Validates Telegram Login Widget hash using HMAC-SHA256 with a custom bot token.
+     * Use this when validating login widget data from a different bot (e.g., admin bot).
+     */
+    fun validateLoginWidgetHash(data: Map<String, String>, customBotToken: String): Boolean {
         try {
             // Extract hash
             val receivedHash = data["hash"] ?: run {
@@ -122,8 +130,8 @@ open class TelegramAuthService(
                 .map { "${it.key}=${it.value}" }
                 .joinToString("\n")
 
-            // Validate hash using bot token directly (different from Mini App)
-            return validateLoginWidgetHashInternal(dataCheckString, receivedHash)
+            // Validate hash using provided bot token
+            return validateLoginWidgetHashInternal(dataCheckString, receivedHash, customBotToken)
         } catch (e: Exception) {
             logger.error("Error validating login widget hash: ${e.message}", e)
             return false
@@ -295,19 +303,33 @@ open class TelegramAuthService(
         return isValid
     }
 
-    private fun validateLoginWidgetHashInternal(dataCheckString: String, receivedHash: String): Boolean {
+    private fun validateLoginWidgetHashInternal(dataCheckString: String, receivedHash: String, tokenToUse: String = botToken): Boolean {
         // For Login Widget, use bot token directly as key (different from Mini App)
-        val secretKey = MessageDigest.getInstance("SHA-256").digest(botToken.toByteArray())
+        // IMPORTANT: Use UTF-8 explicitly for consistent hash calculation
+        val secretKey = MessageDigest.getInstance("SHA-256").digest(tokenToUse.toByteArray(StandardCharsets.UTF_8))
 
         // Calculate expected hash
-        val expectedHash = hmacSha256(dataCheckString.toByteArray(), secretKey)
+        val expectedHash = hmacSha256(dataCheckString.toByteArray(StandardCharsets.UTF_8), secretKey)
         val expectedHashHex = expectedHash.joinToString("") { "%02x".format(it) }
 
+        // Log bytes for debugging encoding issues
+        val dataBytes = dataCheckString.toByteArray(StandardCharsets.UTF_8)
+        val tokenBytes = tokenToUse.toByteArray(StandardCharsets.UTF_8)
+        logger.warn("Hash validation - dataBytes hex (first 100): {}", dataBytes.take(100).joinToString("") { "%02x".format(it) })
+        logger.warn("Hash validation - tokenBytes hex: {}", tokenBytes.joinToString("") { "%02x".format(it) })
+        logger.warn("Hash validation - expected: {}, received: {}", expectedHashHex, receivedHash)
+
         // Use constant-time comparison to prevent timing attacks
-        return MessageDigest.isEqual(
+        val isValid = MessageDigest.isEqual(
             expectedHashHex.toByteArray(StandardCharsets.UTF_8),
             receivedHash.toByteArray(StandardCharsets.UTF_8)
         )
+
+        if (!isValid) {
+            logger.warn("Hash mismatch - expected: {}, received: {}", expectedHashHex, receivedHash)
+        }
+
+        return isValid
     }
 
     private fun hmacSha256(data: ByteArray, key: ByteArray): ByteArray {

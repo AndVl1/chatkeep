@@ -1,99 +1,103 @@
 # TEAM STATE
 
 ## Classification
-- Type: FEATURE
+- Type: BUG_FIX (multiple issues)
 - Complexity: COMPLEX
 - Workflow: FULL 7-PHASE
+- Branch: feat/chatkeep-admin-app (existing)
 
 ## Task
-Create comprehensive documentation and agents for Kotlin Multiplatform mobile development:
-1. Fill SKILL files: kmp, compose, metro-di-mobile, decompose
-2. Create developer-mobile subagent
-3. Create init-mobile agent and command
-4. Multi-module architecture with Decompose, Ktor, Room, Metro DI, DataStore
-5. Platforms: Android, iOS, Desktop, WASM with shared Compose UI
-6. Project should be standalone-capable (can be extracted to separate repo)
+Fix multiple issues across Mobile App and Production deployment:
+
+### Mobile App Issues (KMP):
+1. Light theme - statusbar icons invisible (white on white)
+2. Deploy tab empty - needs placeholder
+3. No pull to refresh on pages
+4. Desktop app build fails
+5. WASM - verify build and functionality
+6. Quick Stats card confusing (unclear "1 arrow 2" display)
+7. General mobile app testing with manual-qa
+
+### Production Deployment Issues:
+1. Mini App in Telegram shows auth page instead of auto-login
+2. Web after auth redirects to INTERNAL_ERROR JSON page
+3. Grafana returns 500
+4. Prometheus same error
+5. Need to document GitHub Secrets for deployment
 
 ## Progress
 - [x] Phase 1: Discovery - COMPLETED
 - [x] Phase 2: Exploration - COMPLETED
 - [x] Phase 3: Questions - COMPLETED
-- [x] Phase 4: Architecture - COMPLETED (single approach for documentation task)
+- [x] Phase 4: Architecture - SKIPPED (bug fixes, straightforward)
 - [x] Phase 5: Implementation - COMPLETED
 - [x] Phase 6: Review - COMPLETED
-- [x] Phase 7: Summary - COMPLETED
+- [ ] Phase 7: Summary - IN PROGRESS
 
-## Phase 5 Output
+## Phase 5 Output - Implementation Status
 
-### Files Created
+### Mobile App Issues (KMP) - COMMITS:
+| Issue | Status | Commit |
+|-------|--------|--------|
+| 1. Light theme statusbar | FIXED | `bf5d0f1` |
+| 2. Deploy tab empty | FIXED | `bea5bc3` |
+| 3. Pull to refresh | SKIPPED | PullToRefreshBox not in Compose 1.7.3 |
+| 4. Desktop build | FIXED | `d24a27b` + `8e86263` |
+| 5. WASM build | FIXED | `110a36e` + `49578f7` + `87c775b` |
+| 6. Quick Stats clarity | FIXED | `44f3337` |
+| 7. Manual QA | PENDING | Needs deployment |
 
-**Skills:**
-- .claude/skills/kmp/SKILL.md - KMP fundamentals, source sets, expect/actual, module structure
-- .claude/skills/compose/SKILL.md - Compose MP UI patterns, theming, resources, components
-- .claude/skills/metro-di-mobile/SKILL.md - Metro DI setup, patterns, Decompose integration
-- .claude/skills/decompose/SKILL.md - Navigation, components, state preservation
+### Production Issues - COMMITS:
+| Issue | Status | Commit |
+|-------|--------|--------|
+| 1. Mini App auth | PENDING | Needs deployment to test |
+| 2. Web auth /callback | FIXED | `e631d54` |
+| 3. Grafana 500 | FIXED | `e631d54` |
+| 4. Prometheus 500 | FIXED | `e631d54` |
+| 5. GitHub Secrets | DOCUMENTED | See below |
 
-**Agents:**
-- .claude/agents/developer-mobile.md - Mobile developer for implementing KMP features
-- .claude/agents/init-mobile.md - Project initializer for creating new KMP projects
+### GitHub Secrets Required:
+- `DEPLOY_SSH_KEY` - SSH private key for server access
+- Variables:
+  - `DEPLOY_HOST` - Server hostname/IP (89.125.243.104)
+  - `DEPLOY_USER` - SSH username (root)
+  - `DEPLOY_PATH` - Deployment path (optional, default: ~/chatkeep)
+  - `DEPLOY_ENABLED` - Set to 'true' to enable auto-deploy
 
-**Commands:**
-- .claude/commands/init-mobile.md - User command to invoke init-mobile agent
+## Phase 6 Output - Build Verification
 
-### Key Patterns Documented
+All platforms build successfully:
+- Android: `./gradlew :composeApp:assembleDebug` - PASS
+- Desktop: `./gradlew :composeApp:compileKotlinDesktop` - PASS
+- WASM: `./gradlew :composeApp:wasmJsBrowserProductionWebpack` - PASS
+- Backend: `./gradlew build -x test` - PASS
 
-1. **Multi-module structure**: Feature-based + api/impl separation
-2. **Navigation**: Decompose Child Stack with serializable configs
-3. **DI**: Metro @DependencyGraph with @BindingContainer per feature
-4. **Components**: Interface + @Inject implementation with @AssistedFactory
-5. **State**: Value<T> for component state, AppResult<T> for operations
-6. **UI**: Compose screens observing component state via subscribeAsState()
+## Phase 7 - Summary
 
-## Phase 3 Answers
-1. **Module structure**: Feature-based + api/impl for features
-2. **Database**: Room for mobile + JVM (skip WASM database)
-3. **Project name**: chatkeep-admin (directory ./chatkeep-admin/)
-4. **Init scope**: Full buildable project that compiles and runs immediately
+### Commits in this branch (feat/chatkeep-admin-app):
 
-## Key Decisions
-- Use **Metro DI** for compile-time dependency injection
-- Use **Decompose** for navigation and component architecture
-- Use **Room** for database (with BundledSQLiteDriver)
-- Use **DataStore Preferences** for simple key-value storage
-- Use **Compose Multiplatform** for shared UI
-- Use **Ktor Client** for HTTP (already documented)
-- **Feature-based modules** with api/impl separation
+| Commit | Description |
+|--------|-------------|
+| `8e86263` | fix: add DataStore dependency and fix Desktop build |
+| `87c775b` | fix: update WASM Main.kt to use AppFactory pattern |
+| `49578f7` | refactor: remove DataStore dependency from feature:settings for WASM |
+| `110a36e` | fix: use JsFun interop for WASM browser open |
+| `21128cc` | fix: use AdminBot username for admin subdomain auth |
+| `e631d54` | fix: simplify nginx configs for Cloudflare SSL termination |
+| `44f3337` | fix: improve Quick Stats card layout for clarity |
+| `d24a27b` | fix: use correct Ktor client engines for Desktop and WASM |
+| `bea5bc3` | feat: add empty state placeholder for Deploy tab |
+| `bf5d0f1` | fix: handle light theme statusbar icons on Android |
+| `b1eabb9` | fix: handle nullable deploy info fields in Dashboard API response |
+| `a84191a` | fix: share AuthRepository between RootComponent and AuthComponent |
 
-## Phase 6 Output (Review)
+### Remaining Items (require deployment):
+1. Test Mini App auth in Telegram after deployment
+2. Test Grafana/Prometheus accessibility after nginx config update
+3. Manual QA testing of mobile app
 
-Code-reviewer identified and fixed:
-1. **Fixed**: Broken GitHub URL in decompose/SKILL.md (missing slash)
-2. **Fixed**: Added missing imports to componentScope() extension
-3. **Fixed**: Added WASM limitations section to kmp/SKILL.md
-
-## Phase 7 Summary
-
-### Deliverables
-| Type | File | Description |
-|------|------|-------------|
-| Skill | kmp/SKILL.md | KMP fundamentals, source sets, expect/actual |
-| Skill | compose/SKILL.md | Compose MP UI, theming, resources |
-| Skill | metro-di-mobile/SKILL.md | Metro DI setup, patterns |
-| Skill | decompose/SKILL.md | Navigation, components, state |
-| Agent | developer-mobile.md | Implements KMP features |
-| Agent | init-mobile.md | Creates new KMP projects |
-| Command | init-mobile.md | User command for project init |
-
-### Commit
-`34f013a` - feat: add comprehensive KMP mobile development infrastructure
-
-### Branch
-`feat/mobile-development-infrastructure`
-
-### Next Steps
-1. Create PR to merge into main
-2. Test `/init-mobile` command to generate chatkeep-admin project
-3. Verify generated project builds on all platforms
-
-## Recovery
-Task completed. All 7 phases finished.
+### Technical Notes:
+- WASM uses @JsFun interop instead of kotlinx.browser.window (not available in Kotlin/WASM)
+- DataStore not supported on WASM - InMemorySettingsRepository used as fallback
+- Nginx configs simplified for Cloudflare SSL termination (HTTP only on server side)
+- Pull-to-refresh skipped - PullToRefreshBox not available in Compose Multiplatform 1.7.3

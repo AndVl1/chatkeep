@@ -29,6 +29,14 @@ class SwaggerConfig {
                             .bearerFormat("tma")
                             .description("Telegram Mini App initData authentication. Format: `tma {initDataRaw}`")
                     )
+                    .addSecuritySchemes(
+                        "BearerAuth",
+                        SecurityScheme()
+                            .type(SecurityScheme.Type.HTTP)
+                            .scheme("bearer")
+                            .bearerFormat("JWT")
+                            .description("JWT token for admin authentication")
+                    )
             )
     }
 }
