@@ -6,13 +6,18 @@ interface LoadingSpinnerProps {
 
 export function LoadingSpinner({ size = 'l' }: LoadingSpinnerProps) {
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '200px',
-      width: '100%'
-    }}>
+    <div
+      role="status"
+      data-testid="loading-spinner"
+      aria-label="Loading"
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '200px',
+        width: '100%'
+      }}
+    >
       <Spinner size={size} />
     </div>
   );
