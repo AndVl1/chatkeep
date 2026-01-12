@@ -20,20 +20,17 @@ import { useAuthStore } from '@/stores/authStore';
 export function resetAllStores() {
   useChatStore.setState({
     selectedChatId: null,
-    chatsCache: null,
-    pendingChanges: {},
+    chats: [],
   });
   useSettingsStore.setState({
     settingsCache: {},
     pendingChanges: {},
   });
   useBlocklistStore.setState({
-    blocklistCache: {},
-    pendingChanges: {},
+    patternsCache: {},
   });
   useLocksStore.setState({
     locksCache: {},
-    pendingChanges: {},
   });
   useAuthStore.setState({
     token: null,

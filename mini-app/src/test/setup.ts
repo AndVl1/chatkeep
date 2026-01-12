@@ -1,11 +1,30 @@
 import '@testing-library/jest-dom';
-import { expect, afterEach, vi } from 'vitest';
+import { expect, afterEach, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '../i18n'; // Initialize i18n for tests
+
+// MSW setup
+import { server, resetMockState } from './mocks/server';
+
+// Start MSW server before all tests
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'warn' });
+});
+
+// Reset handlers and mock state between tests
+beforeEach(() => {
+  resetMockState();
+});
 
 // Cleanup after each test
 afterEach(() => {
   cleanup();
+  server.resetHandlers();
+});
+
+// Clean up after all tests
+afterAll(() => {
+  server.close();
 });
 
 // Mock Telegram WebApp
@@ -84,4 +103,5 @@ const eventListeners: Record<string, Array<(event: any) => void>> = {};
 };
 
 // Mock environment variables
-vi.stubEnv('VITE_API_URL', 'http://localhost:8080/api/v1/miniapp');
+// Use relative URL for MSW to intercept
+vi.stubEnv('VITE_API_URL', '/api/v1/miniapp');
