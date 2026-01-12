@@ -24,6 +24,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
+          gradle-version: wrapper
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Build and test
@@ -89,6 +90,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
+          gradle-version: wrapper
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Build all platforms
