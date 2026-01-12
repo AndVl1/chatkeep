@@ -33,7 +33,7 @@ export const BlocklistItem = memo(function BlocklistItem({
       subtitle={subtitle}
       description={description}
       after={
-        <IconButton onClick={handleDelete} mode="plain">
+        <IconButton onClick={handleDelete} mode="plain" aria-label="Delete">
           <span style={{ color: 'var(--tgui--destructive_text_color)' }}>×</span>
         </IconButton>
       }

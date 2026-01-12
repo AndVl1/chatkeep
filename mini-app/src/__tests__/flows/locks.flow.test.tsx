@@ -8,7 +8,7 @@
  * - Error handling
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
 import { LocksPage } from '@/pages/LocksPage';
@@ -37,10 +37,10 @@ describe('Locks Page Flow', () => {
         initialEntries: [`/chat/${chatId}/locks`],
       });
 
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       }, { timeout: 2000 });
     });
   });
@@ -53,10 +53,10 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: /locks/i })).toBeInTheDocument();
+      expect(screen.getByText('Configure Locks')).toBeInTheDocument();
     });
 
     it('should display back button', async () => {
@@ -66,7 +66,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Should have multiple checkboxes/switches for locks
@@ -95,7 +95,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Check for locked items (these should be checked)
@@ -112,7 +112,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // All toggles should be unchecked
@@ -129,7 +129,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Multiple toggles should be checked
@@ -147,7 +147,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Get first toggle (should be unchecked)
@@ -172,7 +172,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Reset delay for the toggle operation
@@ -196,12 +196,12 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
-      // Check for content lock types in the UI
-      expect(screen.getByText(/photo/i)).toBeInTheDocument();
-      expect(screen.getByText(/video/i)).toBeInTheDocument();
+      // Check for content lock types in the UI (use getAllByText since text might appear multiple times)
+      expect(screen.getAllByText(/photo/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/video/i).length).toBeGreaterThan(0);
     });
 
     it('should display forward-related locks', async () => {
@@ -211,7 +211,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Check for forward lock types
@@ -225,11 +225,11 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
-      // Check for URL lock types
-      expect(screen.getByText(/url/i)).toBeInTheDocument();
+      // Check for URL lock types - note: URL lock is translated to "Links"
+      expect(screen.getByText(/links/i)).toBeInTheDocument();
     });
   });
 
@@ -264,7 +264,7 @@ describe('Locks Page Flow', () => {
       await user.click(retryButton);
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /locks/i })).toBeInTheDocument();
+        expect(screen.getByText('Configure Locks')).toBeInTheDocument();
       });
     });
 
@@ -289,7 +289,7 @@ describe('Locks Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Click back button

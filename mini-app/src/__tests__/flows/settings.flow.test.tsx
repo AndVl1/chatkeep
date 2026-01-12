@@ -44,10 +44,10 @@ describe('Settings Page Flow', () => {
         initialEntries: [`/chat/${chatId}/settings`],
       });
 
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       }, { timeout: 2000 });
     });
   });
@@ -71,7 +71,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Check for toggle switches
@@ -87,7 +87,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Collection enabled should be ON
@@ -105,7 +105,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       expect(screen.getByRole('checkbox', { name: /collection enabled/i })).toBeChecked();
@@ -122,7 +122,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       const toggle = screen.getByRole('checkbox', { name: /collection enabled/i });
@@ -143,7 +143,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       const toggle = screen.getByRole('checkbox', { name: /clean service messages/i });
@@ -165,7 +165,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       const maxWarningsInput = screen.getByDisplayValue('3');
@@ -190,7 +190,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
@@ -203,7 +203,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Button text is "Blocked Words & Phrases"
@@ -217,7 +217,7 @@ describe('Settings Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Button text is "Configure Locks"

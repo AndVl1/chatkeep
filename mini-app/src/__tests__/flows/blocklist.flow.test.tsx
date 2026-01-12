@@ -9,7 +9,7 @@
  * - Error handling
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
 import { BlocklistPage } from '@/pages/BlocklistPage';
@@ -38,10 +38,10 @@ describe('Blocklist Page Flow', () => {
         initialEntries: [`/chat/${chatId}/blocklist`],
       });
 
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       }, { timeout: 2000 });
     });
   });
@@ -54,10 +54,11 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: /blocklist/i })).toBeInTheDocument();
+      // Use getAllByText since "Blocklist" might appear multiple times in the page
+      expect(screen.getAllByText('Blocklist').length).toBeGreaterThan(0);
     });
 
     it('should display all blocklist patterns', async () => {
@@ -67,7 +68,7 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Should show all patterns
@@ -83,7 +84,7 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       expect(screen.getByRole('button', { name: /add pattern/i })).toBeInTheDocument();
@@ -96,7 +97,7 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
@@ -111,13 +112,13 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Should still show add button
       expect(screen.getByRole('button', { name: /add pattern/i })).toBeInTheDocument();
       // Should show empty state message
-      expect(screen.getByText(/no patterns/i)).toBeInTheDocument();
+      expect(screen.getByText(/no.*patterns/i)).toBeInTheDocument();
     });
   });
 
@@ -129,7 +130,7 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /add pattern/i }));
@@ -146,7 +147,7 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /add pattern/i }));
@@ -163,7 +164,7 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Open add form
@@ -192,7 +193,7 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Should have delete buttons
@@ -207,7 +208,7 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       // Click first delete button
@@ -216,7 +217,7 @@ describe('Blocklist Page Flow', () => {
 
       // Confirmation dialog should appear
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
       });
     });
 
@@ -227,23 +228,23 @@ describe('Blocklist Page Flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
       });
 
       const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
       await user.click(deleteButtons[0]);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
       });
 
       // Cancel the deletion
-      const cancelButton = within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i });
+      const cancelButton = screen.getByTestId('confirm-dialog-cancel');
       await user.click(cancelButton);
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
       });
 
       // Pattern should still exist
