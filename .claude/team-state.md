@@ -50,7 +50,7 @@ Fix multiple issues across Mobile App and Production deployment:
 ### Production Issues - COMMITS:
 | Issue | Status | Commit |
 |-------|--------|--------|
-| 1. Mini App auth | PENDING | Needs deployment to test |
+| 1. Mini App auth | FIXED | `41a3bae` (branch: claude/fix-miniapp-auth-RLRW4) |
 | 2. Web auth /callback | FIXED | `e631d54` |
 | 3. Grafana 500 | FIXED | `e631d54` |
 | 4. Prometheus 500 | FIXED | `e631d54` |
@@ -90,6 +90,7 @@ All platforms build successfully:
 | `bf5d0f1` | fix: handle light theme statusbar icons on Android |
 | `b1eabb9` | fix: handle nullable deploy info fields in Dashboard API response |
 | `a84191a` | fix: share AuthRepository between RootComponent and AuthComponent |
+| `41a3bae` | fix: initialize Mini App auth fallback data on first render |
 
 ### Remaining Items (require deployment):
 1. Test Mini App auth in Telegram after deployment
