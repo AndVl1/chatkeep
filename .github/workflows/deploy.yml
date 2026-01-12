@@ -76,6 +76,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
 
       - name: Build WASM
         run: ./gradlew -p chatkeep-admin :composeApp:wasmJsBrowserProductionWebpack
