@@ -10,6 +10,8 @@ import io.ktor.client.*
  * Note: DataStore types are replaced with Any to avoid WASM compatibility issues.
  * Platform implementations should cast as needed.
  */
+expect fun createPlatformHttpClient(): HttpClient
+
 expect fun createPlatformDataStore(context: Any): Any
 
 expect fun createPlatformTokenStorage(dataStore: Any): TokenStorage

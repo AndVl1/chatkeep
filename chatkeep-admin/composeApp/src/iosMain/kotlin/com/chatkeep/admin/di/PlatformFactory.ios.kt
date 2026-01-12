@@ -9,12 +9,11 @@ import com.chatkeep.admin.core.data.local.DataStoreTokenStorage
 import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.network.createHttpClient
 import io.ktor.client.*
-import io.ktor.client.engine.darwin.*
 import kotlinx.cinterop.ExperimentalForeignApi
 import okio.Path.Companion.toPath
 
 @OptIn(ExperimentalForeignApi::class)
-actual fun createPlatformHttpClient(): HttpClient = createHttpClient(Darwin.create())
+actual fun createPlatformHttpClient(): HttpClient = createHttpClient()
 
 actual fun createPlatformDataStore(context: Any): Any {
     val platformContext = IosPlatformContext()

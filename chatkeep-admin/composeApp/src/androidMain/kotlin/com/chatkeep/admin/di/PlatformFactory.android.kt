@@ -15,6 +15,8 @@ import io.ktor.client.engine.cio.*
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "chatkeep_admin_prefs")
 
+actual fun createPlatformHttpClient(): HttpClient = createHttpClient()
+
 actual fun createPlatformDataStore(context: Any): Any {
     require(context is Context) { "Expected Android Context" }
     return context.dataStore

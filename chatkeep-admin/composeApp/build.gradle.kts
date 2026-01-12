@@ -53,6 +53,9 @@ kotlin {
             implementation(projects.core.ui)
             implementation(projects.core.network)
 
+            // Ktor client for AppFactory
+            implementation(libs.ktor.client.core)
+
             // Feature modules
             implementation(projects.feature.auth.api)
             implementation(projects.feature.auth.impl)
