@@ -2,7 +2,7 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { initData, useSignal } from '@telegram-apps/sdk-react';
 import type { TelegramUser } from '@/types';
 
-// Get auth data from window.Telegram.WebApp (for development mode)
+// Get auth data directly from window.Telegram.WebApp (fallback for SDK signals)
 function getWebAppData(): { user: TelegramUser | null; initDataRaw: string | null } {
   try {
     const webApp = window.Telegram?.WebApp;
@@ -32,22 +32,22 @@ export function useTelegramAuth() {
   const initDataState = useSignal(initData.state);
   const initDataRawValue = useSignal(initData.raw);
 
-  // Fallback state for dev mode
+  // Fallback state - initialize with WebApp data immediately for first render
   const [fallbackData, setFallbackData] = useState<{
     user: TelegramUser | null;
     initDataRaw: string | null;
-  }>({ user: null, initDataRaw: null });
+  }>(() => getWebAppData());
 
-  // Check window.Telegram.WebApp on mount (for dev mode fallback)
+  // Update fallback if SDK signals change (e.g., after SDK initialization)
   useEffect(() => {
-    // Only use fallback if SDK didn't provide data
+    // Re-check window.Telegram.WebApp if SDK still doesn't have data
     if (!initDataState?.user || !initDataRawValue) {
       const webAppData = getWebAppData();
-      if (webAppData.user) {
+      if (webAppData.user && !fallbackData.user) {
         setFallbackData(webAppData);
       }
     }
-  }, [initDataState, initDataRawValue]);
+  }, [initDataState, initDataRawValue, fallbackData.user]);
 
   // Use SDK data if available, otherwise use fallback
   const user = useMemo<TelegramUser | null>(() => {
