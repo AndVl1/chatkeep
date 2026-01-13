@@ -101,5 +101,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: admin-wasm
-          path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
+          path: chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/
           retention-days: 7

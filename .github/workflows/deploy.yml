@@ -88,7 +88,7 @@ jobs:
         if: success()
         with:
           name: admin-wasm
-          path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
+          path: chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/
           retention-days: 1
           if-no-files-found: error
 
@@ -110,7 +110,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: admin-wasm
-          path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
+          path: chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -125,7 +125,7 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             # Create admin directory if not exists
-            mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
+            mkdir -p chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable
 
       - name: Copy WASM files to server
         uses: appleboy/scp-action@v0.1.7
@@ -133,7 +133,7 @@ jobs:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/*"
+          source: "chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
