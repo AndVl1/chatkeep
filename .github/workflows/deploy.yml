@@ -150,10 +150,11 @@ jobs:
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
-            # Run deploy script
-            bash scripts/deploy.sh
+            # Restart docker compose services (picks up new nginx configs)
+            echo "Restarting services..."
+            docker compose -f docker-compose.prod.yml up -d
 
-            # Reload nginx to pick up configuration changes
+            # Reload nginx to ensure new configuration is active
             echo "Reloading nginx..."
             docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
 
