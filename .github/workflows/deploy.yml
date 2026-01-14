@@ -121,6 +121,10 @@ jobs:
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
+            # Pull latest code (includes nginx configs, docker-compose files, etc.)
+            echo "Pulling latest code..."
+            git pull origin ${{ github.ref_name }}
+
             # Pull latest image
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
@@ -148,6 +152,10 @@ jobs:
 
             # Run deploy script
             bash scripts/deploy.sh
+
+            # Reload nginx to pick up configuration changes
+            echo "Reloading nginx..."
+            docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
 
             # Cleanup old images
             docker image prune -f
