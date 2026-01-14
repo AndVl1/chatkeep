@@ -1,9 +1,9 @@
 [versions]
 kotlin = "2.1.0"
 agp = "8.7.3"
-compose-multiplatform = "1.7.3"
+compose-multiplatform = "1.8.0"
 ktor = "3.1.1"
-room = "2.7.0-alpha11"
+room = "2.7.0-alpha12"
 datastore = "1.1.1"
 decompose = "3.2.0-alpha05"
 metro = "0.1.1"
@@ -13,7 +13,7 @@ serialization = "1.7.3"
 datetime = "0.6.1"
 ksp = "2.1.0-1.0.29"
 androidx-activity-compose = "1.9.3"
-androidx-sqlite = "2.6.2"
+androidx-sqlite = "2.5.0-alpha12"
 
 [libraries]
 # Kotlin
