@@ -15,6 +15,7 @@ CERT_PATH="/etc/letsencrypt/live/${DOMAIN}"
 DOMAINS=(
     "chatmoderatorbot.ru"
     "www.chatmoderatorbot.ru"
+    "miniapp.chatmoderatorbot.ru"
     "api.chatmoderatorbot.ru"
     "grafana.chatmoderatorbot.ru"
     "prometheus.chatmoderatorbot.ru"
