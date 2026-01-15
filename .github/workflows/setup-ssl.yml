@@ -1,0 +1,46 @@
+name: Setup SSL Certificate
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  setup-ssl:
+    name: Run SSL Setup on Server
+    runs-on: ubuntu-latest
+
+    # Only run if server credentials are configured
+    if: vars.DEPLOY_HOST != ''
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run SSL setup via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
+
+            echo "Running SSL certificate setup..."
+            echo "This will add miniapp.chatmoderatorbot.ru to the certificate"
+
+            # Make script executable
+            chmod +x scripts/setup-ssl.sh
+
+            # Run SSL setup (requires sudo, assuming user has passwordless sudo)
+            sudo ./scripts/setup-ssl.sh
+
+            echo "SSL setup completed!"
+
+            # Reload nginx to pick up new certificate
+            echo "Reloading nginx..."
+            docker exec chatkeep-nginx nginx -s reload || echo "Nginx reload failed, but continuing..."
+
+            echo "Done! Certificate should now include miniapp.chatmoderatorbot.ru"
