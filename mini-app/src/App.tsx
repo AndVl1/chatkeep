@@ -43,6 +43,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Mini App mode: require Telegram auth
   if (isMiniApp && !isMiniAppAuthenticated) {
+    const hostname = window.location.hostname;
+    const isMiniAppSubdomain = hostname.startsWith('miniapp.');
+
     return (
       <div style={{
         display: 'flex',
@@ -54,7 +57,18 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       }}>
         <div>
           <h1>Authentication Required</h1>
-          <p>Please open this app from Telegram</p>
+          <p>
+            {isMiniAppSubdomain
+              ? 'This subdomain is only accessible from Telegram Mini App. Please use chatmoderatorbot.ru for browser access.'
+              : 'Please open this app from Telegram'}
+          </p>
+          {isMiniAppSubdomain && (
+            <p style={{ marginTop: '16px' }}>
+              <a href="https://chatmoderatorbot.ru" style={{ color: 'var(--tg-theme-link-color, #5288c1)' }}>
+                Go to chatmoderatorbot.ru
+              </a>
+            </p>
+          )}
         </div>
       </div>
     );
