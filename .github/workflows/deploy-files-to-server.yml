@@ -19,7 +19,7 @@ jobs:
       - name: Create tarball of production files
         run: |
           echo "Creating tarball..."
-          tar -czf /tmp/chatkeep-deploy.tar.gz \
+          tar -czf chatkeep-deploy.tar.gz \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='build' \
@@ -27,10 +27,11 @@ jobs:
             --exclude='.kotlin' \
             --exclude='.env' \
             --exclude='certbot' \
+            --exclude='chatkeep-deploy.tar.gz' \
             .
 
           echo "✓ Tarball created"
-          ls -lh /tmp/chatkeep-deploy.tar.gz
+          ls -lh chatkeep-deploy.tar.gz
 
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -62,7 +63,7 @@ jobs:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "/tmp/chatkeep-deploy.tar.gz"
+          source: "chatkeep-deploy.tar.gz"
           target: "/root/"
           overwrite: true
 
