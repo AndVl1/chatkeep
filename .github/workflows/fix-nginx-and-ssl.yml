@@ -1,0 +1,102 @@
+name: Fix Nginx Config and Setup SSL
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  fix-and-setup-ssl:
+    name: Restart Nginx and Setup SSL
+    runs-on: ubuntu-latest
+
+    # Only run if server credentials are configured
+    if: vars.DEPLOY_HOST != ''
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fix nginx and setup SSL via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
+
+            echo "=== Step 1: Check if miniapp nginx config exists ==="
+            if [ -f "docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf" ]; then
+              echo "✓ miniapp config file exists"
+              ls -lh docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf
+            else
+              echo "✗ miniapp config file NOT found!"
+              exit 1
+            fi
+
+            echo ""
+            echo "=== Step 2: Restart nginx container to reload configs ==="
+            docker restart chatkeep-nginx
+            echo "Waiting 10 seconds for nginx to start..."
+            sleep 10
+
+            echo ""
+            echo "=== Step 3: Test nginx configuration ==="
+            docker exec chatkeep-nginx nginx -t
+
+            echo ""
+            echo "=== Step 4: Verify miniapp config loaded in container ==="
+            docker exec chatkeep-nginx ls -la /etc/nginx/sites-enabled/ | grep miniapp || echo "⚠ miniapp config not found in container!"
+
+            echo ""
+            echo "=== Step 5: Test HTTP access to ACME challenge path ==="
+            HTTP_TEST=$(curl -I http://miniapp.chatmoderatorbot.ru/.well-known/acme-challenge/test 2>&1 | head -1)
+            echo "HTTP response: $HTTP_TEST"
+
+            if echo "$HTTP_TEST" | grep -q "404"; then
+              echo "⚠ Still getting 404 - nginx config may not be loading correctly"
+              echo "Checking nginx logs..."
+              docker logs chatkeep-nginx 2>&1 | tail -20
+            fi
+
+            echo ""
+            echo "=== Step 6: Run certbot to add miniapp.chatmoderatorbot.ru ==="
+            sudo certbot certonly --webroot \
+              -w /root/chatkeep/certbot/webroot \
+              -d chatmoderatorbot.ru \
+              -d www.chatmoderatorbot.ru \
+              -d miniapp.chatmoderatorbot.ru \
+              -d api.chatmoderatorbot.ru \
+              -d grafana.chatmoderatorbot.ru \
+              -d prometheus.chatmoderatorbot.ru \
+              -d admin.chatmoderatorbot.ru \
+              --non-interactive \
+              --agree-tos \
+              --email admin@chatmoderatorbot.ru \
+              --expand \
+              --force-renewal \
+              -v
+
+            CERT_RESULT=$?
+            echo "Certbot exit code: $CERT_RESULT"
+
+            if [ $CERT_RESULT -eq 0 ]; then
+              echo "✓ Certificate updated successfully!"
+
+              # Show certificate info
+              echo "Certificate details:"
+              sudo certbot certificates | grep -A 10 "chatmoderatorbot.ru"
+
+              # Reload nginx to pick up new certificate
+              echo "Reloading nginx..."
+              docker exec chatkeep-nginx nginx -s reload
+
+              echo "✓ Done! Certificate should now include miniapp.chatmoderatorbot.ru"
+            else
+              echo "✗ Certbot failed with exit code $CERT_RESULT"
+              echo "This requires manual investigation on the server"
+              exit 1
+            fi
