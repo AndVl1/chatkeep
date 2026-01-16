@@ -84,7 +84,7 @@ jobs:
 
             echo "=== Extracting files ==="
             cd "$DEPLOY_PATH"
-            tar -xzf /root/chatkeep-deploy.tar.gz
+            tar -xzf /root/chatkeep-deploy.tar.gz --strip-components=1
             rm /root/chatkeep-deploy.tar.gz
             echo "✓ Extracted"
 
