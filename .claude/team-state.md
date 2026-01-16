@@ -174,5 +174,13 @@ All objectives achieved:
 - ✅ Deployment workflow fixed and functional
 - ✅ SSL certificate includes all 7 subdomains including miniapp
 - ✅ HTTPS access verified and working
+- ✅ Mini App build integrated into deployment workflow
+- ✅ Both domains working: chatmoderatorbot.ru (200 OK), miniapp (301 redirect)
+
+**Additional Fix (2026-01-16 22:12)**:
+- Issue: 403 Forbidden on both domains due to missing mini-app/dist files
+- Solution: Added Mini App build step to deployment workflow
+- Now workflow builds mini-app before creating tarball
+- Verified: chatmoderatorbot.ru returns HTTP/2 200, miniapp redirects correctly
 
 **Note**: Pre-existing backend auth and Mini App issues remain unresolved but are not part of this task.
