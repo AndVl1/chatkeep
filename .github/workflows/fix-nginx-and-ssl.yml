@@ -26,7 +26,11 @@ jobs:
           username: ${{ vars.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
+            DEPLOY_PATH="${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
+            cd "$DEPLOY_PATH"
+
+            echo "Working directory: $(pwd)"
+            echo ""
 
             echo "=== Step 1: Check if miniapp nginx config exists ==="
             if [ -f "docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf" ]; then
@@ -34,6 +38,14 @@ jobs:
               ls -lh docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf
             else
               echo "✗ miniapp config file NOT found!"
+              echo "Files in docker/nginx/sites:"
+              ls -la docker/nginx/sites/ || echo "Directory not found!"
+              echo ""
+              echo "Current git status:"
+              git status || echo "Not a git repo!"
+              echo ""
+              echo "Current git branch:"
+              git branch || echo "Git branch command failed!"
               exit 1
             fi
 
@@ -65,7 +77,7 @@ jobs:
             echo ""
             echo "=== Step 6: Run certbot to add miniapp.chatmoderatorbot.ru ==="
             sudo certbot certonly --webroot \
-              -w /root/chatkeep/certbot/webroot \
+              -w "$DEPLOY_PATH/certbot/webroot" \
               -d chatmoderatorbot.ru \
               -d www.chatmoderatorbot.ru \
               -d miniapp.chatmoderatorbot.ru \
