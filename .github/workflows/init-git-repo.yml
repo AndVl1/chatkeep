@@ -27,9 +27,19 @@ jobs:
             echo "=== Current directory: $(pwd) ==="
             echo ""
 
-            echo "=== Step 1: Check if git repo exists ==="
+            echo "=== Step 1: Fix file ownership ==="
+            # Files are owned by user 502 (staff), need to change to root
+            chown -R root:root .
+            echo "✓ Ownership fixed"
+
+            echo ""
+            echo "=== Step 2: Check if git repo exists ==="
             if [ -d ".git" ]; then
               echo "✓ Git repository already exists"
+
+              # Add safe directory to avoid dubious ownership errors
+              git config --global --add safe.directory "$DEPLOY_PATH"
+
               git status || echo "Git status failed"
             else
               echo "⚠ Not a git repository, initializing..."
@@ -37,6 +47,10 @@ jobs:
               # Initialize git
               git init
               echo "✓ Git initialized"
+
+              # Add safe directory
+              git config --global --add safe.directory "$DEPLOY_PATH"
+              echo "✓ Safe directory added"
 
               # Add remote
               git remote add origin https://github.com/AndVl1/chatkeep.git || echo "Remote might already exist"
@@ -54,12 +68,12 @@ jobs:
             fi
 
             echo ""
-            echo "=== Step 2: Verify current branch and status ==="
+            echo "=== Step 3: Verify current branch and status ==="
             git branch
             git status
 
             echo ""
-            echo "=== Step 3: Verify miniapp config file exists ==="
+            echo "=== Step 4: Verify miniapp config file exists ==="
             if [ -f "docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf" ]; then
               echo "✓ miniapp.chatmoderatorbot.ru.conf exists"
               ls -lh docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf
@@ -78,21 +92,21 @@ jobs:
             fi
 
             echo ""
-            echo "=== Step 4: Restart nginx container ==="
+            echo "=== Step 5: Restart nginx container ==="
             docker restart chatkeep-nginx
             echo "Waiting 10 seconds for nginx to start..."
             sleep 10
 
             echo ""
-            echo "=== Step 5: Test nginx configuration ==="
+            echo "=== Step 6: Test nginx configuration ==="
             docker exec chatkeep-nginx nginx -t
 
             echo ""
-            echo "=== Step 6: Verify miniapp config loaded in container ==="
+            echo "=== Step 7: Verify miniapp config loaded in container ==="
             docker exec chatkeep-nginx ls -la /etc/nginx/sites-enabled/ | grep miniapp || echo "⚠ miniapp config not in container yet"
 
             echo ""
-            echo "=== Step 7: Test HTTP access to ACME challenge ==="
+            echo "=== Step 8: Test HTTP access to ACME challenge ==="
             HTTP_RESPONSE=$(curl -I http://miniapp.chatmoderatorbot.ru/.well-known/acme-challenge/test 2>&1 | head -1)
             echo "HTTP response: $HTTP_RESPONSE"
 
@@ -102,7 +116,7 @@ jobs:
             fi
 
             echo ""
-            echo "=== Step 8: Run certbot to add miniapp subdomain ==="
+            echo "=== Step 9: Run certbot to add miniapp subdomain ==="
             sudo certbot certonly --webroot \
               -w "$DEPLOY_PATH/certbot/webroot" \
               -d chatmoderatorbot.ru \
