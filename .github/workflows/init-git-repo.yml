@@ -33,52 +33,45 @@ jobs:
             echo "✓ Ownership fixed"
 
             echo ""
-            echo "=== Step 2: Initialize or fix git repository ==="
+            echo "=== Step 2: Download latest production code from GitHub ==="
 
-            # Add safe directory to avoid dubious ownership errors
-            git config --global --add safe.directory "$DEPLOY_PATH"
+            # Save .env and other important runtime files
+            echo "Backing up runtime files..."
+            mkdir -p /tmp/chatkeep_backup
+            [ -f ".env" ] && cp .env /tmp/chatkeep_backup/ && echo "✓ Backed up .env"
+            [ -d "certbot" ] && cp -r certbot /tmp/chatkeep_backup/ && echo "✓ Backed up certbot"
 
-            if [ ! -d ".git" ]; then
-              echo "⚠ Not a git repository, initializing..."
-              git init
-              echo "✓ Git initialized"
-            else
-              echo "✓ Git repository already exists"
-            fi
+            # Download and extract production branch archive
+            echo "Downloading production branch from GitHub..."
+            cd /root
+            wget -q -O chatkeep-production.tar.gz "https://github.com/AndVl1/chatkeep/archive/refs/heads/production.tar.gz"
+            echo "✓ Downloaded"
 
-            # Add remote if not exists
-            if ! git remote | grep -q "^origin$"; then
-              echo "Adding remote origin..."
-              git remote add origin https://github.com/AndVl1/chatkeep.git
-              echo "✓ Remote added"
-            else
-              echo "✓ Remote origin already exists"
-            fi
+            # Extract over existing directory
+            echo "Extracting..."
+            tar -xzf chatkeep-production.tar.gz
+            echo "✓ Extracted"
 
-            # Fetch from remote
-            echo "Fetching from origin..."
-            git fetch origin
-            echo "✓ Fetched"
+            # Move files from extracted directory to chatkeep/
+            echo "Moving files to chatkeep directory..."
+            cp -rf chatkeep-production/* chatkeep/ 2>/dev/null || echo "Some files may already exist"
+            cp -rf chatkeep-production/.* chatkeep/ 2>/dev/null || echo "Hidden files copied"
+            rm -rf chatkeep-production chatkeep-production.tar.gz
+            echo "✓ Files updated"
 
-            # Check if we're on production branch
-            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "none")
-            echo "Current branch: $CURRENT_BRANCH"
+            # Restore runtime files
+            echo "Restoring runtime files..."
+            [ -f "/tmp/chatkeep_backup/.env" ] && cp /tmp/chatkeep_backup/.env chatkeep/ && echo "✓ Restored .env"
+            [ -d "/tmp/chatkeep_backup/certbot" ] && cp -r /tmp/chatkeep_backup/certbot chatkeep/ && echo "✓ Restored certbot"
+            rm -rf /tmp/chatkeep_backup
 
-            if [ "$CURRENT_BRANCH" != "production" ]; then
-              echo "Checking out production branch..."
-              git checkout -b production origin/production 2>/dev/null || git checkout production
-              echo "✓ Now on production branch"
-            else
-              echo "✓ Already on production branch"
-              # Pull latest changes
-              git reset --hard origin/production
-              echo "✓ Reset to origin/production"
-            fi
+            cd "$DEPLOY_PATH"
+            echo "✓ Back in $DEPLOY_PATH"
 
             echo ""
-            echo "=== Step 3: Verify current branch and status ==="
-            git branch
-            git status
+            echo "=== Step 3: Verify files ==="
+            echo "Files in current directory:"
+            ls -lah | head -20
 
             echo ""
             echo "=== Step 4: Verify miniapp config file exists ==="
@@ -87,16 +80,9 @@ jobs:
               ls -lh docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf
             else
               echo "✗ miniapp.chatmoderatorbot.ru.conf NOT found!"
-              echo "Trying to pull latest changes..."
-              git pull origin production || echo "Git pull failed"
-
-              # Check again
-              if [ -f "docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf" ]; then
-                echo "✓ File now exists after pull"
-              else
-                echo "✗ File still missing - may need manual intervention"
-                exit 1
-              fi
+              echo "Listing nginx sites directory:"
+              ls -la docker/nginx/sites/
+              exit 1
             fi
 
             echo ""
