@@ -18,7 +18,10 @@ class CorsConfig {
                 "https://*.trycloudflare.com",
                 "https://*.ngrok-free.dev",
                 "http://localhost:*",
-                "https://localhost:*"
+                "https://localhost:*",
+                "https://chatmoderatorbot.ru",
+                "https://miniapp.chatmoderatorbot.ru",
+                "https://admin.chatmoderatorbot.ru"
             )
 
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
