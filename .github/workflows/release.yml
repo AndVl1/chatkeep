@@ -1,0 +1,152 @@
+name: Create Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (optional, auto-generated if empty)'
+        required: false
+        type: string
+
+jobs:
+  create-rc:
+    name: Create Release Candidate Branch and PR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Generate version and branch name
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          fi
+
+          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+          BRANCH_NAME="release/rc-${TIMESTAMP}"
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+
+      - name: Create RC branch
+        run: |
+          git checkout -b ${{ steps.version.outputs.branch_name }}
+          git push origin ${{ steps.version.outputs.branch_name }}
+
+      - name: Generate change summary
+        id: changes
+        run: |
+          # Get commits between production and main
+          COMMITS=$(git log --oneline production..main --pretty=format:"- %s (%h)" | head -30)
+
+          if [ -z "$COMMITS" ]; then
+            echo "No new commits to deploy"
+            exit 1
+          fi
+
+          # Count changes by type
+          FEAT_COUNT=$(echo "$COMMITS" | grep -c "feat:" || echo "0")
+          FIX_COUNT=$(echo "$COMMITS" | grep -c "fix:" || echo "0")
+          REFACTOR_COUNT=$(echo "$COMMITS" | grep -c "refactor:" || echo "0")
+          DOCS_COUNT=$(echo "$COMMITS" | grep -c "docs:" || echo "0")
+
+          # Create detailed summary
+          {
+            echo "## Release Candidate: v${{ steps.version.outputs.version }}"
+            echo ""
+            echo "### Summary"
+            echo "- Features: ${FEAT_COUNT}"
+            echo "- Fixes: ${FIX_COUNT}"
+            echo "- Refactorings: ${REFACTOR_COUNT}"
+            echo "- Documentation: ${DOCS_COUNT}"
+            echo ""
+            echo "### Changes"
+            echo ""
+            echo "$COMMITS"
+            echo ""
+            echo "### Deployment Checklist"
+            echo ""
+            echo "#### Pre-deployment"
+            echo "- [ ] All CI checks passed"
+            echo "- [ ] Backend changes reviewed and tested"
+            echo "- [ ] Frontend changes reviewed and tested"
+            echo "- [ ] Admin app changes reviewed (if applicable)"
+            echo "- [ ] Database migrations reviewed"
+            echo "- [ ] Environment variables documented"
+            echo ""
+            echo "#### Configuration"
+            echo "- [ ] Update \`.env\` on production server (if needed)"
+            echo "- [ ] Update secrets in GitHub (if needed)"
+            echo "- [ ] Review nginx configs for changes"
+            echo "- [ ] Review docker-compose.prod.yml for changes"
+            echo ""
+            echo "#### Monitoring & Rollback"
+            echo "- [ ] Grafana dashboards configured"
+            echo "- [ ] Alerts configured (if needed)"
+            echo "- [ ] Rollback procedure documented"
+            echo "- [ ] Database backup verified"
+            echo ""
+            echo "#### Post-deployment"
+            echo "- [ ] Verify bot responds to /start command"
+            echo "- [ ] Verify admin panel loads (https://admin.chatmoderatorbot.ru)"
+            echo "- [ ] Verify mini-app loads (https://miniapp.chatmoderatorbot.ru)"
+            echo "- [ ] Check Grafana metrics for errors"
+            echo "- [ ] Monitor logs for 15 minutes"
+            echo ""
+            echo "---"
+            echo ""
+            echo "**Branch:** \`${{ steps.version.outputs.branch_name }}\`"
+            echo ""
+            echo "**Created:** $(date +'%Y-%m-%d %H:%M:%S UTC')"
+            echo ""
+            echo "**Deploy command:**"
+            echo "\`\`\`bash"
+            echo "# Merge this PR, then deployment will run automatically"
+            echo "# Or manually trigger: Actions -> Deploy -> Run workflow -> production"
+            echo "\`\`\`"
+          } > pr_body.md
+
+          echo "changes_exist=true" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.version.outputs.branch_name }}
+          base: production
+          title: "Release v${{ steps.version.outputs.version }} to Production"
+          body-path: pr_body.md
+          labels: |
+            release
+            deployment
+            production
+          draft: false
+
+      - name: Summary
+        run: |
+          echo "## Release Candidate Created! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ steps.version.outputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the PR" >> $GITHUB_STEP_SUMMARY
+          echo "2. Complete the deployment checklist" >> $GITHUB_STEP_SUMMARY
+          echo "3. Merge when ready to deploy" >> $GITHUB_STEP_SUMMARY
