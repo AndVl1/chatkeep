@@ -137,14 +137,13 @@
           }
 
           console.log('[Mock] Telegram environment initialized in index.html');
-        } else if (!isDevelopment) {
-          // Production: load official Telegram SDK
-          // This will provide initData if opened from Telegram, or be empty for web mode
-          document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
         }
         // Development without mock: do nothing, web mode will be detected
       })();
     </script>
+    <!-- Load Telegram SDK in production (when not localhost) -->
+    <!-- Using static script tag instead of document.write() to avoid CSP issues -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
     <div id="root"></div>
