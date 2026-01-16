@@ -31,11 +31,20 @@ jobs:
             echo "Running SSL certificate setup..."
             echo "This will add miniapp.chatmoderatorbot.ru to the certificate"
 
-            # Make script executable
-            chmod +x scripts/setup-ssl.sh
-
-            # Run SSL setup (requires sudo, assuming user has passwordless sudo)
-            sudo ./scripts/setup-ssl.sh
+            # Run certbot directly with all domains including miniapp
+            sudo certbot certonly --webroot \
+              -w /root/chatkeep/certbot/webroot \
+              -d chatmoderatorbot.ru \
+              -d www.chatmoderatorbot.ru \
+              -d miniapp.chatmoderatorbot.ru \
+              -d api.chatmoderatorbot.ru \
+              -d grafana.chatmoderatorbot.ru \
+              -d prometheus.chatmoderatorbot.ru \
+              -d admin.chatmoderatorbot.ru \
+              --non-interactive \
+              --agree-tos \
+              --email admin@chatmoderatorbot.ru \
+              --expand
 
             echo "SSL setup completed!"
 
