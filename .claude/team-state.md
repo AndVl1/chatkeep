@@ -117,10 +117,36 @@ Setup new subdomain `miniapp.chatmoderatorbot.ru` with routing logic:
 5. **Documentation** - Created `MINIAPP-SUBDOMAIN-SETUP.md` with setup instructions
 6. **Manual QA Testing** - Completed testing of both browser and Telegram environments
 
-### ⚠️ Pending
-1. **SSL Certificate** - miniapp.chatmoderatorbot.ru not yet in certificate (manual server fix needed)
-   - Issue: Nginx config not loading on server, causing Let's Encrypt HTTP challenge to fail
-   - Solution: SSH to server, verify nginx config loaded, restart nginx, run certbot
+### ⚠️ CRITICAL - Requires Manual SSH Access
+
+**Root Cause Discovered**: `/root/chatkeep` is NOT a git repository
+
+Investigation findings:
+- Debug workflow revealed: "fatal: not a git repository"
+- miniapp.chatmoderatorbot.ru.conf does NOT exist on server
+- Last file modification: Jan 14, current commits: Jan 16
+- Deploy workflow's `git pull` command fails silently
+
+**Manual Fix Required**:
+```bash
+# SSH to server
+ssh root@89.125.243.104
+cd /root/chatkeep
+
+# Initialize git or re-clone repository
+git init
+git remote add origin https://github.com/AndVl1/chatkeep.git
+git fetch origin
+git checkout -b production origin/production
+
+# Verify miniapp config exists
+ls -la docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf
+
+# Restart services and run SSL setup
+docker-compose -f docker-compose.prod.yml restart
+sleep 10
+sudo ./scripts/setup-ssl.sh
+```
 
 ### 🐛 Pre-Existing Issues Found (Not Related to This Task)
 1. **Backend Auth Failure** - `/api/v1/auth/telegram-login` returns 403 Forbidden
