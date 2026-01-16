@@ -2,6 +2,12 @@ name: Deploy Files to Server and Setup SSL
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'production'
+        type: string
 
 jobs:
   deploy:
@@ -11,10 +17,10 @@ jobs:
     if: vars.DEPLOY_HOST != ''
 
     steps:
-      - name: Checkout production branch
+      - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          ref: production
+          ref: ${{ inputs.branch }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
