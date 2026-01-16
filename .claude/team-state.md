@@ -117,36 +117,27 @@ Setup new subdomain `miniapp.chatmoderatorbot.ru` with routing logic:
 5. **Documentation** - Created `MINIAPP-SUBDOMAIN-SETUP.md` with setup instructions
 6. **Manual QA Testing** - Completed testing of both browser and Telegram environments
 
-### ⚠️ CRITICAL - Requires Manual SSH Access
+### ✅ RESOLVED - Deployment Successful
 
-**Root Cause Discovered**: `/root/chatkeep` is NOT a git repository
+**Root Cause**: `/root/chatkeep` was NOT a git repository, causing `git pull` to fail silently
 
-Investigation findings:
-- Debug workflow revealed: "fatal: not a git repository"
-- miniapp.chatmoderatorbot.ru.conf does NOT exist on server
-- Last file modification: Jan 14, current commits: Jan 16
-- Deploy workflow's `git pull` command fails silently
+**Solution Implemented**: Created GitHub Actions workflow for tarball-based deployment
+- Workflow: `.github/workflows/deploy-files-to-server.yml`
+- Creates tarball from production branch in GitHub Actions
+- Transfers via SCP to server
+- Extracts with `--strip-components=1` to avoid nested directory structure
+- Runs certbot to update SSL certificate
+- Reloads nginx to apply changes
 
-**Manual Fix Required**:
-```bash
-# SSH to server
-ssh root@89.125.243.104
-cd /root/chatkeep
-
-# Initialize git or re-clone repository
-git init
-git remote add origin https://github.com/AndVl1/chatkeep.git
-git fetch origin
-git checkout -b production origin/production
-
-# Verify miniapp config exists
-ls -la docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf
-
-# Restart services and run SSL setup
-docker-compose -f docker-compose.prod.yml restart
-sleep 10
-sudo ./scripts/setup-ssl.sh
-```
+**Deployment Results** (2026-01-16):
+- ✅ Tarball creation successful
+- ✅ SCP file transfer successful
+- ✅ Extraction to /root/chatkeep successful
+- ✅ miniapp.chatmoderatorbot.ru.conf deployed to server
+- ✅ Nginx restarted successfully
+- ✅ SSL certificate renewed with miniapp.chatmoderatorbot.ru included
+- ✅ HTTPS working correctly (HTTP/2 301 redirect for browsers)
+- ✅ Certificate verified: includes DNS:miniapp.chatmoderatorbot.ru in SAN field
 
 ### 🐛 Pre-Existing Issues Found (Not Related to This Task)
 1. **Backend Auth Failure** - `/api/v1/auth/telegram-login` returns 403 Forbidden
@@ -160,6 +151,7 @@ sudo ./scripts/setup-ssl.sh
 - Created: `.github/workflows/setup-ssl.yml`
 - Created: `.github/workflows/update-ssl-cert.yml`
 - Created: `.github/workflows/debug-nginx.yml`
+- Created: `.github/workflows/deploy-files-to-server.yml` ⭐
 - Created: `docs/MINIAPP-SUBDOMAIN-SETUP.md`
 
 ### Commits
@@ -169,6 +161,26 @@ sudo ./scripts/setup-ssl.sh
 - fix: force SSL certificate renewal with verbose output (911fa2b)
 - docs: add miniapp subdomain setup documentation (8510581)
 - debug: add nginx configuration debug workflow (d310d29)
+- feat: add tarball-based deployment workflow to bypass git repository issue (a942ac2)
+- fix: create tarball in parent directory to avoid file change error (a942ac2)
+- fix: use --strip-components=1 when extracting tarball to avoid nested directory (0d57c88)
 
 ## Recovery
-Task completed. SSL certificate requires manual fix on server (see MINIAPP-SUBDOMAIN-SETUP.md)
+✅ **TASK COMPLETED SUCCESSFULLY**
+
+All objectives achieved:
+- ✅ miniapp.chatmoderatorbot.ru subdomain configured with SSL certificate
+- ✅ Nginx routing working (browser detection and redirect)
+- ✅ Deployment workflow fixed and functional
+- ✅ SSL certificate includes all 7 subdomains including miniapp
+- ✅ HTTPS access verified and working
+- ✅ Mini App build integrated into deployment workflow
+- ✅ Both domains working: chatmoderatorbot.ru (200 OK), miniapp (301 redirect)
+
+**Additional Fix (2026-01-16 22:12)**:
+- Issue: 403 Forbidden on both domains due to missing mini-app/dist files
+- Solution: Added Mini App build step to deployment workflow
+- Now workflow builds mini-app before creating tarball
+- Verified: chatmoderatorbot.ru returns HTTP/2 200, miniapp redirects correctly
+
+**Note**: Pre-existing backend auth and Mini App issues remain unresolved but are not part of this task.
