@@ -1,0 +1,164 @@
+name: Deploy Files to Server and Setup SSL
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Production Files
+    runs-on: ubuntu-latest
+
+    if: vars.DEPLOY_HOST != ''
+
+    steps:
+      - name: Checkout production branch
+        uses: actions/checkout@v4
+        with:
+          ref: production
+
+      - name: Create tarball of production files
+        run: |
+          echo "Creating tarball..."
+          tar -czf /tmp/chatkeep-deploy.tar.gz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='build' \
+            --exclude='.gradle' \
+            --exclude='.kotlin' \
+            --exclude='.env' \
+            --exclude='certbot' \
+            .
+
+          echo "✓ Tarball created"
+          ls -lh /tmp/chatkeep-deploy.tar.gz
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            DEPLOY_PATH="/root/chatkeep"
+
+            echo "=== Preparing for deployment ==="
+
+            # Backup important files
+            echo "Backing up runtime files..."
+            mkdir -p /tmp/chatkeep_backup
+            [ -f "$DEPLOY_PATH/.env" ] && cp "$DEPLOY_PATH/.env" /tmp/chatkeep_backup/
+            [ -d "$DEPLOY_PATH/certbot" ] && cp -r "$DEPLOY_PATH/certbot" /tmp/chatkeep_backup/
+            echo "✓ Backed up"
+
+            # Clean target directory but keep backups
+            echo "Cleaning deployment directory..."
+            cd "$DEPLOY_PATH"
+            find . -mindepth 1 -maxdepth 1 ! -name '.env' ! -name 'certbot' ! -name '.' ! -name '..' -exec rm -rf {} +
+            echo "✓ Cleaned"
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "/tmp/chatkeep-deploy.tar.gz"
+          target: "/root/"
+          overwrite: true
+
+      - name: Extract and setup SSL
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            DEPLOY_PATH="/root/chatkeep"
+
+            echo "=== Extracting files ==="
+            cd "$DEPLOY_PATH"
+            tar -xzf /root/chatkeep-deploy.tar.gz
+            rm /root/chatkeep-deploy.tar.gz
+            echo "✓ Extracted"
+
+            # Restore backups
+            echo "Restoring runtime files..."
+            [ -f "/tmp/chatkeep_backup/.env" ] && cp /tmp/chatkeep_backup/.env "$DEPLOY_PATH/"
+            [ -d "/tmp/chatkeep_backup/certbot" ] && cp -r /tmp/chatkeep_backup/certbot "$DEPLOY_PATH/"
+            rm -rf /tmp/chatkeep_backup
+            echo "✓ Restored"
+
+            # Fix ownership
+            echo "Fixing file ownership..."
+            chown -R root:root "$DEPLOY_PATH"
+            echo "✓ Ownership fixed"
+
+            echo ""
+            echo "=== Verify miniapp config ==="
+            if [ -f "docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf" ]; then
+              echo "✓ miniapp.chatmoderatorbot.ru.conf exists"
+              ls -lh docker/nginx/sites/miniapp.chatmoderatorbot.ru.conf
+            else
+              echo "✗ miniapp.chatmoderatorbot.ru.conf NOT found!"
+              exit 1
+            fi
+
+            echo ""
+            echo "=== Restart nginx ==="
+            docker restart chatkeep-nginx
+            echo "Waiting 10 seconds..."
+            sleep 10
+            echo "✓ Nginx restarted"
+
+            echo ""
+            echo "=== Test nginx config ==="
+            docker exec chatkeep-nginx nginx -t
+
+            echo ""
+            echo "=== Verify miniapp config in container ==="
+            docker exec chatkeep-nginx ls -la /etc/nginx/sites-enabled/ | grep miniapp || echo "⚠ Not found in container"
+
+            echo ""
+            echo "=== Test HTTP access ==="
+            HTTP_RESP=$(curl -I http://miniapp.chatmoderatorbot.ru/.well-known/acme-challenge/test 2>&1 | head -1)
+            echo "HTTP response: $HTTP_RESP"
+
+            echo ""
+            echo "=== Run certbot ==="
+            sudo certbot certonly --webroot \
+              -w "$DEPLOY_PATH/certbot/webroot" \
+              -d chatmoderatorbot.ru \
+              -d www.chatmoderatorbot.ru \
+              -d miniapp.chatmoderatorbot.ru \
+              -d api.chatmoderatorbot.ru \
+              -d grafana.chatmoderatorbot.ru \
+              -d prometheus.chatmoderatorbot.ru \
+              -d admin.chatmoderatorbot.ru \
+              --non-interactive \
+              --agree-tos \
+              --email admin@chatmoderatorbot.ru \
+              --expand \
+              --force-renewal \
+              -v
+
+            CERT_RESULT=$?
+            echo "Certbot exit code: $CERT_RESULT"
+
+            if [ $CERT_RESULT -eq 0 ]; then
+              echo "✓ Certificate updated!"
+
+              echo ""
+              echo "Certificate details:"
+              sudo certbot certificates | grep -A 15 "chatmoderatorbot.ru"
+
+              echo ""
+              echo "Reloading nginx..."
+              docker exec chatkeep-nginx nginx -s reload
+
+              echo ""
+              echo "✓ All done! Testing HTTPS..."
+              curl -I https://miniapp.chatmoderatorbot.ru 2>&1 | head -10
+            else
+              echo "✗ Certbot failed"
+              exit 1
+            fi
