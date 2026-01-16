@@ -32,6 +32,7 @@ jobs:
             echo "This will add miniapp.chatmoderatorbot.ru to the certificate"
 
             # Run certbot directly with all domains including miniapp
+            echo "Running certbot with domains: chatmoderatorbot.ru www miniapp api grafana prometheus admin"
             sudo certbot certonly --webroot \
               -w /root/chatkeep/certbot/webroot \
               -d chatmoderatorbot.ru \
@@ -44,7 +45,23 @@ jobs:
               --non-interactive \
               --agree-tos \
               --email admin@chatmoderatorbot.ru \
-              --expand
+              --expand \
+              --force-renewal \
+              -v
+
+            CERT_RESULT=$?
+            echo "Certbot exit code: $CERT_RESULT"
+
+            if [ $CERT_RESULT -eq 0 ]; then
+              echo "✓ Certificate updated successfully!"
+
+              # Show certificate info
+              echo "Certificate details:"
+              sudo certbot certificates | grep -A 10 "chatmoderatorbot.ru"
+            else
+              echo "✗ Certbot failed with exit code $CERT_RESULT"
+              exit 1
+            fi
 
             echo "SSL setup completed!"
 
