@@ -19,18 +19,24 @@ jobs:
       - name: Create tarball of production files
         run: |
           echo "Creating tarball..."
+          cd ..
           tar -czf chatkeep-deploy.tar.gz \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='build' \
-            --exclude='.gradle' \
-            --exclude='.kotlin' \
-            --exclude='.env' \
-            --exclude='certbot' \
-            --exclude='chatkeep-deploy.tar.gz' \
-            .
+            --exclude='chatkeep/.git' \
+            --exclude='chatkeep/node_modules' \
+            --exclude='chatkeep/build' \
+            --exclude='chatkeep/.gradle' \
+            --exclude='chatkeep/.kotlin' \
+            --exclude='chatkeep/.env' \
+            --exclude='chatkeep/certbot' \
+            chatkeep/
 
           echo "✓ Tarball created"
+          ls -lh chatkeep-deploy.tar.gz
+
+          # Move to chatkeep directory for scp-action
+          mv chatkeep-deploy.tar.gz chatkeep/
+          cd chatkeep
+          echo "Tarball in chatkeep directory:"
           ls -lh chatkeep-deploy.tar.gz
 
       - name: Deploy to server via SSH
