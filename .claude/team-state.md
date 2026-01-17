@@ -4,66 +4,67 @@
 - Type: BUG_FIX
 - Complexity: MEDIUM
 - Workflow: STANDARD
-- Branch: feat/miniapp-bot-admin-warning
+- Branch: fix/production-bugs-jan-2026
 
 ## Task
-Исправить 4 проблемы:
-1. Grafana active_chats метрика показывает 0 - нужно считать чаты как в мобильном приложении
-2. Mobile App: Workflows не отображаются (PAT добавлен в .env, но не работает)
-3. Mobile App: Добавить pull-to-refresh через expect/actual (Android)
-4. Mini App: Добавить предупреждение если бот не админ в чате
-
-Создать один PR с фиксами. Использовать manual QA для тестирования.
+Fix 3 production bugs:
+1. Admin warning badge shows even when bot IS admin (Mini App)
+2. Empty chat name appears in Mini App chat list
+3. Workflows not showing in mobile admin + add logs endpoint
 
 ## Progress
+- [x] Phase 0: Classification - COMPLETED
 - [x] Phase 1: Discovery - COMPLETED
 - [x] Phase 2: Exploration - COMPLETED
-- [x] Phase 3: Questions - COMPLETED
-- [x] Phase 4: Architecture - COMPLETED
 - [x] Phase 5: Implementation - COMPLETED
-- [ ] Phase 6: Review - IN PROGRESS
-- [ ] Phase 6.5: Review Fixes - pending (if needed)
-- [ ] Phase 7: Summary - pending
+- [x] Phase 6: Review - COMPLETED
+- [x] Phase 6.5: Review Fixes - COMPLETED
+- [x] Phase 7: Summary - COMPLETED
 
-## Key Decisions
-- Issue 2: PAT есть на проде, нужно только добавить в .env.example для документации
-- Issue 4: Показывать предупреждение в обоих местах (список чатов + страницы настроек)
+## All Commits (10 total)
 
-## Files Modified
+### Implementation Commits
+- fcae1dc fix: force refresh bot admin status and filter blank chat titles
+- 0b60793 fix: throw exception when GitHub PAT not configured
+- e324102 feat: add admin logs endpoint for debugging
+- 8b052b7 fix: update WorkflowRunDto to match backend response
+- 18dceea feat: add Logs tab to mobile admin navigation
 
-### Backend (Issue 1 + Issue 4 API)
-- `src/main/kotlin/ru/andvl/chatkeep/domain/service/ChatService.kt` - @PostConstruct для инициализации метрики
-- `src/main/kotlin/ru/andvl/chatkeep/api/dto/ResponseDtos.kt` - добавлено поле isBotAdmin
-- `src/main/kotlin/ru/andvl/chatkeep/api/controller/MiniAppChatsController.kt` - проверка bot admin статуса
-- `.env.example` - добавлен GITHUB_PAT
+### Review Fix Commits
+- dfc27f1 fix: add admin allowlist re-verification in AdminAuthFilter
+- 7b1b7ea fix: add validation for minutes parameter in AdminLogsController
+- 5fcf9de fix: reduce default log line limit and improve code clarity
+- c3ffc0b fix: make triggerWorkflow throw exception for consistency
+- a7fa456 fix: correct LogsResponse DTO to match backend
 
-### Mobile App (Issue 3)
-- `chatkeep-admin/feature/chats/impl/src/commonMain/kotlin/com/chatkeep/admin/feature/chats/ui/ChatsScreen.kt`
-- `chatkeep-admin/feature/dashboard/impl/src/commonMain/kotlin/com/chatkeep/admin/feature/dashboard/ui/DashboardScreen.kt`
-- `chatkeep-admin/feature/deploy/impl/src/commonMain/kotlin/com/chatkeep/admin/feature/deploy/ui/DeployScreen.kt`
+## Files Modified (All)
 
-### Mini App (Issue 4 UI)
-- `mini-app/src/types/index.ts` - добавлено isBotAdmin
-- `mini-app/src/i18n/locales/en.json` - translations
-- `mini-app/src/i18n/locales/ru.json` - translations
-- `mini-app/src/components/common/AdminWarningBanner.tsx` - новый компонент
-- `mini-app/src/components/chats/ChatCard.tsx` - warning badge
-- `mini-app/src/pages/SettingsPage.tsx` - banner
-- `mini-app/src/pages/BlocklistPage.tsx` - banner
-- `mini-app/src/pages/LocksPage.tsx` - banner
-- `mini-app/src/test/mocks/data.ts` - mock data
+### Backend
+- `src/main/kotlin/ru/andvl/chatkeep/api/controller/MiniAppChatsController.kt`
+- `src/main/kotlin/ru/andvl/chatkeep/api/exception/MiniAppException.kt`
+- `src/main/kotlin/ru/andvl/chatkeep/api/exception/GlobalExceptionHandler.kt`
+- `src/main/kotlin/ru/andvl/chatkeep/domain/service/github/GitHubService.kt`
+- `src/main/kotlin/ru/andvl/chatkeep/api/dto/AdminDtos.kt`
+- `src/main/kotlin/ru/andvl/chatkeep/api/controller/AdminLogsController.kt`
+- `src/main/kotlin/ru/andvl/chatkeep/domain/service/logs/LogService.kt`
+- `src/main/kotlin/ru/andvl/chatkeep/api/auth/AdminAuthFilter.kt`
 
-## Commits
-- 7462d07 feat: add isBotAdmin field to Chat interface
-- 2d63a6f feat: add admin warning translations for bot admin status
-- 80de561 feat: create AdminWarningBanner component
-- 9a2fe56 feat: add warning badge to ChatCard for non-admin bot status
-- 2cc91ac feat: add admin warning banners to Settings, Blocklist and Locks pages
-- 3aeda09 test: update mock data with isBotAdmin field
-- ae968fa feat: add pull-to-refresh to Chats, Dashboard and Deploy screens
-- 9e70e26 fix: initialize active_chats metric on application startup
-- 34c2c0d docs: add GITHUB_PAT to .env.example
-- 89b9dae feat: add isBotAdmin field to chat API response
+### Mobile Admin
+- `chatkeep-admin/core/network/.../SharedDtos.kt`
+- `chatkeep-admin/core/network/.../AdminApiService.kt`
+- `chatkeep-admin/core/network/.../AdminApiServiceImpl.kt`
+- `chatkeep-admin/feature/deploy/api/.../Workflow.kt`
+- `chatkeep-admin/feature/deploy/impl/.../WorkflowsRepositoryImpl.kt`
+- `chatkeep-admin/feature/logs/api/.../LogsData.kt`
+- `chatkeep-admin/feature/logs/impl/.../LogsRepositoryImpl.kt`
+- `chatkeep-admin/feature/logs/impl/.../LogsScreen.kt`
+- `chatkeep-admin/feature/logs/impl/.../LogsComponentFactory.kt`
+- `chatkeep-admin/feature/main/api/build.gradle.kts`
+- `chatkeep-admin/feature/main/api/.../MainComponent.kt`
+- `chatkeep-admin/feature/main/impl/build.gradle.kts`
+- `chatkeep-admin/feature/main/impl/.../DefaultMainComponent.kt`
+- `chatkeep-admin/feature/main/impl/.../MainScreen.kt`
+- `chatkeep-admin/composeApp/build.gradle.kts`
 
 ## Recovery
-Continue from Phase 6. Implementation complete. Ready for QA review and manual testing.
+All phases complete. Ready to push and create PR.
