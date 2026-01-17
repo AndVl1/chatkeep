@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@telegram-apps/telegram-ui';
 import { BlocklistList } from '@/components/blocklist/BlocklistList';
 import { AddPatternForm } from '@/components/blocklist/AddPatternForm';
+import { AdminWarningBanner } from '@/components/common/AdminWarningBanner';
 import { useBlocklist } from '@/hooks/api/useBlocklist';
 import { useConfirmDialog } from '@/hooks/ui/useConfirmDialog';
 import { useNotification } from '@/hooks/ui/useNotification';
+import { useSelectedChat } from '@/stores/chatStore';
 
 export function BlocklistPage() {
   const { t } = useTranslation();
@@ -18,6 +20,7 @@ export function BlocklistPage() {
   const { patterns, isLoading, error, addPattern, removePattern, refetch } = useBlocklist(numericChatId);
   const { confirm } = useConfirmDialog();
   const { showError } = useNotification();
+  const selectedChat = useSelectedChat();
 
   const handleDelete = useCallback(async (patternId: number) => {
     const confirmed = await confirm(
@@ -58,6 +61,8 @@ export function BlocklistPage() {
           {t('blocklist.title')}
         </h1>
       </div>
+
+      {selectedChat && !selectedChat.isBotAdmin && <AdminWarningBanner />}
 
       {isAdding ? (
         <AddPatternForm

@@ -5,8 +5,10 @@ import { Button } from '@telegram-apps/telegram-ui';
 import { SettingsForm } from '@/components/settings/SettingsForm';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
+import { AdminWarningBanner } from '@/components/common/AdminWarningBanner';
 import { useSettings } from '@/hooks/api/useSettings';
 import { useNotification } from '@/hooks/ui/useNotification';
+import { useSelectedChat } from '@/stores/chatStore';
 import type { ChatSettings } from '@/types';
 
 export function SettingsPage() {
@@ -17,6 +19,7 @@ export function SettingsPage() {
 
   const { data: settings, isLoading, isSaving, error, mutate, refetch } = useSettings(numericChatId);
   const { showError } = useNotification();
+  const selectedChat = useSelectedChat();
 
   const handleChange = useCallback(async (updates: Partial<ChatSettings>) => {
     try {
@@ -48,6 +51,8 @@ export function SettingsPage() {
           {settings.chatTitle}
         </h1>
       </div>
+
+      {selectedChat && !selectedChat.isBotAdmin && <AdminWarningBanner />}
 
       <SettingsForm
         settings={settings}

@@ -5,8 +5,10 @@ import { Button } from '@telegram-apps/telegram-ui';
 import { LocksGrid } from '@/components/locks/LocksGrid';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
+import { AdminWarningBanner } from '@/components/common/AdminWarningBanner';
 import { useLocks } from '@/hooks/api/useLocks';
 import { useNotification } from '@/hooks/ui/useNotification';
+import { useSelectedChat } from '@/stores/chatStore';
 import type { LockType } from '@/types';
 
 export function LocksPage() {
@@ -17,6 +19,7 @@ export function LocksPage() {
 
   const { data: locks, isLoading, isSaving, error, toggleLock, refetch } = useLocks(numericChatId);
   const { showError } = useNotification();
+  const selectedChat = useSelectedChat();
 
   const handleToggle = useCallback(async (lockType: LockType, locked: boolean) => {
     try {
@@ -48,6 +51,8 @@ export function LocksPage() {
           {t('locks.title')}
         </h1>
       </div>
+
+      {selectedChat && !selectedChat.isBotAdmin && <AdminWarningBanner />}
 
       <LocksGrid
         locks={locks.locks}
