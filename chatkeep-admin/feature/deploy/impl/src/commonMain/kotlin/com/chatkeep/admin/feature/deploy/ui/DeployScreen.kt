@@ -5,8 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,17 +22,6 @@ import kotlinx.datetime.Instant
 @Composable
 fun DeployScreen(component: DeployComponent) {
     val state by component.state.subscribeAsState()
-    var isRefreshing by remember { mutableStateOf(false) }
-
-    // Reset isRefreshing when state changes from Loading
-    LaunchedEffect(Unit) {
-        snapshotFlow { state }
-            .collect { currentState ->
-                if (currentState !is DeployComponent.DeployState.Loading) {
-                    isRefreshing = false
-                }
-            }
-    }
 
     Scaffold(
         topBar = {
@@ -41,7 +30,13 @@ fun DeployScreen(component: DeployComponent) {
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        PullToRefreshBox(
+            isRefreshing = state is DeployComponent.DeployState.Loading,
+            onRefresh = component::onRefresh,
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
             when (val currentState = state) {
                 is DeployComponent.DeployState.Loading -> LoadingContent()
                 is DeployComponent.DeployState.Error -> ErrorContent(
@@ -49,23 +44,14 @@ fun DeployScreen(component: DeployComponent) {
                     onRetry = component::onRefresh
                 )
                 is DeployComponent.DeployState.Success -> {
-                    PullToRefreshBox(
-                        isRefreshing = isRefreshing,
-                        onRefresh = {
-                            isRefreshing = true
-                            component.onRefresh()
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        DeployContent(
-                            workflows = currentState.workflows,
-                            triggering = currentState.triggering,
-                            confirmDialog = currentState.confirmDialog,
-                            onTriggerClick = component::onTriggerClick,
-                            onConfirmTrigger = component::onConfirmTrigger,
-                            onDismissDialog = component::onDismissDialog
-                        )
-                    }
+                    DeployContent(
+                        workflows = currentState.workflows,
+                        triggering = currentState.triggering,
+                        confirmDialog = currentState.confirmDialog,
+                        onTriggerClick = component::onTriggerClick,
+                        onConfirmTrigger = component::onConfirmTrigger,
+                        onDismissDialog = component::onDismissDialog
+                    )
                 }
             }
         }

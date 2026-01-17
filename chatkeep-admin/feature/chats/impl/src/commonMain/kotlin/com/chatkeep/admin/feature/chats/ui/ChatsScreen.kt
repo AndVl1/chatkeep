@@ -6,8 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,17 +22,6 @@ import com.chatkeep.admin.feature.chats.ChatsComponent
 @Composable
 fun ChatsScreen(component: ChatsComponent) {
     val state by component.state.subscribeAsState()
-    var isRefreshing by remember { mutableStateOf(false) }
-
-    // Reset isRefreshing when state changes from Loading
-    LaunchedEffect(Unit) {
-        snapshotFlow { state }
-            .collect { currentState ->
-                if (currentState !is ChatsComponent.ChatsState.Loading) {
-                    isRefreshing = false
-                }
-            }
-    }
 
     Scaffold(
         topBar = {
@@ -41,7 +30,13 @@ fun ChatsScreen(component: ChatsComponent) {
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        PullToRefreshBox(
+            isRefreshing = state is ChatsComponent.ChatsState.Loading,
+            onRefresh = component::onRefresh,
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
             when (val currentState = state) {
                 is ChatsComponent.ChatsState.Loading -> LoadingContent()
                 is ChatsComponent.ChatsState.Error -> ErrorContent(
@@ -49,22 +44,13 @@ fun ChatsScreen(component: ChatsComponent) {
                     onRetry = component::onRefresh
                 )
                 is ChatsComponent.ChatsState.Success -> {
-                    PullToRefreshBox(
-                        isRefreshing = isRefreshing,
-                        onRefresh = {
-                            isRefreshing = true
-                            component.onRefresh()
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        if (currentState.chats.isEmpty()) {
-                            EmptyContent()
-                        } else {
-                            ChatsContent(
-                                chats = currentState.chats,
-                                onChatClick = component::onChatClick
-                            )
-                        }
+                    if (currentState.chats.isEmpty()) {
+                        EmptyContent()
+                    } else {
+                        ChatsContent(
+                            chats = currentState.chats,
+                            onChatClick = component::onChatClick
+                        )
                     }
                 }
             }
