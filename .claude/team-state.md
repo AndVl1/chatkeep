@@ -4,69 +4,50 @@
 - Type: FEATURE
 - Complexity: COMPLEX
 - Workflow: FULL 7-PHASE
-- Branch: fix/production-bugs-jan-2026 (continuing)
+- Branch: fix/production-bugs-jan-2026
 
 ## Task
-Add contract testing between backend and mobile app:
-1. Backend generates OpenAPI schema for API responses
-2. Generate test JSON fixtures from OpenAPI schema
-3. Mobile app uses fixtures in contract tests
-4. Single PR pipeline step runs both fixture generation and mobile tests
+Add contract testing between backend and mobile app.
 
 ## Progress
 - [x] Phase 1: Discovery - COMPLETED
 - [x] Phase 2: Exploration - COMPLETED
 - [x] Phase 3: Questions - COMPLETED
 - [x] Phase 4: Architecture - COMPLETED
-- [ ] Phase 5: Implementation - IN PROGRESS
-- [ ] Phase 6: Review - pending
-- [ ] Phase 7: Summary - pending
+- [x] Phase 5: Implementation - COMPLETED
+- [x] Phase 6: Review - COMPLETED
+- [x] Phase 6.5: Review Fixes - COMPLETED
+- [x] Phase 7: Summary - COMPLETED
 
-## Phase 3 Decisions
-- **Generator**: openapi-generator CLI
-- **OpenAPI**: springdoc-openapi-gradle-plugin (no server startup)
-- **Tests**: jvmTest only (fast CI)
+## Contract Testing Commits (7 total)
+- 333bd1f feat: add contract testing step to CI pipeline
+- 90eead0 feat: add test dependencies to KMP admin app
+- 344471c feat: add contract test infrastructure for DTO validation
+- 64812fa feat: add OpenAPI generation and fixture generation for contract testing
+- d8efc05 refactor: remove unused generate_fixture function
+- b9b3b26 fix: correct DTO field mismatches with backend
+- 03e7db2 fix: correct CI pipeline for contract testing (desktopTest, jq, bash script)
 
-## Chosen Architecture
-
-### 1. Backend OpenAPI Generation
-- Add springdoc-openapi-gradle-plugin to build.gradle.kts
-- Generate openapi.json to build/openapi/
-- Upload as artifact in CI
-
-### 2. Fixture Generation
-- Use openapi-generator CLI or custom script
-- Generate example JSONs from schema
-- Place in chatkeep-admin/core/network/src/jvmTest/resources/fixtures/
-
-### 3. Mobile Contract Tests
-- Add jvmTest source set to core/network module
-- Add kotlin-test dependencies
-- Create ContractTestBase + 5 test classes:
-  - AuthContractTest (LoginResponse, AdminResponse)
-  - DashboardContractTest
-  - ChatsContractTest
-  - LogsContractTest
-  - WorkflowsContractTest (WorkflowResponse, TriggerResponse, ActionResponse)
-
-### 4. CI Pipeline
-- New contract-tests job depending on backend
-- Download OpenAPI artifact → Generate fixtures → Run jvmTest
-
-## Files to Create/Modify
+## Files Created/Modified
 
 ### Backend
-- build.gradle.kts (add plugin)
-- scripts/generate-fixtures.sh or .kt
+- build.gradle.kts (springdoc-openapi-gradle-plugin)
+- src/main/kotlin/.../dto/AdminDtos.kt (@Schema annotations)
+- src/main/kotlin/.../dto/ResponseDtos.kt (@Schema annotations)
+- scripts/generate-fixtures.sh (fixture generation)
+- scripts/FIXTURES_README.md (documentation)
 
-### Mobile
-- chatkeep-admin/gradle/libs.versions.toml (test deps)
-- chatkeep-admin/core/network/build.gradle.kts (jvmTest)
-- chatkeep-admin/core/network/src/jvmTest/kotlin/.../contract/*.kt (tests)
-- chatkeep-admin/core/network/src/jvmTest/resources/fixtures/*.json
+### Mobile Admin
+- gradle/libs.versions.toml (test deps)
+- core/network/build.gradle.kts (desktopTest config)
+- core/network/src/desktopTest/kotlin/.../contract/*.kt (5 test classes)
+- core/network/src/desktopTest/resources/fixtures/*.json (8 fixture files)
+- core/network/src/commonMain/.../SharedDtos.kt (DTO fixes)
+- feature/chats/api/.../Chat.kt (nullable chatTitle)
+- feature/deploy/api/.../Workflow.kt (WorkflowTriggerResult)
 
 ### CI
 - .github/workflows/ci.yml (contract-tests job)
 
 ## Recovery
-Continue from Phase 5 Implementation. Architecture approved.
+All phases complete. Contract testing infrastructure implemented.
