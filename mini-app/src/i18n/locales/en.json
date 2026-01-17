@@ -152,5 +152,9 @@
     "unauthorized": "You are not authorized to perform this action",
     "notFound": "Resource not found",
     "serverError": "Server error. Please try again later."
+  },
+  "warnings": {
+    "botNotAdmin": "Bot is not an admin in this chat. Moderation features will not work.",
+    "botNotAdminShort": "Bot not admin"
   }
 }
