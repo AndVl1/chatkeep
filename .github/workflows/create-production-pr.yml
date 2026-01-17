@@ -38,9 +38,30 @@ jobs:
             exit 1
           fi
 
-          # Create summary
-          cat > summary.md <<EOF
-          ## Changes to Deploy
+          # Store commits for PR body
+          echo "COMMITS<<EOF" >> $GITHUB_ENV
+          echo "$COMMITS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMITS: ${{ env.COMMITS }}
+        run: |
+          # Check if PR already exists
+          EXISTING_PR=$(gh pr list --base production --head main --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #$EXISTING_PR already exists: https://github.com/${{ github.repository }}/pull/$EXISTING_PR"
+            exit 0
+          fi
+
+          # Create the PR
+          gh pr create \
+            --base production \
+            --head main \
+            --title "Deploy to Production - $(date +'%Y-%m-%d')" \
+            --body "## Changes to Deploy
 
           $COMMITS
 
@@ -50,20 +71,6 @@ jobs:
           - [ ] Frontend changes tested locally
           - [ ] Database migrations reviewed
           - [ ] Environment variables updated (if needed)
-          - [ ] Monitoring configured (if needed)
-
-          EOF
-
-          echo "summary_created=true" >> $GITHUB_OUTPUT
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
-          base: production
-          title: "Deploy to Production - $(date +'%Y-%m-%d')"
-          body-path: summary.md
-          labels: |
-            deployment
-            production
+          - [ ] Monitoring configured (if needed)" \
+            --label "deployment" \
+            --label "production"
