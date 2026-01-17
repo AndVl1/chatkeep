@@ -11,7 +11,7 @@ data class ChatSummaryResponse(
     val chatId: Long,
     val chatTitle: String?,
     val memberCount: Int?,
-    val isBotAdmin: Boolean = true
+    val isBotAdmin: Boolean = false
 )
 
 data class SettingsResponse(
