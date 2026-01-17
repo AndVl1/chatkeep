@@ -56,6 +56,8 @@ dependencies {
 
     // Database
     runtimeOnly("org.postgresql:postgresql")
+    // H2 for openapi profile (schema generation in CI)
+    runtimeOnly("com.h2database:h2")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     // Upgrade Flyway to support PostgreSQL 16.11
     implementation("org.flywaydb:flyway-database-postgresql:11.20.0")

@@ -33,13 +33,19 @@ jobs:
       - name: Generate OpenAPI Schema
         run: |
           mkdir -p build/openapi
-          ./gradlew bootRun &
+          # Use openapi profile with H2 in-memory database
+          ./gradlew bootRun --args='--spring.profiles.active=openapi' &
           BOOT_PID=$!
-          echo "Waiting for Spring Boot to start..."
-          for i in {1..60}; do
+          echo "Waiting for Spring Boot to start with openapi profile..."
+          for i in {1..90}; do
             if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
               echo "Application is up!"
               break
+            fi
+            if [ $i -eq 90 ]; then
+              echo "Timeout waiting for application to start"
+              kill $BOOT_PID 2>/dev/null || true
+              exit 1
             fi
             sleep 1
           done
