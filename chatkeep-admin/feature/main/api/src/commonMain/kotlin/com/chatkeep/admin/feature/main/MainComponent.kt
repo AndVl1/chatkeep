@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.feature.dashboard.DashboardComponent
 import com.chatkeep.admin.feature.chats.ChatsComponent
 import com.chatkeep.admin.feature.deploy.DeployComponent
+import com.chatkeep.admin.feature.logs.LogsComponent
 import com.chatkeep.admin.feature.settings.SettingsComponent
 import kotlinx.serialization.Serializable
 
@@ -17,6 +18,7 @@ interface MainComponent {
         data class Dashboard(val component: DashboardComponent) : Child()
         data class Chats(val component: ChatsComponent) : Child()
         data class Deploy(val component: DeployComponent) : Child()
+        data class Logs(val component: LogsComponent) : Child()
         data class Settings(val component: SettingsComponent) : Child()
     }
 
@@ -25,6 +27,7 @@ interface MainComponent {
         @Serializable data object Dashboard : Config()
         @Serializable data object Chats : Config()
         @Serializable data object Deploy : Config()
+        @Serializable data object Logs : Config()
         @Serializable data object Settings : Config()
     }
 
@@ -32,6 +35,7 @@ interface MainComponent {
         DASHBOARD,
         CHATS,
         DEPLOY,
+        LOGS,
         SETTINGS
     }
 }

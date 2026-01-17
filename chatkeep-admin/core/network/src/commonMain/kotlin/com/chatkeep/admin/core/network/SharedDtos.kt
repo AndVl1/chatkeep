@@ -73,16 +73,26 @@ data class ActionResponse(
 @Serializable
 data class ChatResponse(
     val chatId: Long,
-    val chatTitle: String,
+    val chatTitle: String? = null,
     val messagesToday: Int,
     val messagesYesterday: Int
 )
 
 // Logs DTOs
 @Serializable
+data class LogEntry(
+    val timestamp: String,  // Instant serialized as ISO-8601 string
+    val level: String,
+    val logger: String,
+    val message: String
+)
+
+@Serializable
 data class LogsResponse(
-    val lines: List<String>,
-    val timestamp: String
+    val entries: List<LogEntry>,
+    val totalCount: Int,
+    val fromTime: String,  // Instant serialized as ISO-8601 string
+    val toTime: String     // Instant serialized as ISO-8601 string
 )
 
 // Workflow DTOs
@@ -100,11 +110,14 @@ data class WorkflowRunDto(
     val status: String,
     val conclusion: String? = null,
     val createdAt: String,
-    val triggeredBy: String
+    val updatedAt: String,
+    val triggeredBy: String? = null,
+    val url: String
 )
 
 @Serializable
 data class TriggerResponse(
-    val runId: Long,
-    val url: String
+    val success: Boolean,
+    val message: String,
+    val workflowId: String
 )

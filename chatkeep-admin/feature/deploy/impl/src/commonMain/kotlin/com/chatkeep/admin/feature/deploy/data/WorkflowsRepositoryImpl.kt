@@ -27,7 +27,9 @@ internal class WorkflowsRepositoryImpl(
                             status = runDto.status.toWorkflowStatus(),
                             conclusion = runDto.conclusion,
                             createdAt = Instant.parse(runDto.createdAt),
-                            triggeredBy = runDto.triggeredBy
+                            updatedAt = Instant.parse(runDto.updatedAt),
+                            triggeredBy = runDto.triggeredBy,
+                            url = runDto.url
                         )
                     }
                 )
@@ -42,8 +44,9 @@ internal class WorkflowsRepositoryImpl(
         return try {
             val response = apiService.triggerWorkflow(workflowId)
             val result = WorkflowTriggerResult(
-                runId = response.runId,
-                url = response.url
+                success = response.success,
+                message = response.message,
+                workflowId = response.workflowId
             )
             AppResult.Success(result)
         } catch (e: Exception) {

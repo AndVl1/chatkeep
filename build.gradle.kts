@@ -3,6 +3,7 @@ plugins {
     kotlin("plugin.spring") version "2.2.21"
     id("org.springframework.boot") version "4.0.1"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
 }
 
 group = "ru.andvl"
@@ -55,6 +56,8 @@ dependencies {
 
     // Database
     runtimeOnly("org.postgresql:postgresql")
+    // H2 for openapi profile (schema generation in CI)
+    runtimeOnly("com.h2database:h2")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     // Upgrade Flyway to support PostgreSQL 16.11
     implementation("org.flywaydb:flyway-database-postgresql:11.20.0")
@@ -91,4 +94,13 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// OpenAPI generation configuration
+// Note: Requires the application to be running. Use in CI with bootRun task.
+openApi {
+    apiDocsUrl.set("http://localhost:8080/v3/api-docs")
+    outputDir.set(layout.buildDirectory.dir("openapi"))
+    outputFileName.set("openapi.json")
+    waitTimeInSeconds.set(30)
 }

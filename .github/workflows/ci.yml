@@ -30,6 +30,36 @@ jobs:
       - name: Build and test
         run: ./gradlew build
 
+      - name: Generate OpenAPI Schema
+        run: |
+          mkdir -p build/openapi
+          # Use openapi profile with H2 in-memory database
+          ./gradlew bootRun --args='--spring.profiles.active=openapi' &
+          BOOT_PID=$!
+          echo "Waiting for Spring Boot to start with openapi profile..."
+          for i in {1..90}; do
+            if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
+              echo "Application is up!"
+              break
+            fi
+            if [ $i -eq 90 ]; then
+              echo "Timeout waiting for application to start"
+              kill $BOOT_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+          done
+          curl -o build/openapi/openapi.json http://localhost:8080/v3/api-docs
+          kill $BOOT_PID || true
+          wait $BOOT_PID 2>/dev/null || true
+
+      - name: Upload OpenAPI Schema
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema
+          path: build/openapi/openapi.json
+          retention-days: 1
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -102,4 +132,75 @@ jobs:
         with:
           name: admin-wasm
           path: chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/
+          retention-days: 7
+
+  contract-tests:
+    name: Contract Tests (Mobile vs Backend API)
+    needs: [backend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download OpenAPI Schema
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-schema
+          path: ./openapi
+
+      - name: Verify OpenAPI Schema
+        run: |
+          if [ ! -s openapi/openapi.json ]; then
+            echo "Error: OpenAPI schema is empty or missing"
+            exit 1
+          fi
+          echo "OpenAPI schema downloaded successfully"
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Generate Fixtures from OpenAPI
+        run: |
+          # Create fixtures directory
+          mkdir -p chatkeep-admin/core/network/src/desktopTest/resources/fixtures
+
+          # Run fixture generation script (bash, not python)
+          if [ -f scripts/generate-fixtures.sh ]; then
+            chmod +x scripts/generate-fixtures.sh
+            bash scripts/generate-fixtures.sh openapi/openapi.json chatkeep-admin/core/network/src/desktopTest/resources/fixtures
+          else
+            echo "Warning: scripts/generate-fixtures.sh not found. Using existing fixtures."
+          fi
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Run Contract Tests
+        working-directory: chatkeep-admin
+        run: ./gradlew :core:network:desktopTest
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-test-results
+          path: chatkeep-admin/core/network/build/reports/tests/desktopTest
+          retention-days: 7
+
+      - name: Upload Test Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-test-failures
+          path: chatkeep-admin/core/network/build/test-results/desktopTest
           retention-days: 7

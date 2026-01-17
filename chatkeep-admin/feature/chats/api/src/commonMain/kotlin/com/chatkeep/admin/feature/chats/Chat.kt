@@ -4,7 +4,7 @@ import com.chatkeep.admin.feature.dashboard.Trend
 
 data class Chat(
     val chatId: Long,
-    val chatTitle: String,
+    val chatTitle: String?,
     val messagesToday: Int,
     val messagesYesterday: Int
 ) {
@@ -14,4 +14,7 @@ data class Chat(
             messagesToday < messagesYesterday -> Trend.DOWN
             else -> Trend.SAME
         }
+
+    val displayTitle: String
+        get() = chatTitle ?: "Chat #$chatId"
 }

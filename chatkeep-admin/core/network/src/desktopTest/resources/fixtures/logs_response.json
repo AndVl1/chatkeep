@@ -1,0 +1,25 @@
+{
+  "entries": [
+    {
+      "timestamp": "2024-01-15T10:30:45Z",
+      "level": "INFO",
+      "logger": "com.chatkeep.bot.handler",
+      "message": "Processing message from chat 1001"
+    },
+    {
+      "timestamp": "2024-01-15T10:31:12Z",
+      "level": "WARN",
+      "logger": "com.chatkeep.api.client",
+      "message": "Slow API response detected: 1250ms"
+    },
+    {
+      "timestamp": "2024-01-15T10:32:05Z",
+      "level": "ERROR",
+      "logger": "com.chatkeep.database",
+      "message": "Connection timeout after 5 retries"
+    }
+  ],
+  "totalCount": 3,
+  "fromTime": "2024-01-15T10:00:00Z",
+  "toTime": "2024-01-15T11:00:00Z"
+}

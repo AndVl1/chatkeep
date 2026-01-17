@@ -1,0 +1,11 @@
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "expiresIn": 3600000,
+  "user": {
+    "id": 123456789,
+    "firstName": "John",
+    "lastName": "Doe",
+    "username": "johndoe",
+    "photoUrl": "https://example.com/photo.jpg"
+  }
+}

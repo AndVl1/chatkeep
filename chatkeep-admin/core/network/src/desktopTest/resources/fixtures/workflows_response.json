@@ -1,0 +1,30 @@
+[
+  {
+    "id": "deploy-production",
+    "name": "Deploy Production",
+    "filename": "deploy-prod.yml",
+    "lastRun": {
+      "id": 12345678,
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2024-01-15T08:00:00Z",
+      "updatedAt": "2024-01-15T08:15:32Z",
+      "triggeredBy": "admin",
+      "url": "https://github.com/owner/repo/actions/runs/12345678"
+    }
+  },
+  {
+    "id": "run-tests",
+    "name": "Run Tests",
+    "filename": "test.yml",
+    "lastRun": {
+      "id": 12345679,
+      "status": "in_progress",
+      "conclusion": null,
+      "createdAt": "2024-01-15T10:20:00Z",
+      "updatedAt": "2024-01-15T10:25:00Z",
+      "triggeredBy": "developer",
+      "url": "https://github.com/owner/repo/actions/runs/12345679"
+    }
+  }
+]

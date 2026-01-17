@@ -10,6 +10,7 @@ import com.chatkeep.admin.core.network.AdminApiService
 import com.chatkeep.admin.feature.chats.createChatsComponent
 import com.chatkeep.admin.feature.dashboard.createDashboardComponent
 import com.chatkeep.admin.feature.deploy.createDeployComponent
+import com.chatkeep.admin.feature.logs.createLogsComponent
 import com.chatkeep.admin.feature.settings.createSettingsComponent
 import com.chatkeep.admin.feature.settings.domain.SettingsRepository
 
@@ -53,6 +54,12 @@ internal class DefaultMainComponent(
                 apiService = apiService
             )
         )
+        MainComponent.Config.Logs -> MainComponent.Child.Logs(
+            createLogsComponent(
+                componentContext = context,
+                apiService = apiService
+            )
+        )
         MainComponent.Config.Settings -> MainComponent.Child.Settings(
             createSettingsComponent(
                 componentContext = context,
@@ -67,6 +74,7 @@ internal class DefaultMainComponent(
             MainComponent.Tab.DASHBOARD -> MainComponent.Config.Dashboard
             MainComponent.Tab.CHATS -> MainComponent.Config.Chats
             MainComponent.Tab.DEPLOY -> MainComponent.Config.Deploy
+            MainComponent.Tab.LOGS -> MainComponent.Config.Logs
             MainComponent.Tab.SETTINGS -> MainComponent.Config.Settings
         }
 
