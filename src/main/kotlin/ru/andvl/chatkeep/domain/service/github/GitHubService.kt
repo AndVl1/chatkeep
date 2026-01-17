@@ -65,10 +65,9 @@ class GitHubService(
     fun triggerWorkflow(workflowId: String): TriggerWorkflowResponse {
         if (githubToken.isBlank()) {
             logger.error("GitHub token not configured")
-            return TriggerWorkflowResponse(
-                success = false,
-                message = "GitHub token not configured",
-                workflowId = workflowId
+            throw ServiceUnavailableException(
+                "GitHub PAT not configured",
+                mapOf("reason" to "Missing GITHUB_PAT environment variable")
             )
         }
 
