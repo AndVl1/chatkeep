@@ -124,6 +124,15 @@ kotlin {
 
             // Core modules with platform-specific dependencies
             implementation(projects.core.data)
+
+            // Feature modules as API for iOS framework export
+            api(projects.feature.auth.api)
+            api(projects.feature.dashboard.api)
+            api(projects.feature.chats.api)
+            api(projects.feature.deploy.api)
+            api(projects.feature.logs.api)
+            api(projects.feature.settings.api)
+            api(projects.feature.main.api)
         }
     }
 }
