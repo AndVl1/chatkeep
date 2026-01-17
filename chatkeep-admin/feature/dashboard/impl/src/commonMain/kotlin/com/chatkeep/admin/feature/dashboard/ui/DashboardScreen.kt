@@ -2,6 +2,7 @@ package com.chatkeep.admin.feature.dashboard.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -28,22 +29,30 @@ fun DashboardScreen(component: DashboardComponent) {
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        PullToRefreshBox(
+            isRefreshing = state is DashboardComponent.DashboardState.Loading,
+            onRefresh = component::onRefresh,
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
             when (val currentState = state) {
                 is DashboardComponent.DashboardState.Loading -> LoadingContent()
                 is DashboardComponent.DashboardState.Error -> ErrorContent(
                     message = currentState.message,
                     onRetry = component::onRefresh
                 )
-                is DashboardComponent.DashboardState.Success -> DashboardContent(
-                    dashboard = currentState.dashboard,
-                    isRestarting = currentState.isRestarting,
-                    showRestartDialog = currentState.showRestartDialog,
-                    onRefresh = component::onRefresh,
-                    onRestartClick = component::onRestartClick,
-                    onConfirmRestart = component::onConfirmRestart,
-                    onDismissDialog = component::onDismissDialog
-                )
+                is DashboardComponent.DashboardState.Success -> {
+                    DashboardContent(
+                        dashboard = currentState.dashboard,
+                        isRestarting = currentState.isRestarting,
+                        showRestartDialog = currentState.showRestartDialog,
+                        onRefresh = component::onRefresh,
+                        onRestartClick = component::onRestartClick,
+                        onConfirmRestart = component::onConfirmRestart,
+                        onDismissDialog = component::onDismissDialog
+                    )
+                }
             }
         }
     }

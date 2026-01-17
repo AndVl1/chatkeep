@@ -1,5 +1,6 @@
 package ru.andvl.chatkeep.domain.service
 
+import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -13,6 +14,12 @@ class ChatService(
     private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
+
+    @PostConstruct
+    fun initMetrics() {
+        updateActiveChatsMetric()
+        logger.info("Initialized active chats metric on startup")
+    }
 
     @Transactional
     fun registerChat(chatId: Long, chatTitle: String?): ChatSettings {
@@ -30,6 +37,7 @@ class ChatService(
 
         return chatSettingsRepository.save(settings).also {
             logger.info("Registered new chat: $chatId ($chatTitle)")
+            updateActiveChatsMetric()
         }
     }
 

@@ -8,9 +8,9 @@ import type { Chat, ChatSettings, BlocklistPattern, LockSettings, LockType } fro
 // === Chat Fixtures ===
 
 export const mockChats: Chat[] = [
-  { chatId: 100, chatTitle: 'Test Group 1', memberCount: 50 },
-  { chatId: 200, chatTitle: 'Test Group 2', memberCount: 150 },
-  { chatId: 300, chatTitle: 'Admin Chat', memberCount: 10 },
+  { chatId: 100, chatTitle: 'Test Group 1', memberCount: 50, isBotAdmin: true },
+  { chatId: 200, chatTitle: 'Test Group 2', memberCount: 150, isBotAdmin: false },
+  { chatId: 300, chatTitle: 'Admin Chat', memberCount: 10, isBotAdmin: true },
 ];
 
 export const mockEmptyChats: Chat[] = [];
@@ -165,6 +165,7 @@ export function createChat(overrides: Partial<Chat> = {}): Chat {
     chatId: Math.floor(Math.random() * 1000000),
     chatTitle: 'Generated Chat',
     memberCount: 100,
+    isBotAdmin: true,
     ...overrides,
   };
 }
