@@ -14,6 +14,6 @@ class ChatsContractTest : ContractTestBase() {
         val result = json.decodeFromString<List<ChatResponse>>(jsonString)
 
         assertTrue(result.isNotEmpty(), "Expected non-empty chat list")
-        assertTrue(result.all { it.chatId > 0 }, "All chats should have valid IDs")
+        assertTrue(result.all { it.chatId != 0L }, "All chats should have non-zero IDs")
     }
 }
