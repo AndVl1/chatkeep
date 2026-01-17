@@ -2,9 +2,14 @@ package ru.andvl.chatkeep.domain.service.logs
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import ru.andvl.chatkeep.api.dto.LogEntry
+import ru.andvl.chatkeep.api.dto.LogsResponse
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.time.Instant
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.streams.asSequence
 
 @Service
@@ -33,6 +38,86 @@ class LogService {
         // Base64 encoded strings that look like tokens (long base64 strings)
         Regex("\\b[A-Za-z0-9+/]{40,}={0,2}\\b")
     )
+
+    /**
+     * Gets structured logs with filtering support.
+     *
+     * @param minutes Number of minutes to look back (default: 60)
+     * @param level Minimum log level to include (INFO, WARN, ERROR)
+     * @param filter Optional text filter to search in log messages
+     * @return LogsResponse with structured log entries
+     */
+    fun getLogs(minutes: Int = 60, level: String = "INFO", filter: String? = null): LogsResponse {
+        val rawLines = getRecentLogs(5000)
+        val toTime = Instant.now()
+        val fromTime = toTime.minusSeconds(minutes * 60L)
+
+        val entries = rawLines
+            .mapNotNull { parseLogLine(it) }
+            .filter { it.timestamp.isAfter(fromTime) }
+            .filter { filterByLevel(it.level, level) }
+            .filter { filter == null || it.message.contains(filter, ignoreCase = true) }
+            .sortedByDescending { it.timestamp }
+
+        return LogsResponse(
+            entries = entries,
+            totalCount = entries.size,
+            fromTime = fromTime,
+            toTime = toTime
+        )
+    }
+
+    /**
+     * Parses a log line into a structured LogEntry.
+     * Expected format: 2024-01-17 10:30:45.123 INFO  [logger.name] - Log message
+     */
+    private fun parseLogLine(line: String): LogEntry? {
+        return try {
+            // Pattern: timestamp level [logger] - message
+            val timestampPattern = Regex("^(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3})")
+            val timestampMatch = timestampPattern.find(line) ?: return null
+
+            val timestampStr = timestampMatch.groupValues[1]
+            val timestamp = ZonedDateTime.parse(
+                timestampStr.replace(" ", "T") + "Z",
+                DateTimeFormatter.ISO_ZONED_DATE_TIME
+            ).toInstant()
+
+            val rest = line.substring(timestampStr.length).trim()
+            val parts = rest.split(Regex("\\s+"), limit = 3)
+
+            if (parts.size < 3) return null
+
+            val level = parts[0]
+            val loggerPart = parts[1]
+            val message = parts[2].removePrefix("- ").trim()
+
+            val logger = loggerPart.removeSurrounding("[", "]")
+
+            LogEntry(
+                timestamp = timestamp,
+                level = level,
+                logger = logger,
+                message = message
+            )
+        } catch (e: Exception) {
+            logger.debug("Failed to parse log line: $line - ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Filters log level based on minimum level.
+     * Order: TRACE < DEBUG < INFO < WARN < ERROR
+     */
+    private fun filterByLevel(entryLevel: String, minLevel: String): Boolean {
+        val levels = listOf("TRACE", "DEBUG", "INFO", "WARN", "ERROR")
+        val entryIndex = levels.indexOf(entryLevel.uppercase())
+        val minIndex = levels.indexOf(minLevel.uppercase())
+
+        if (entryIndex == -1 || minIndex == -1) return true
+        return entryIndex >= minIndex
+    }
 
     /**
      * Gets the most recent N lines from application logs.

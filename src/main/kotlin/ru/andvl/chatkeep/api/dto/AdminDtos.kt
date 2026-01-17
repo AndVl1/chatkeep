@@ -90,9 +90,18 @@ data class TriggerWorkflowResponse(
 )
 
 // Logs DTOs
+data class LogEntry(
+    val timestamp: Instant,
+    val level: String,
+    val logger: String,
+    val message: String
+)
+
 data class LogsResponse(
-    val lines: List<String>,
-    val timestamp: Instant
+    val entries: List<LogEntry>,
+    val totalCount: Int,
+    val fromTime: Instant,
+    val toTime: Instant
 )
 
 // Actions DTOs

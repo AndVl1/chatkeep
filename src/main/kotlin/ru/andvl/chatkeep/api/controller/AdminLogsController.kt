@@ -13,11 +13,10 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import ru.andvl.chatkeep.api.dto.LogsResponse
 import ru.andvl.chatkeep.domain.service.logs.LogService
-import java.time.Instant
 
 @RestController
 @RequestMapping("/api/v1/admin/logs")
-@Tag(name = "Admin - Logs", description = "Application logs viewer")
+@Tag(name = "Admin - Logs", description = "Application logs management")
 @SecurityRequirement(name = "BearerAuth")
 class AdminLogsController(
     private val logService: LogService
@@ -26,22 +25,22 @@ class AdminLogsController(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     @GetMapping
-    @Operation(summary = "Get application logs", description = "Returns the most recent N lines from application logs")
+    @Operation(
+        summary = "Get application logs",
+        description = "Returns recent application logs with optional filtering by time, level, and text"
+    )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "Success"),
-        ApiResponse(responseCode = "401", description = "Unauthorized")
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "400", description = "Invalid parameters")
     )
     fun getLogs(
-        @RequestParam(defaultValue = "100") lines: Int
+        @RequestParam(defaultValue = "60") minutes: Int,
+        @RequestParam(defaultValue = "INFO") level: String,
+        @RequestParam(required = false) filter: String?
     ): ResponseEntity<LogsResponse> {
-        val logLines = logService.getRecentLogs(lines.coerceIn(1, 1000))
-
-        val response = LogsResponse(
-            lines = logLines,
-            timestamp = Instant.now()
-        )
-
-        logger.debug("Retrieved ${logLines.size} log lines")
-        return ResponseEntity.ok(response)
+        val logs = logService.getLogs(minutes, level, filter)
+        logger.debug("Retrieved ${logs.entries.size} log entries")
+        return ResponseEntity.ok(logs)
     }
 }
