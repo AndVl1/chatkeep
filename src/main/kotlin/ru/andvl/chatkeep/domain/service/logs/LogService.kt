@@ -48,7 +48,9 @@ class LogService {
      * @return LogsResponse with structured log entries
      */
     fun getLogs(minutes: Int = 60, level: String = "INFO", filter: String? = null): LogsResponse {
-        val rawLines = getRecentLogs(5000)
+        // Reduce from 5000 to 1000 lines to avoid memory issues
+        // Sufficient for typical log retrieval (24h at reasonable log rates)
+        val rawLines = getRecentLogs(1000)
         val toTime = Instant.now()
         val fromTime = toTime.minusSeconds(minutes * 60L)
 
@@ -70,6 +72,9 @@ class LogService {
     /**
      * Parses a log line into a structured LogEntry.
      * Expected format: 2024-01-17 10:30:45.123 INFO  [logger.name] - Log message
+     *
+     * Note: Timestamps are parsed as UTC (appending 'Z') as server logs are written in UTC timezone.
+     * This is intentional to ensure consistent log times across different deployments.
      */
     private fun parseLogLine(line: String): LogEntry? {
         return try {
@@ -78,6 +83,7 @@ class LogService {
             val timestampMatch = timestampPattern.find(line) ?: return null
 
             val timestampStr = timestampMatch.groupValues[1]
+            // Parse as UTC (Z suffix) - server logs are written in UTC
             val timestamp = ZonedDateTime.parse(
                 timestampStr.replace(" ", "T") + "Z",
                 DateTimeFormatter.ISO_ZONED_DATE_TIME
@@ -92,12 +98,12 @@ class LogService {
             val loggerPart = parts[1]
             val message = parts[2].removePrefix("- ").trim()
 
-            val logger = loggerPart.removeSurrounding("[", "]")
+            val loggerName = loggerPart.removeSurrounding("[", "]")
 
             LogEntry(
                 timestamp = timestamp,
                 level = level,
-                logger = logger,
+                logger = loggerName,
                 message = message
             )
         } catch (e: Exception) {
