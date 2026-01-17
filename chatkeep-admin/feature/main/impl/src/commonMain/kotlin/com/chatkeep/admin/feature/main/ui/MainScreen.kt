@@ -12,6 +12,7 @@ import com.chatkeep.admin.feature.main.MainComponent
 import com.chatkeep.admin.feature.dashboard.ui.DashboardScreen
 import com.chatkeep.admin.feature.chats.ui.ChatsScreen
 import com.chatkeep.admin.feature.deploy.ui.DeployScreen
+import com.chatkeep.admin.feature.logs.ui.LogsScreen
 import com.chatkeep.admin.feature.settings.ui.SettingsScreen
 
 @Composable
@@ -35,6 +36,7 @@ fun MainScreen(component: MainComponent, modifier: Modifier = Modifier) {
                         is MainComponent.Child.Dashboard -> DashboardScreen(instance.component)
                         is MainComponent.Child.Chats -> ChatsScreen(instance.component)
                         is MainComponent.Child.Deploy -> DeployScreen(instance.component)
+                        is MainComponent.Child.Logs -> LogsScreen(instance.component)
                         is MainComponent.Child.Settings -> SettingsScreen(instance.component)
                     }
                 }
@@ -77,6 +79,13 @@ private fun NavigationRail(
         )
 
         NavigationRailItem(
+            selected = activeConfig is MainComponent.Config.Logs,
+            onClick = { onTabSelect(MainComponent.Tab.LOGS) },
+            icon = { Text("📋") },
+            label = { Text("Logs") }
+        )
+
+        NavigationRailItem(
             selected = activeConfig is MainComponent.Config.Settings,
             onClick = { onTabSelect(MainComponent.Tab.SETTINGS) },
             icon = { Text("⚙️") },
@@ -110,6 +119,13 @@ private fun BottomNavigationBar(
             onClick = { onTabSelect(MainComponent.Tab.DEPLOY) },
             icon = { Text("🚀") },
             label = { Text("Deploy") }
+        )
+
+        NavigationBarItem(
+            selected = activeConfig is MainComponent.Config.Logs,
+            onClick = { onTabSelect(MainComponent.Tab.LOGS) },
+            icon = { Text("📋") },
+            label = { Text("Logs") }
         )
 
         NavigationBarItem(

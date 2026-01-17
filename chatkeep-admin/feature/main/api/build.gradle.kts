@@ -37,6 +37,7 @@ kotlin {
             api(projects.feature.dashboard.api)
             api(projects.feature.chats.api)
             api(projects.feature.deploy.api)
+            api(projects.feature.logs.api)
             api(projects.feature.settings.api)
             api(libs.decompose)
         }
