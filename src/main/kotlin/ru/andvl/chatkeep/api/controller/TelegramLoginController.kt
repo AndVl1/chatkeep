@@ -29,7 +29,7 @@ class TelegramLoginController(
     private val jwtService: JwtService,
     @Value("\${jwt.expiration-hours:24}") private val expirationHours: Long,
     @Value("\${telegram.bot.token}") private val mainBotToken: String,
-    @Value("\${telegram.adminbot.token}") private val adminBotToken: String
+    @Value("\${telegram.adminbot.token:}") private val adminBotToken: String
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
