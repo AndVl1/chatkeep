@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Cell } from '@telegram-apps/telegram-ui';
+import { Cell, Badge } from '@telegram-apps/telegram-ui';
 import type { Chat } from '@/types';
 
 interface ChatCardProps {
@@ -23,6 +23,13 @@ export const ChatCard = memo(function ChatCard({
     <Cell
       onClick={() => onSelect(chat.chatId)}
       subtitle={subtitle}
+      after={
+        !chat.isBotAdmin ? (
+          <Badge type="number" style={{ backgroundColor: 'var(--tgui--destructive_text_color)' }}>
+            !
+          </Badge>
+        ) : undefined
+      }
       style={isActive ? { backgroundColor: 'var(--tgui--secondary_bg_color)' } : undefined}
     >
       {chat.chatTitle}
