@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -24,10 +25,13 @@ fun DeployScreen(component: DeployComponent) {
     var isRefreshing by remember { mutableStateOf(false) }
 
     // Reset isRefreshing when state changes from Loading
-    LaunchedEffect(state) {
-        if (state !is DeployComponent.DeployState.Loading) {
-            isRefreshing = false
-        }
+    LaunchedEffect(Unit) {
+        snapshotFlow { state }
+            .collect { currentState ->
+                if (currentState !is DeployComponent.DeployState.Loading) {
+                    isRefreshing = false
+                }
+            }
     }
 
     Scaffold(

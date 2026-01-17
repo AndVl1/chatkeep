@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -23,10 +24,13 @@ fun DashboardScreen(component: DashboardComponent) {
     var isRefreshing by remember { mutableStateOf(false) }
 
     // Reset isRefreshing when state changes from Loading
-    LaunchedEffect(state) {
-        if (state !is DashboardComponent.DashboardState.Loading) {
-            isRefreshing = false
-        }
+    LaunchedEffect(Unit) {
+        snapshotFlow { state }
+            .collect { currentState ->
+                if (currentState !is DashboardComponent.DashboardState.Loading) {
+                    isRefreshing = false
+                }
+            }
     }
 
     Scaffold(
