@@ -9,7 +9,8 @@ import org.springframework.web.filter.OncePerRequestFilter
 
 @Component
 class AdminAuthFilter(
-    private val jwtService: JwtService
+    private val jwtService: JwtService,
+    private val adminProperties: ru.andvl.chatkeep.config.AdminProperties
 ) : OncePerRequestFilter() {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -50,6 +51,13 @@ class AdminAuthFilter(
         if (user == null) {
             logger.debug("Invalid JWT token for admin endpoint: ${request.requestURI}")
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token")
+            return
+        }
+
+        // Re-verify user is still in admin allowlist
+        if (!adminProperties.userIds.contains(user.id)) {
+            logger.warn("User ${user.id} has valid token but is no longer in admin allowlist")
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied: admin privileges revoked")
             return
         }
 
