@@ -2,8 +2,8 @@ package com.chatkeep.admin.feature.dashboard.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -20,6 +20,14 @@ import kotlin.time.Duration.Companion.seconds
 @Composable
 fun DashboardScreen(component: DashboardComponent) {
     val state by component.state.subscribeAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    // Reset isRefreshing when state changes from Loading
+    LaunchedEffect(state) {
+        if (state !is DashboardComponent.DashboardState.Loading) {
+            isRefreshing = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -35,15 +43,26 @@ fun DashboardScreen(component: DashboardComponent) {
                     message = currentState.message,
                     onRetry = component::onRefresh
                 )
-                is DashboardComponent.DashboardState.Success -> DashboardContent(
-                    dashboard = currentState.dashboard,
-                    isRestarting = currentState.isRestarting,
-                    showRestartDialog = currentState.showRestartDialog,
-                    onRefresh = component::onRefresh,
-                    onRestartClick = component::onRestartClick,
-                    onConfirmRestart = component::onConfirmRestart,
-                    onDismissDialog = component::onDismissDialog
-                )
+                is DashboardComponent.DashboardState.Success -> {
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = {
+                            isRefreshing = true
+                            component.onRefresh()
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        DashboardContent(
+                            dashboard = currentState.dashboard,
+                            isRestarting = currentState.isRestarting,
+                            showRestartDialog = currentState.showRestartDialog,
+                            onRefresh = component::onRefresh,
+                            onRestartClick = component::onRestartClick,
+                            onConfirmRestart = component::onConfirmRestart,
+                            onDismissDialog = component::onDismissDialog
+                        )
+                    }
+                }
             }
         }
     }

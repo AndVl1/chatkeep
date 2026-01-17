@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -21,6 +21,14 @@ import com.chatkeep.admin.feature.chats.ChatsComponent
 @Composable
 fun ChatsScreen(component: ChatsComponent) {
     val state by component.state.subscribeAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    // Reset isRefreshing when state changes from Loading
+    LaunchedEffect(state) {
+        if (state !is ChatsComponent.ChatsState.Loading) {
+            isRefreshing = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -37,13 +45,22 @@ fun ChatsScreen(component: ChatsComponent) {
                     onRetry = component::onRefresh
                 )
                 is ChatsComponent.ChatsState.Success -> {
-                    if (currentState.chats.isEmpty()) {
-                        EmptyContent()
-                    } else {
-                        ChatsContent(
-                            chats = currentState.chats,
-                            onChatClick = component::onChatClick
-                        )
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = {
+                            isRefreshing = true
+                            component.onRefresh()
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        if (currentState.chats.isEmpty()) {
+                            EmptyContent()
+                        } else {
+                            ChatsContent(
+                                chats = currentState.chats,
+                                onChatClick = component::onChatClick
+                            )
+                        }
                     }
                 }
             }
