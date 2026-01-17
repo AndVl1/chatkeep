@@ -47,64 +47,6 @@ fi
 
 log_info "Generating fixtures from: $OPENAPI_JSON"
 
-# Extract schema definitions
-SCHEMAS=$(jq -r '.components.schemas // {}' "$OPENAPI_JSON")
-
-# Function to generate fixture from schema
-generate_fixture() {
-    local schema_name="$1"
-    local output_file="$2"
-
-    log_info "Generating fixture: $schema_name -> $output_file"
-
-    # Extract schema and generate example based on type
-    jq --arg name "$schema_name" '
-        .components.schemas[$name] as $schema |
-
-        # Recursive function to generate example from schema
-        def generate_example:
-            if .example then
-                .example
-            elif .type == "object" then
-                if .properties then
-                    .properties | to_entries | map({
-                        key: .key,
-                        value: (.value | generate_example)
-                    }) | from_entries
-                else
-                    {}
-                end
-            elif .type == "array" then
-                if .items then
-                    [(.items | generate_example)]
-                else
-                    []
-                end
-            elif .type == "string" then
-                if .format == "date-time" then
-                    "2026-01-17T12:00:00Z"
-                elif .enum then
-                    .enum[0]
-                else
-                    .example // "string"
-                end
-            elif .type == "integer" then
-                .example // 0
-            elif .type == "number" then
-                .example // 0.0
-            elif .type == "boolean" then
-                .example // false
-            else
-                null
-            end;
-
-        $schema | generate_example
-    ' "$OPENAPI_JSON" > "$output_file"
-
-    # Pretty-print the JSON
-    jq '.' "$output_file" > "${output_file}.tmp" && mv "${output_file}.tmp" "$output_file"
-}
-
 # Generate fixtures for key response types
 
 # 1. Login Response (TokenResponse)
