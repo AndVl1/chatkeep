@@ -123,7 +123,7 @@ jobs:
         if: success()
         with:
           name: admin-wasm
-          path: chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/
+          path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
           retention-days: 1
           if-no-files-found: error
 
@@ -151,7 +151,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: admin-wasm
-          path: chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/
+          path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -171,7 +171,7 @@ jobs:
 
             # Create directories if not exists
             mkdir -p mini-app/dist
-            mkdir -p chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable
+            mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
 
       - name: Copy Mini App files to server
         uses: appleboy/scp-action@v0.1.7
@@ -189,7 +189,7 @@ jobs:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/*"
+          source: "chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
@@ -202,10 +202,14 @@ jobs:
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
-            # Restart docker compose services with force-recreate for nginx
-            # This ensures nginx picks up new static files from volumes
+            # Restart docker compose services
+            # Force-recreate app to use new Docker image, nginx to pick up new static files
             echo "Restarting services..."
-            docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
+            docker compose -f docker-compose.prod.yml up -d --force-recreate app nginx
+
+            # Wait for app to be healthy
+            echo "Waiting for app to be healthy..."
+            sleep 10
 
             # Verify nginx config and reload
             echo "Verifying nginx configuration..."
@@ -215,7 +219,7 @@ jobs:
             echo "Mini App files:"
             ls -la mini-app/dist/ | head -10
             echo "Admin WASM files:"
-            ls -la chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable/ | head -10
+            ls -la chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/ | head -10
 
             # Cleanup old images
             docker image prune -f

@@ -60,7 +60,7 @@ services:
       - ./docker/nginx/sites:/etc/nginx/sites-enabled:ro
       # Static files
       - ./mini-app/dist:/var/www/mini-app:ro
-      - ./chatkeep-admin/composeApp/build/kotlin-webpack/wasmJs/productionExecutable:/var/www/admin:ro
+      - ./chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable:/var/www/admin:ro
       # SSL certificates from Let's Encrypt
       - /etc/letsencrypt:/etc/letsencrypt:ro
       # Certbot webroot for ACME challenges
