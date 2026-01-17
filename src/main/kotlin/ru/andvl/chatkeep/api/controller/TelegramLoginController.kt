@@ -27,7 +27,9 @@ import java.time.Instant
 class TelegramLoginController(
     private val telegramAuthService: TelegramAuthService,
     private val jwtService: JwtService,
-    @Value("\${jwt.expiration-hours:24}") private val expirationHours: Long
+    @Value("\${jwt.expiration-hours:24}") private val expirationHours: Long,
+    @Value("\${telegram.bot.token}") private val mainBotToken: String,
+    @Value("\${telegram.adminbot.token}") private val adminBotToken: String
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -56,15 +58,23 @@ class TelegramLoginController(
             put("hash", request.hash)
         }
 
-        // Validate hash
-        if (!telegramAuthService.validateLoginWidgetHash(dataMap)) {
-            logger.warn("Invalid Telegram Login Widget hash for user ${request.id}")
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                ErrorResponse(
-                    code = "UNAUTHORIZED",
-                    message = "Invalid Telegram authentication"
+        // Validate hash with main bot token first, then admin bot token
+        val validWithMain = telegramAuthService.validateLoginWidgetHash(dataMap, mainBotToken)
+        if (!validWithMain) {
+            logger.debug("Hash validation failed with main bot token, trying admin bot token for user ${request.id}")
+            val validWithAdmin = telegramAuthService.validateLoginWidgetHash(dataMap, adminBotToken)
+            if (!validWithAdmin) {
+                logger.warn("Invalid Telegram Login Widget hash for user ${request.id} (tried both tokens)")
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ErrorResponse(
+                        code = "UNAUTHORIZED",
+                        message = "Invalid Telegram authentication"
+                    )
                 )
-            )
+            }
+            logger.debug("Hash validated successfully with admin bot token for user ${request.id}")
+        } else {
+            logger.debug("Hash validated successfully with main bot token for user ${request.id}")
         }
 
         // Check auth_date expiry (1 hour)
