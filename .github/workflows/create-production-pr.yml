@@ -94,10 +94,17 @@ jobs:
             - [ ] Environment variables updated (if needed)
             - [ ] Monitoring configured (if needed)`;
 
+            // Format date as DD-MM-YYYY
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const dateStr = `${day}-${month}-${year}`;
+
             const { data: pr } = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Deploy to Production - ${new Date().toISOString().split('T')[0]}`,
+              title: `Deploy to Production - ${dateStr}`,
               head: rcBranch,
               base: 'production',
               body: body
