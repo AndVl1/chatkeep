@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -29,21 +30,29 @@ fun DeployScreen(component: DeployComponent) {
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        PullToRefreshBox(
+            isRefreshing = state is DeployComponent.DeployState.Loading,
+            onRefresh = component::onRefresh,
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
             when (val currentState = state) {
                 is DeployComponent.DeployState.Loading -> LoadingContent()
                 is DeployComponent.DeployState.Error -> ErrorContent(
                     message = currentState.message,
                     onRetry = component::onRefresh
                 )
-                is DeployComponent.DeployState.Success -> DeployContent(
-                    workflows = currentState.workflows,
-                    triggering = currentState.triggering,
-                    confirmDialog = currentState.confirmDialog,
-                    onTriggerClick = component::onTriggerClick,
-                    onConfirmTrigger = component::onConfirmTrigger,
-                    onDismissDialog = component::onDismissDialog
-                )
+                is DeployComponent.DeployState.Success -> {
+                    DeployContent(
+                        workflows = currentState.workflows,
+                        triggering = currentState.triggering,
+                        confirmDialog = currentState.confirmDialog,
+                        onTriggerClick = component::onTriggerClick,
+                        onConfirmTrigger = component::onConfirmTrigger,
+                        onDismissDialog = component::onDismissDialog
+                    )
+                }
             }
         }
     }
