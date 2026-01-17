@@ -1,0 +1,16 @@
+{
+  "serviceStatus": {
+    "running": true,
+    "uptime": 3600000
+  },
+  "deployInfo": {
+    "commitSha": "abc123def456",
+    "deployedAt": "2024-01-15T10:30:00Z",
+    "imageVersion": "v1.2.3"
+  },
+  "quickStats": {
+    "totalChats": 150,
+    "messagesToday": 450,
+    "messagesYesterday": 380
+  }
+}
