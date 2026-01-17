@@ -1,6 +1,7 @@
 package ru.andvl.chatkeep.api.controller
 
 import dev.inmo.tgbotapi.bot.TelegramBot
+import dev.inmo.tgbotapi.extensions.api.bot.getMe
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -48,8 +49,18 @@ class MiniAppChatsController(
 
         val allChats = chatService.getAllChats()
 
-        // Filter chats where user is admin (use IO dispatcher to avoid blocking main thread pool)
-        val adminChats = runBlocking(Dispatchers.IO) {
+        // Get bot ID for checking bot admin status
+        val botId = runBlocking(Dispatchers.IO) {
+            try {
+                bot.getMe().id.chatId.long
+            } catch (e: Exception) {
+                logger.error("Failed to get bot ID: ${e.message}")
+                null
+            }
+        }
+
+        // Filter chats where user is admin and check bot admin status
+        return runBlocking(Dispatchers.IO) {
             allChats.filter { chat ->
                 try {
                     adminCacheService.isAdmin(user.id, chat.chatId, forceRefresh = false)
@@ -57,16 +68,26 @@ class MiniAppChatsController(
                     logger.debug("Failed to check admin status for chat ${chat.chatId}: ${e.message}")
                     false
                 }
-            }
-        }
+            }.map { chat ->
+                // Check if bot is admin in this chat
+                val isBotAdmin = if (botId != null) {
+                    try {
+                        adminCacheService.isAdmin(botId, chat.chatId, forceRefresh = false)
+                    } catch (e: Exception) {
+                        logger.debug("Failed to check bot admin status for chat ${chat.chatId}: ${e.message}")
+                        false
+                    }
+                } else {
+                    false
+                }
 
-        // Map to response (member count omitted - requires separate API call)
-        return adminChats.map { chat ->
-            ChatSummaryResponse(
-                chatId = chat.chatId,
-                chatTitle = chat.chatTitle,
-                memberCount = null
-            )
+                ChatSummaryResponse(
+                    chatId = chat.chatId,
+                    chatTitle = chat.chatTitle,
+                    memberCount = null,
+                    isBotAdmin = isBotAdmin
+                )
+            }
         }
     }
 }

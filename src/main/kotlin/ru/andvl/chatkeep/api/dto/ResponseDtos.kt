@@ -10,7 +10,8 @@ import java.time.Instant
 data class ChatSummaryResponse(
     val chatId: Long,
     val chatTitle: String?,
-    val memberCount: Int?
+    val memberCount: Int?,
+    val isBotAdmin: Boolean = true
 )
 
 data class SettingsResponse(
