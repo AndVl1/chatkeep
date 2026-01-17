@@ -116,7 +116,7 @@ jobs:
           cache-disabled: true
 
       - name: Build WASM
-        run: ./gradlew -p chatkeep-admin :composeApp:wasmJsBrowserProductionWebpack
+        run: ./gradlew -p chatkeep-admin :composeApp:wasmJsBrowserDistribution
 
       - name: Upload WASM artifact
         uses: actions/upload-artifact@v4
