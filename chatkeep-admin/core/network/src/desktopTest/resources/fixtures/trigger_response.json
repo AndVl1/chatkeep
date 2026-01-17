@@ -1,4 +1,5 @@
 {
-  "runId": 12345680,
-  "url": "https://github.com/owner/repo/actions/runs/12345680"
+  "success": true,
+  "message": "Workflow triggered successfully",
+  "workflow_id": "deploy.yml"
 }

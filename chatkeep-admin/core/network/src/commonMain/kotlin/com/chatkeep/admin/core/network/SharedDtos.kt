@@ -73,7 +73,8 @@ data class ActionResponse(
 @Serializable
 data class ChatResponse(
     val chatId: Long,
-    val chatTitle: String,
+    @SerialName("chat_title")
+    val chatTitle: String? = null,
     val messagesToday: Int,
     val messagesYesterday: Int
 )
@@ -117,6 +118,8 @@ data class WorkflowRunDto(
 
 @Serializable
 data class TriggerResponse(
-    val runId: Long,
-    val url: String
+    val success: Boolean,
+    val message: String,
+    @SerialName("workflow_id")
+    val workflowId: String
 )

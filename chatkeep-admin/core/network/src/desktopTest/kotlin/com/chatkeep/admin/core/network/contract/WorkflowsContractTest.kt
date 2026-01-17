@@ -29,8 +29,9 @@ class WorkflowsContractTest : ContractTestBase() {
         val jsonString = loadFixture("trigger_response.json")
         val result = json.decodeFromString<TriggerResponse>(jsonString)
 
-        assertTrue(result.runId > 0)
-        assertNotNull(result.url)
+        assertTrue(result.success)
+        assertNotNull(result.message)
+        assertNotNull(result.workflowId)
     }
 
     @Test

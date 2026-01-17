@@ -27,6 +27,7 @@ enum class WorkflowStatus {
 }
 
 data class WorkflowTriggerResult(
-    val runId: Long,
-    val url: String
+    val success: Boolean,
+    val message: String,
+    val workflowId: String
 )

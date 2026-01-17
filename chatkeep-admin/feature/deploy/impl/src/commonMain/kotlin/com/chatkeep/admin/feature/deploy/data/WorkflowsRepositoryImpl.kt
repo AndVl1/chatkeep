@@ -44,8 +44,9 @@ internal class WorkflowsRepositoryImpl(
         return try {
             val response = apiService.triggerWorkflow(workflowId)
             val result = WorkflowTriggerResult(
-                runId = response.runId,
-                url = response.url
+                success = response.success,
+                message = response.message,
+                workflowId = response.workflowId
             )
             AppResult.Success(result)
         } catch (e: Exception) {
