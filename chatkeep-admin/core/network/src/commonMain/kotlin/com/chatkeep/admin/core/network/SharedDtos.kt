@@ -100,7 +100,9 @@ data class WorkflowRunDto(
     val status: String,
     val conclusion: String? = null,
     val createdAt: String,
-    val triggeredBy: String
+    val updatedAt: String,
+    val triggeredBy: String? = null,
+    val url: String
 )
 
 @Serializable

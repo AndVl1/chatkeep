@@ -27,7 +27,9 @@ internal class WorkflowsRepositoryImpl(
                             status = runDto.status.toWorkflowStatus(),
                             conclusion = runDto.conclusion,
                             createdAt = Instant.parse(runDto.createdAt),
-                            triggeredBy = runDto.triggeredBy
+                            updatedAt = Instant.parse(runDto.updatedAt),
+                            triggeredBy = runDto.triggeredBy,
+                            url = runDto.url
                         )
                     }
                 )

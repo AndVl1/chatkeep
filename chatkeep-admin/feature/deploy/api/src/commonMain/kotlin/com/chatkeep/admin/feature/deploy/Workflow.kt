@@ -14,7 +14,9 @@ data class WorkflowRun(
     val status: WorkflowStatus,
     val conclusion: String?,
     val createdAt: Instant,
-    val triggeredBy: String
+    val updatedAt: Instant,
+    val triggeredBy: String?,
+    val url: String
 )
 
 enum class WorkflowStatus {
