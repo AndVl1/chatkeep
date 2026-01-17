@@ -56,6 +56,14 @@ class GlobalExceptionHandler {
             .body(ErrorResponse("VALIDATION_ERROR", "Validation failed", errors))
     }
 
+    @ExceptionHandler(ServiceUnavailableException::class)
+    fun handleServiceUnavailable(ex: ServiceUnavailableException): ResponseEntity<ErrorResponse> {
+        logger.warn("Service unavailable: ${ex.message}")
+        return ResponseEntity
+            .status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(ErrorResponse(ex.code, ex.message, ex.details))
+    }
+
     @ExceptionHandler(MiniAppException::class)
     fun handleMiniAppException(ex: MiniAppException): ResponseEntity<ErrorResponse> {
         logger.warn("MiniApp exception: ${ex.message}")

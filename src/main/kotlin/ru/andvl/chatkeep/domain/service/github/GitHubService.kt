@@ -12,6 +12,7 @@ import org.springframework.web.client.body
 import ru.andvl.chatkeep.api.dto.TriggerWorkflowResponse
 import ru.andvl.chatkeep.api.dto.WorkflowResponse
 import ru.andvl.chatkeep.api.dto.WorkflowRunResponse
+import ru.andvl.chatkeep.api.exception.ServiceUnavailableException
 import java.time.Instant
 
 @Service
@@ -32,8 +33,11 @@ class GitHubService(
 
     fun getWorkflows(): List<WorkflowResponse> {
         if (githubToken.isBlank()) {
-            logger.warn("GitHub token not configured, returning empty workflows list")
-            return emptyList()
+            logger.error("GitHub token not configured")
+            throw ServiceUnavailableException(
+                "GitHub PAT not configured",
+                mapOf("reason" to "Missing GITHUB_PAT environment variable")
+            )
         }
 
         return try {
