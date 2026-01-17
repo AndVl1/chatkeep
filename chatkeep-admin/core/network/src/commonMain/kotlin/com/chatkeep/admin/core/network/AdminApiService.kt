@@ -7,6 +7,10 @@ interface AdminApiService {
     suspend fun getChats(): List<ChatResponse>
     suspend fun getWorkflows(): List<WorkflowResponse>
     suspend fun triggerWorkflow(workflowId: String): TriggerResponse
-    suspend fun getLogs(lines: Int): LogsResponse
+    suspend fun getLogs(
+        minutes: Int = 60,
+        level: String = "INFO",
+        filter: String? = null
+    ): LogsResponse
     suspend fun restartBot(): ActionResponse
 }

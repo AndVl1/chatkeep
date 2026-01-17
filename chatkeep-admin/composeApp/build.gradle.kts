@@ -56,20 +56,20 @@ kotlin {
             // Ktor client for AppFactory
             implementation(libs.ktor.client.core)
 
-            // Feature modules
-            implementation(projects.feature.auth.api)
+            // Feature modules (api() for iOS framework export)
+            api(projects.feature.auth.api)
             implementation(projects.feature.auth.impl)
-            implementation(projects.feature.dashboard.api)
+            api(projects.feature.dashboard.api)
             implementation(projects.feature.dashboard.impl)
-            implementation(projects.feature.chats.api)
+            api(projects.feature.chats.api)
             implementation(projects.feature.chats.impl)
-            implementation(projects.feature.deploy.api)
+            api(projects.feature.deploy.api)
             implementation(projects.feature.deploy.impl)
-            implementation(projects.feature.logs.api)
+            api(projects.feature.logs.api)
             implementation(projects.feature.logs.impl)
-            implementation(projects.feature.settings.api)
+            api(projects.feature.settings.api)
             implementation(projects.feature.settings.impl)
-            implementation(projects.feature.main.api)
+            api(projects.feature.main.api)
             implementation(projects.feature.main.impl)
 
             // Compose
@@ -124,6 +124,15 @@ kotlin {
 
             // Core modules with platform-specific dependencies
             implementation(projects.core.data)
+
+            // Feature modules as API for iOS framework export
+            api(projects.feature.auth.api)
+            api(projects.feature.dashboard.api)
+            api(projects.feature.chats.api)
+            api(projects.feature.deploy.api)
+            api(projects.feature.logs.api)
+            api(projects.feature.settings.api)
+            api(projects.feature.main.api)
         }
     }
 }

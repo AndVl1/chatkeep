@@ -24,7 +24,11 @@ kotlin {
         }
     }
 
-    jvm("desktop")
+    jvm("desktop") {
+        testRuns["test"].executionTask.configure {
+            useJUnitPlatform()
+        }
+    }
 
     @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
     wasmJs {
@@ -61,6 +65,14 @@ kotlin {
             dependencies {
                 // WASM needs JS engine, not CIO
                 implementation(libs.ktor.client.js)
+            }
+        }
+
+        val desktopTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlin.test.junit5)
+                implementation(libs.kotlinx.serialization.json)
             }
         }
     }

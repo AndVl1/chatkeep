@@ -1,0 +1,20 @@
+[
+  {
+    "chatId": 1001,
+    "chatTitle": "Development Team",
+    "messagesToday": 45,
+    "messagesYesterday": 52
+  },
+  {
+    "chatId": 1002,
+    "chatTitle": "Product Discussions",
+    "messagesToday": 23,
+    "messagesYesterday": 31
+  },
+  {
+    "chatId": 1003,
+    "chatTitle": null,
+    "messagesToday": 67,
+    "messagesYesterday": 59
+  }
+]

@@ -36,3 +36,12 @@ class UnauthorizedException(
     code = "UNAUTHORIZED",
     message = message
 )
+
+class ServiceUnavailableException(
+    message: String,
+    details: Map<String, Any>? = null
+) : MiniAppException(
+    code = "SERVICE_UNAVAILABLE",
+    message = message,
+    details = details
+)

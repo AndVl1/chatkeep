@@ -2,7 +2,16 @@ package com.chatkeep.admin.feature.logs
 
 import kotlinx.datetime.Instant
 
+data class LogEntry(
+    val timestamp: Instant,
+    val level: String,
+    val logger: String,
+    val message: String
+)
+
 data class LogsData(
-    val lines: List<String>,
-    val timestamp: Instant
+    val entries: List<LogEntry>,
+    val totalCount: Int,
+    val fromTime: Instant,
+    val toTime: Instant
 )

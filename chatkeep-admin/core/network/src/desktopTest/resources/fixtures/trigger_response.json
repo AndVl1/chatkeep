@@ -1,0 +1,5 @@
+{
+  "success": true,
+  "message": "Workflow triggered successfully",
+  "workflowId": "deploy.yml"
+}

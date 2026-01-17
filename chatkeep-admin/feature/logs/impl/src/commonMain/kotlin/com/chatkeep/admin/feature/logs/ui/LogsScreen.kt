@@ -17,8 +17,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import com.chatkeep.admin.feature.logs.LogEntry
 import com.chatkeep.admin.feature.logs.LogsData
 import com.chatkeep.admin.feature.logs.LogsComponent
+import kotlinx.datetime.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +105,7 @@ private fun LogsContent(logs: LogsData) {
             .padding(16.dp)
     ) {
         Text(
-            text = "Last updated: ${logs.timestamp}",
+            text = "Logs from ${logs.fromTime} to ${logs.toTime} (${logs.totalCount} entries)",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -118,8 +120,8 @@ private fun LogsContent(logs: LogsData) {
                     .verticalScroll(scrollState)
                     .padding(12.dp)
             ) {
-                logs.lines.forEach { line ->
-                    LogLine(line)
+                logs.entries.forEach { entry ->
+                    LogEntryItem(entry)
                 }
             }
         }
@@ -127,28 +129,30 @@ private fun LogsContent(logs: LogsData) {
 }
 
 @Composable
-private fun LogLine(line: String) {
+private fun LogEntryItem(entry: LogEntry) {
+    val levelColor = when (entry.level.uppercase()) {
+        "ERROR" -> Color.Red
+        "WARN" -> Color(0xFFFFA500)
+        "INFO" -> Color.Blue
+        "DEBUG" -> Color.Gray
+        else -> Color.Unspecified
+    }
+
     val annotatedText = buildAnnotatedString {
-        when {
-            line.contains("ERROR", ignoreCase = true) -> {
-                withStyle(style = SpanStyle(color = Color.Red)) {
-                    append(line)
-                }
-            }
-            line.contains("WARN", ignoreCase = true) -> {
-                withStyle(style = SpanStyle(color = Color(0xFFFFA500))) {
-                    append(line)
-                }
-            }
-            line.contains("INFO", ignoreCase = true) -> {
-                withStyle(style = SpanStyle(color = Color.Blue)) {
-                    append(line)
-                }
-            }
-            else -> {
-                append(line)
-            }
+        // Timestamp
+        withStyle(style = SpanStyle(color = Color.Gray)) {
+            append("${entry.timestamp} ")
         }
+        // Level
+        withStyle(style = SpanStyle(color = levelColor)) {
+            append("[${entry.level}] ")
+        }
+        // Logger
+        withStyle(style = SpanStyle(color = Color.DarkGray)) {
+            append("${entry.logger}: ")
+        }
+        // Message
+        append(entry.message)
     }
 
     Text(

@@ -83,27 +83,29 @@ class MiniAppChatsController(
             val userAdminChats = adminCheckResults.filter { it.second }.map { it.first }
 
             // Check bot admin status in parallel for user's admin chats only
-            userAdminChats.map { chat ->
-                async {
-                    val isBotAdmin = if (botId != null) {
-                        try {
-                            adminCacheService.isAdmin(botId, chat.chatId, forceRefresh = false)
-                        } catch (e: Exception) {
-                            logger.warn("Failed to check bot admin status for chat ${chat.chatId}", e)
+            userAdminChats
+                .filter { !it.chatTitle.isNullOrBlank() }
+                .map { chat ->
+                    async {
+                        val isBotAdmin = if (botId != null) {
+                            try {
+                                adminCacheService.isAdmin(botId, chat.chatId, forceRefresh = true)
+                            } catch (e: Exception) {
+                                logger.warn("Failed to check bot admin status for chat ${chat.chatId}", e)
+                                false
+                            }
+                        } else {
                             false
                         }
-                    } else {
-                        false
-                    }
 
-                    ChatSummaryResponse(
-                        chatId = chat.chatId,
-                        chatTitle = chat.chatTitle,
-                        memberCount = null,
-                        isBotAdmin = isBotAdmin
-                    )
-                }
-            }.awaitAll()
+                        ChatSummaryResponse(
+                            chatId = chat.chatId,
+                            chatTitle = chat.chatTitle,
+                            memberCount = null,
+                            isBotAdmin = isBotAdmin
+                        )
+                    }
+                }.awaitAll()
         }
     }
 }
