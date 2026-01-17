@@ -55,10 +55,18 @@ class AdminApiServiceImpl(
         }.body()
     }
 
-    override suspend fun getLogs(lines: Int): LogsResponse {
+    override suspend fun getLogs(
+        minutes: Int,
+        level: String,
+        filter: String?
+    ): LogsResponse {
         return httpClient.get("/api/v1/admin/logs") {
             addAuthHeader()
-            parameter("lines", lines)
+            parameter("minutes", minutes)
+            parameter("level", level)
+            if (filter != null) {
+                parameter("filter", filter)
+            }
         }.body()
     }
 
