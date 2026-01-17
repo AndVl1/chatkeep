@@ -143,26 +143,28 @@ jobs:
           name: openapi-schema
           path: ./openapi
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Verify OpenAPI Schema
+        run: |
+          if [ ! -s openapi/openapi.json ]; then
+            echo "Error: OpenAPI schema is empty or missing"
+            exit 1
+          fi
+          echo "OpenAPI schema downloaded successfully"
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Generate Fixtures from OpenAPI
         run: |
-          # Install dependencies if needed
-          pip install pyyaml
-
           # Create fixtures directory
-          mkdir -p chatkeep-admin/core/network/src/jvmTest/resources/fixtures
+          mkdir -p chatkeep-admin/core/network/src/desktopTest/resources/fixtures
 
-          # Run fixture generation script
-          # This script should parse openapi/openapi.json and create JSON fixture files
-          if [ -f scripts/generate-fixtures.py ]; then
-            python3 scripts/generate-fixtures.py openapi/openapi.json chatkeep-admin/core/network/src/jvmTest/resources/fixtures
+          # Run fixture generation script (bash, not python)
+          if [ -f scripts/generate-fixtures.sh ]; then
+            chmod +x scripts/generate-fixtures.sh
+            bash scripts/generate-fixtures.sh openapi/openapi.json chatkeep-admin/core/network/src/desktopTest/resources/fixtures
           else
-            echo "Warning: scripts/generate-fixtures.py not found. Skipping fixture generation."
-            echo "Contract tests will use existing fixtures if available."
+            echo "Warning: scripts/generate-fixtures.sh not found. Using existing fixtures."
           fi
 
       - name: Setup Java 17
@@ -179,14 +181,14 @@ jobs:
 
       - name: Run Contract Tests
         working-directory: chatkeep-admin
-        run: ./gradlew :core:network:jvmTest
+        run: ./gradlew :core:network:desktopTest
 
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: contract-test-results
-          path: chatkeep-admin/core/network/build/reports/tests/jvmTest
+          path: chatkeep-admin/core/network/build/reports/tests/desktopTest
           retention-days: 7
 
       - name: Upload Test Report
@@ -194,5 +196,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: contract-test-failures
-          path: chatkeep-admin/core/network/build/test-results/jvmTest
+          path: chatkeep-admin/core/network/build/test-results/desktopTest
           retention-days: 7
