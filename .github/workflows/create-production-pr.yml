@@ -71,6 +71,4 @@ jobs:
           - [ ] Frontend changes tested locally
           - [ ] Database migrations reviewed
           - [ ] Environment variables updated (if needed)
-          - [ ] Monitoring configured (if needed)" \
-            --label "deployment" \
-            --label "production"
+          - [ ] Monitoring configured (if needed)"
