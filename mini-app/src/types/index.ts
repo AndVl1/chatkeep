@@ -4,6 +4,7 @@ export interface Chat {
   chatId: number;
   chatTitle: string;
   memberCount?: number;
+  isBotAdmin: boolean;
 }
 
 export interface ChatSettings {
