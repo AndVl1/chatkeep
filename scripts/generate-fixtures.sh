@@ -86,26 +86,26 @@ cat > "$OUTPUT_DIR/dashboard_response.json" << 'EOF'
 EOF
 log_info "Generated: dashboard_response.json"
 
-# 3. Chats Response (Array of ChatSummaryResponse)
+# 3. Chats Response (Array of ChatStatisticsResponse - Admin endpoint)
 cat > "$OUTPUT_DIR/chats_response.json" << 'EOF'
 [
   {
     "chatId": -1001234567890,
     "chatTitle": "Tech Community",
-    "memberCount": 42,
-    "isBotAdmin": true
+    "messagesToday": 150,
+    "messagesYesterday": 120
   },
   {
     "chatId": -1009876543210,
     "chatTitle": "Dev Team",
-    "memberCount": 12,
-    "isBotAdmin": true
+    "messagesToday": 42,
+    "messagesYesterday": 38
   },
   {
     "chatId": -1001111222333,
     "chatTitle": "General Chat",
-    "memberCount": 100,
-    "isBotAdmin": false
+    "messagesToday": 85,
+    "messagesYesterday": 90
   }
 ]
 EOF

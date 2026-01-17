@@ -1,19 +1,19 @@
 [
   {
     "chatId": 1001,
-    "chat_title": "Development Team",
+    "chatTitle": "Development Team",
     "messagesToday": 45,
     "messagesYesterday": 52
   },
   {
     "chatId": 1002,
-    "chat_title": "Product Discussions",
+    "chatTitle": "Product Discussions",
     "messagesToday": 23,
     "messagesYesterday": 31
   },
   {
     "chatId": 1003,
-    "chat_title": null,
+    "chatTitle": null,
     "messagesToday": 67,
     "messagesYesterday": 59
   }
