@@ -7,6 +7,13 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
 
+app:
+  domains:
+    main: ${MAIN_DOMAIN:localhost}
+    api: ${API_DOMAIN:localhost:8080}
+    miniapp: ${MINIAPP_DOMAIN:localhost}
+    admin: ${ADMIN_DOMAIN:localhost}
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chatkeep}
     username: ${DB_USERNAME:chatkeep}
