@@ -1,15 +1,5 @@
 package ru.andvl.chatkeep.domain.service.media
 
-import dev.inmo.tgbotapi.bot.TelegramBot
-import dev.inmo.tgbotapi.types.toChatId
-import dev.inmo.tgbotapi.requests.send.media.SendDocument
-import dev.inmo.tgbotapi.requests.send.media.SendPhoto
-import dev.inmo.tgbotapi.requests.send.media.SendVideo
-import dev.inmo.tgbotapi.requests.abstracts.InputFile
-import dev.inmo.tgbotapi.types.message.content.PhotoContent
-import dev.inmo.tgbotapi.types.message.content.VideoContent
-import dev.inmo.tgbotapi.types.message.content.DocumentContent
-import kotlinx.coroutines.Dispatchers
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -21,8 +11,7 @@ import java.time.temporal.ChronoUnit
 
 @Service
 class MediaStorageService(
-    private val repository: MediaStorageRepository,
-    private val bot: TelegramBot
+    private val repository: MediaStorageRepository
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -60,82 +49,23 @@ class MediaStorageService(
         return repository.findByHash(hash)
     }
 
+    fun getFileId(hash: String): String? {
+        return repository.findByHash(hash)?.telegramFileId
+    }
+
     @Transactional
-    suspend fun resolveToTelegramFileId(hash: String, chatId: Long): String {
+    fun saveFileId(hash: String, fileId: String) {
         val media = repository.findByHash(hash)
             ?: throw IllegalArgumentException("Media with hash $hash not found")
 
-        // If already uploaded, return existing file_id
-        media.telegramFileId?.let {
-            logger.debug("Media $hash already has telegram file_id: $it")
-            return it
+        if (media.telegramFileId != null) {
+            logger.debug("Media $hash already has file_id: ${media.telegramFileId}")
+            return
         }
 
-        // Upload to Telegram
-        logger.info("Uploading media $hash to Telegram (chat: $chatId)")
-        val fileId = uploadMediaToTelegram(media, chatId)
-
-        // Save file_id
         val updated = media.copy(telegramFileId = fileId)
         repository.save(updated)
-
-        logger.info("Media $hash uploaded to Telegram, file_id: $fileId")
-        return fileId
-    }
-
-    private suspend fun uploadMediaToTelegram(media: MediaStorage, chatId: Long): String {
-        // Create temp file from byte array
-        val tempFile = kotlinx.coroutines.withContext(Dispatchers.IO) {
-            java.nio.file.Files.createTempFile("media_", ".tmp").toFile().apply {
-                writeBytes(media.content)
-            }
-        }
-
-        try {
-            val telegramChatId = chatId.toChatId()
-
-            val message = when {
-                media.mimeType.startsWith("image/") -> {
-                    bot.execute(
-                        SendPhoto(
-                            chatId = telegramChatId,
-                            photo = InputFile.fromFile(tempFile)
-                        )
-                    )
-                }
-                media.mimeType.startsWith("video/") -> {
-                    bot.execute(
-                        SendVideo(
-                            chatId = telegramChatId,
-                            video = InputFile.fromFile(tempFile)
-                        )
-                    )
-                }
-                else -> {
-                    bot.execute(
-                        SendDocument(
-                            chatId = telegramChatId,
-                            document = InputFile.fromFile(tempFile)
-                        )
-                    )
-                }
-            }
-
-            // Extract file_id from message content
-            return when (val content = message.content) {
-                is PhotoContent -> content.media.fileId.fileId
-                is VideoContent -> content.media.fileId.fileId
-                is DocumentContent -> content.media.fileId.fileId
-                else -> throw IllegalStateException("Unexpected message content type: ${content::class.simpleName}")
-            }
-        } finally {
-            // Cleanup temp file
-            kotlinx.coroutines.withContext(Dispatchers.IO) {
-                if (tempFile.exists()) {
-                    tempFile.delete()
-                }
-            }
-        }
+        logger.info("Saved file_id for media $hash: $fileId")
     }
 
     @Transactional
