@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.support.TestTelegramAuthService
+import ru.andvl.chatkeep.api.config.MediaUploadConfig
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
 /**
@@ -19,6 +20,10 @@ class TestConfiguration {
     @Bean
     @Primary
     fun telegramBot(): TelegramBot = mockk(relaxed = true)
+
+    @Bean
+    @Primary
+    fun mediaUploadConfig(): MediaUploadConfig = MediaUploadConfig()
 
     @Bean
     @Primary
