@@ -1,6 +1,7 @@
 package ru.andvl.chatkeep.api
 
 import io.mockk.coEvery
+import io.mockk.every
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -111,6 +112,9 @@ abstract class MiniAppApiTestBase {
         coEvery {
             adminCacheService.isAdmin(userId, chatId, any())
         } returns false
+        every {
+            adminCacheService.isAdminBlocking(userId, chatId, any())
+        } returns false
     }
 
     /**
@@ -119,6 +123,9 @@ abstract class MiniAppApiTestBase {
     protected fun mockUserIsAdmin(chatId: Long, userId: Long) {
         coEvery {
             adminCacheService.isAdmin(userId, chatId, any())
+        } returns true
+        every {
+            adminCacheService.isAdminBlocking(userId, chatId, any())
         } returns true
     }
 
