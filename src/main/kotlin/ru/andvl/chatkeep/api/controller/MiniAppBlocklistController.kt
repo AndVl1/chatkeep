@@ -7,9 +7,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
@@ -60,10 +57,8 @@ class MiniAppBlocklistController(
     ): List<BlocklistPatternResponse> {
         val user = getUserFromRequest(request)
 
-        // Check admin permission (use IO dispatcher to avoid blocking main thread pool)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
+        // Check admin permission
+        val isAdmin = adminCacheService.isAdminBlocking(user.id, chatId, forceRefresh = false)
         if (!isAdmin) {
             throw AccessDeniedException("You are not an admin in this chat")
         }
@@ -98,10 +93,8 @@ class MiniAppBlocklistController(
     ): ResponseEntity<BlocklistPatternResponse> {
         val user = getUserFromRequest(request)
 
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
+        // Check admin permission (force refresh for write operation)
+        val isAdmin = adminCacheService.isAdminBlocking(user.id, chatId, forceRefresh = true)
         if (!isAdmin) {
             throw AccessDeniedException("You are not an admin in this chat")
         }
@@ -170,10 +163,8 @@ class MiniAppBlocklistController(
     ): ResponseEntity<Void> {
         val user = getUserFromRequest(request)
 
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
+        // Check admin permission (force refresh for write operation)
+        val isAdmin = adminCacheService.isAdminBlocking(user.id, chatId, forceRefresh = true)
         if (!isAdmin) {
             throw AccessDeniedException("You are not an admin in this chat")
         }

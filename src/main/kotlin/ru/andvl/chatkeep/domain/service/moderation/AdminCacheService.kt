@@ -4,6 +4,8 @@ import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.extensions.api.chat.get.getChatAdministrators
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.RawChatId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import ru.andvl.chatkeep.infrastructure.repository.moderation.AdminCacheRepository
@@ -20,6 +22,22 @@ class AdminCacheService(
     private val cacheTtl = 5.minutes
 
     /**
+     * Blocking wrapper for isAdmin() to be used from servlet controllers.
+     * Runs the suspend function on the IO dispatcher to avoid blocking servlet threads directly.
+     *
+     * @param userId User ID to check
+     * @param chatId Chat ID to check in
+     * @param forceRefresh If true, bypass cache and fetch fresh from Telegram (SEC-003).
+     *                     Use for sensitive operations.
+     * @return true if user is admin
+     */
+    fun isAdminBlocking(userId: Long, chatId: Long, forceRefresh: Boolean = false): Boolean {
+        return runBlocking(Dispatchers.IO) {
+            isAdmin(userId, chatId, forceRefresh)
+        }
+    }
+
+    /**
      * Check if user is admin in a chat.
      *
      * @param userId User ID to check
@@ -29,11 +47,11 @@ class AdminCacheService(
      * @return true if user is admin
      */
     suspend fun isAdmin(userId: Long, chatId: Long, forceRefresh: Boolean = false): Boolean {
-        logger.info("Admin check requested: userId=$userId, chatId=$chatId, forceRefresh=$forceRefresh")
+        logger.debug("Admin check: userId=$userId, chatId=$chatId, forceRefresh=$forceRefresh")
 
         // Force fresh check for sensitive operations (SEC-003)
         if (forceRefresh) {
-            logger.info("Admin check force refresh: userId=$userId, chatId=$chatId")
+            logger.debug("Force refresh: userId=$userId, chatId=$chatId")
             return fetchAdminStatus(userId, chatId)
         }
 
@@ -41,12 +59,12 @@ class AdminCacheService(
 
         // Check cache first
         adminCacheRepository.findValidEntry(userId, chatId, now)?.let {
-            logger.info("Admin check cache hit: userId=$userId, chatId=$chatId, isAdmin=${it.isAdmin}")
+            logger.debug("Cache hit: userId=$userId, chatId=$chatId, isAdmin=${it.isAdmin}")
             return it.isAdmin
         }
 
         // Cache miss - fetch from Telegram
-        logger.info("Admin check cache miss: userId=$userId, chatId=$chatId")
+        logger.info("Cache miss, fetching from Telegram: userId=$userId, chatId=$chatId")
         val isAdmin = fetchAdminStatus(userId, chatId)
 
         // Store in cache using upsert to handle expired entries
@@ -64,17 +82,17 @@ class AdminCacheService(
             logger.warn("Failed to cache admin status: ${it.message}")
         }
 
+        logger.info("Admin check result: userId=$userId, chatId=$chatId -> isAdmin=$isAdmin")
         return isAdmin
     }
 
     private suspend fun fetchAdminStatus(userId: Long, chatId: Long): Boolean {
         return try {
-            logger.info("Fetching admin status: userId=$userId, chatId=$chatId")
+            logger.debug("Fetching admin status from Telegram: userId=$userId, chatId=$chatId")
             val admins = bot.getChatAdministrators(ChatId(RawChatId(chatId)))
             val adminIds = admins.map { it.user.id.chatId.long }
-            logger.info("Got ${admins.size} admins for chat $chatId: $adminIds")
             val isAdmin = adminIds.contains(userId)
-            logger.info("Admin check result: userId=$userId in chat=$chatId -> isAdmin=$isAdmin (admins: $adminIds)")
+            logger.debug("Fetched ${admins.size} admins for chat $chatId, userId=$userId is admin: $isAdmin")
             isAdmin
         } catch (e: Exception) {
             logger.error(

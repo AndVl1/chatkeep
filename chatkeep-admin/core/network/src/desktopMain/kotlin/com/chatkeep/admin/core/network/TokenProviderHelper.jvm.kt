@@ -1,4 +1,4 @@
-package com.chatkeep.admin.di
+package com.chatkeep.admin.core.network
 
 import com.chatkeep.admin.core.common.TokenStorage
 import kotlinx.coroutines.runBlocking

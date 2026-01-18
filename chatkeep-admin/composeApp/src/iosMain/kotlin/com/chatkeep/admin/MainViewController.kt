@@ -3,30 +3,15 @@ package com.chatkeep.admin
 import androidx.compose.ui.window.ComposeUIViewController
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.ApplicationLifecycle
-import com.chatkeep.admin.di.AppFactory
-import com.chatkeep.admin.di.createPlatformDataStore
-import com.chatkeep.admin.di.createPlatformHttpClient
-import com.chatkeep.admin.di.createPlatformTokenStorage
-import com.chatkeep.admin.di.getApiBaseUrl
+import com.chatkeep.admin.di.IosAppGraph
 import platform.UIKit.UIViewController
 
 fun MainViewController(): UIViewController {
-    // Create platform dependencies
-    val httpClient = createPlatformHttpClient()
-    val dataStore = createPlatformDataStore(Unit)
-    val tokenStorage = createPlatformTokenStorage(dataStore)
-    val baseUrl = getApiBaseUrl()
+    // Create dependency graph
+    val graph = IosAppGraph()
 
-    // Create app factory
-    val appFactory = AppFactory(
-        httpClient = httpClient,
-        baseUrl = baseUrl,
-        tokenStorage = tokenStorage,
-        dataStore = dataStore
-    )
-
-    // Create root component
-    val rootComponent = appFactory.createRootComponent(
+    // Create root component with injected dependencies
+    val rootComponent = graph.createRootComponent(
         componentContext = DefaultComponentContext(
             lifecycle = ApplicationLifecycle()
         )
@@ -35,7 +20,7 @@ fun MainViewController(): UIViewController {
     return ComposeUIViewController {
         App(
             rootComponent = rootComponent,
-            settingsRepository = appFactory.settingsRepository
+            settingsRepository = graph.settingsRepository
         )
     }
 }
