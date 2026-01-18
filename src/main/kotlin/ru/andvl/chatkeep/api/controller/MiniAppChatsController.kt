@@ -67,11 +67,11 @@ class MiniAppChatsController(
         val botId = cachedBotId
 
         // Check user admin status in parallel
-        return runBlocking(Dispatchers.IO) {
+        return runBlocking {
             val adminCheckResults = allChats.map { chat ->
-                async {
+                async(Dispatchers.IO) {
                     val isUserAdmin = try {
-                        adminCacheService.isAdmin(user.id, chat.chatId, forceRefresh = false)
+                        adminCacheService.isAdminBlocking(user.id, chat.chatId, forceRefresh = false)
                     } catch (e: Exception) {
                         logger.warn("Failed to check user admin status for chat ${chat.chatId}", e)
                         false
@@ -86,10 +86,10 @@ class MiniAppChatsController(
             userAdminChats
                 .filter { !it.chatTitle.isNullOrBlank() }
                 .map { chat ->
-                    async {
+                    async(Dispatchers.IO) {
                         val isBotAdmin = if (botId != null) {
                             try {
-                                adminCacheService.isAdmin(botId, chat.chatId, forceRefresh = true)
+                                adminCacheService.isAdminBlocking(botId, chat.chatId, forceRefresh = true)
                             } catch (e: Exception) {
                                 logger.warn("Failed to check bot admin status for chat ${chat.chatId}", e)
                                 false

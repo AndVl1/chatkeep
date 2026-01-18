@@ -4,6 +4,8 @@ import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.extensions.api.chat.get.getChatAdministrators
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.RawChatId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import ru.andvl.chatkeep.infrastructure.repository.moderation.AdminCacheRepository
@@ -18,6 +20,22 @@ class AdminCacheService(
 
     private val logger = LoggerFactory.getLogger(javaClass)
     private val cacheTtl = 5.minutes
+
+    /**
+     * Blocking wrapper for isAdmin() to be used from servlet controllers.
+     * Runs the suspend function on the IO dispatcher to avoid blocking servlet threads directly.
+     *
+     * @param userId User ID to check
+     * @param chatId Chat ID to check in
+     * @param forceRefresh If true, bypass cache and fetch fresh from Telegram (SEC-003).
+     *                     Use for sensitive operations.
+     * @return true if user is admin
+     */
+    fun isAdminBlocking(userId: Long, chatId: Long, forceRefresh: Boolean = false): Boolean {
+        return runBlocking(Dispatchers.IO) {
+            isAdmin(userId, chatId, forceRefresh)
+        }
+    }
 
     /**
      * Check if user is admin in a chat.
