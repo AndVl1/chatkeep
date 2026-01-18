@@ -231,7 +231,7 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           BOT_TOKEN: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
           DB_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.DB_PASSWORD || secrets.TEST_DB_PASSWORD }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_SECRET: ${{ env.IS_PRODUCTION == 'true' && secrets.JWT_SECRET || secrets.TEST_JWT_SECRET }}
           DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
           ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
         with:
