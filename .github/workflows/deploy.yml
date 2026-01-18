@@ -156,16 +156,26 @@ jobs:
     if: vars.DEPLOY_HOST != '' || vars.TEST_DEPLOY_HOST != ''
 
     env:
-      # Environment-specific variables
-      DEPLOY_HOST: ${{ env.IS_PROD == 'true' && vars.DEPLOY_HOST || vars.TEST_DEPLOY_HOST }}
-      DEPLOY_SSH_KEY: ${{ env.IS_PROD == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
-      BOT_TOKEN: ${{ env.IS_PROD == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
-      DOMAIN: ${{ env.IS_PROD == 'true' && vars.PROD_DOMAIN || vars.TEST_DOMAIN }}
-      ENV_NAME: ${{ env.IS_PROD == 'true' && 'production' || 'test' }}
+      # Environment-specific variables using workflow-level IS_PROD
+      # Note: Using github context to determine branch, as env context is not available at job level
+      IS_PRODUCTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: set-env
+        run: |
+          if [[ "${{ env.IS_PRODUCTION }}" == "true" ]]; then
+            echo "DEPLOY_HOST=${{ vars.DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+            echo "DOMAIN=${{ vars.PROD_DOMAIN }}" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=production" >> $GITHUB_OUTPUT
+          else
+            echo "DEPLOY_HOST=${{ vars.TEST_DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+            echo "DOMAIN=${{ vars.TEST_DOMAIN }}" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=test" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download Mini App artifact
         uses: actions/download-artifact@v4
@@ -182,17 +192,17 @@ jobs:
       - name: Log deployment info
         run: |
           echo "### Deployment Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "Environment: ${{ env.ENV_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "Domain: ${{ env.DOMAIN }}" >> $GITHUB_STEP_SUMMARY
-          echo "Host: ${{ env.DEPLOY_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: ${{ steps.set-env.outputs.ENV_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "Domain: ${{ steps.set-env.outputs.DOMAIN }}" >> $GITHUB_STEP_SUMMARY
+          echo "Host: ${{ steps.set-env.outputs.DEPLOY_HOST }}" >> $GITHUB_STEP_SUMMARY
           echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Copy Docker Compose config to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ env.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ env.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "docker-compose.prod.yml"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
@@ -200,16 +210,16 @@ jobs:
       - name: Generate nginx configs from templates
         run: |
           chmod +x docker/nginx/generate-configs.sh
-          docker/nginx/generate-configs.sh ${{ env.DOMAIN }}
-          echo "Generated nginx configs for domain: ${{ env.DOMAIN }}"
+          docker/nginx/generate-configs.sh ${{ steps.set-env.outputs.DOMAIN }}
+          echo "Generated nginx configs for domain: ${{ steps.set-env.outputs.DOMAIN }}"
           ls -la docker/nginx/sites/
 
       - name: Copy Nginx configs to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ env.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ env.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "docker/nginx/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
@@ -219,13 +229,13 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
-          BOT_TOKEN: ${{ env.BOT_TOKEN }}
-          DOMAIN: ${{ env.DOMAIN }}
-          ENV_NAME: ${{ env.ENV_NAME }}
+          BOT_TOKEN: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
+          DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
+          ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
         with:
-          host: ${{ env.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ env.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DOMAIN,ENV_NAME
           script: |
             # Ensure deployment directory exists
@@ -242,17 +252,12 @@ jobs:
 
             # Update or create .env file with environment-specific variables
             echo "Updating .env file for $ENV_NAME environment..."
-            cat > .env << 'EOF'
+            cat > .env << EOF
             GITHUB_REPOSITORY=andvl1/chatkeep
-            BOT_TOKEN=$BOT_TOKEN
+            TELEGRAM_BOT_TOKEN=$BOT_TOKEN
             DOMAIN=$DOMAIN
             ENVIRONMENT=$ENV_NAME
             EOF
-
-            # Substitute actual values
-            sed -i "s|\$BOT_TOKEN|$BOT_TOKEN|g" .env
-            sed -i "s|\$DOMAIN|$DOMAIN|g" .env
-            sed -i "s|\$ENV_NAME|$ENV_NAME|g" .env
 
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
@@ -265,9 +270,9 @@ jobs:
       - name: Copy Mini App files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ env.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ env.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "mini-app/dist/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
@@ -275,9 +280,9 @@ jobs:
       - name: Copy WASM files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ env.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ env.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
@@ -285,12 +290,12 @@ jobs:
       - name: Verify configs and restart services
         uses: appleboy/ssh-action@v1.2.0
         env:
-          ENV_NAME: ${{ env.ENV_NAME }}
-          DOMAIN: ${{ env.DOMAIN }}
+          ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
+          DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
         with:
-          host: ${{ env.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ env.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           envs: ENV_NAME,DOMAIN
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
