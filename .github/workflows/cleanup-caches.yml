@@ -9,7 +9,12 @@ on:
       max_age_days:
         description: 'Delete caches not used for this many days'
         required: false
-        default: '3'
+        default: '2'
+        type: string
+      max_size_gb:
+        description: 'Maximum total cache size in GB (LRU cleanup if exceeded)'
+        required: false
+        default: '5'
         type: string
 
 jobs:
@@ -27,19 +32,39 @@ jobs:
       - name: Cleanup old caches
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_AGE_DAYS: ${{ inputs.max_age_days || '3' }}
+          MAX_AGE_DAYS: ${{ inputs.max_age_days || '2' }}
+          MAX_SIZE_GB: ${{ inputs.max_size_gb || '5' }}
         run: |
-          echo "Fetching cache list..."
+          echo "=== Cache Cleanup Strategy ==="
+          echo "1. Delete caches not used for $MAX_AGE_DAYS+ days"
+          echo "2. If total size > ${MAX_SIZE_GB}GB, delete oldest (LRU)"
+          echo "================================"
+          echo ""
+
+          # Function to delete a cache by ID
+          delete_cache() {
+            local cache_id=$1
+            if gh api \
+              --method DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ github.repository }}/actions/caches/$cache_id 2>/dev/null; then
+              return 0
+            else
+              return 1
+            fi
+          }
+
+          TOTAL_DELETED=0
+          TOTAL_FAILED=0
+
+          # === PHASE 1: Age-based cleanup ===
+          echo "PHASE 1: Age-based cleanup"
+          echo "---"
 
           # Calculate cutoff timestamp (MAX_AGE_DAYS ago)
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            CUTOFF_DATE=$(date -v-${MAX_AGE_DAYS}d -u +"%Y-%m-%dT%H:%M:%SZ")
-          else
-            CUTOFF_DATE=$(date -u -d "${MAX_AGE_DAYS} days ago" +"%Y-%m-%dT%H:%M:%SZ")
-          fi
-
-          echo "Will delete caches last accessed before: $CUTOFF_DATE"
-          echo "---"
+          CUTOFF_DATE=$(date -u -d "${MAX_AGE_DAYS} days ago" +"%Y-%m-%dT%H:%M:%SZ")
+          echo "Deleting caches last accessed before: $CUTOFF_DATE"
 
           # Get all caches and filter by last access time
           gh api \
@@ -47,50 +72,104 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             /repos/${{ github.repository }}/actions/caches \
             --paginate \
-            --jq '.actions_caches[] | select(.last_accessed_at < "'"$CUTOFF_DATE"'") | {id: .id, key: .key, size_mb: (.size_in_bytes / 1024 / 1024 | floor), last_accessed_at: .last_accessed_at, created_at: .created_at}' \
+            --jq '.actions_caches[] | select(.last_accessed_at < "'"$CUTOFF_DATE"'") | {id: .id, key: .key, size_mb: (.size_in_bytes / 1024 / 1024 | floor), last_accessed_at: .last_accessed_at}' \
             > old_caches.json
 
-          # Count caches to delete
-          CACHE_COUNT=$(cat old_caches.json | jq -s 'length')
+          OLD_COUNT=$(cat old_caches.json | jq -s 'length')
 
-          if [ "$CACHE_COUNT" -eq 0 ]; then
-            echo "No caches unused for more than $MAX_AGE_DAYS days found."
-            exit 0
+          if [ "$OLD_COUNT" -gt 0 ]; then
+            echo "Found $OLD_COUNT old cache(s):"
+            cat old_caches.json | jq -r '"- \(.key) (\(.size_mb) MB) - last used \(.last_accessed_at)"'
+
+            OLD_SIZE_MB=$(cat old_caches.json | jq -s 'map(.size_mb) | add // 0')
+            echo "Size to free: ${OLD_SIZE_MB} MB"
+            echo ""
+
+            # Delete old caches
+            while IFS= read -r cache_id; do
+              if delete_cache "$cache_id"; then
+                TOTAL_DELETED=$((TOTAL_DELETED + 1))
+                echo "✓ Deleted cache $cache_id"
+              else
+                TOTAL_FAILED=$((TOTAL_FAILED + 1))
+                echo "✗ Failed to delete cache $cache_id"
+              fi
+            done < <(cat old_caches.json | jq -r '.id')
+
+            echo "Phase 1 complete: Deleted $TOTAL_DELETED, Failed $TOTAL_FAILED"
+          else
+            echo "No caches older than $MAX_AGE_DAYS days found."
           fi
 
-          echo "Found $CACHE_COUNT cache(s) to delete:"
-          cat old_caches.json | jq -r '"- \(.key) (\(.size_mb) MB) - last used \(.last_accessed_at)"'
+          echo ""
+          echo "=== PHASE 2: Size-based LRU cleanup ==="
           echo "---"
+
+          # Get all remaining caches
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/actions/caches \
+            --paginate \
+            --jq '.actions_caches[] | {id: .id, key: .key, size_bytes: .size_in_bytes, size_mb: (.size_in_bytes / 1024 / 1024 | floor), last_accessed_at: .last_accessed_at}' \
+            > all_caches.json
 
           # Calculate total size
-          TOTAL_SIZE_MB=$(cat old_caches.json | jq -s 'map(.size_mb) | add // 0')
-          echo "Total size to free: ${TOTAL_SIZE_MB} MB"
-          echo "---"
+          TOTAL_SIZE_BYTES=$(cat all_caches.json | jq -s 'map(.size_bytes) | add // 0')
+          TOTAL_SIZE_GB=$(echo "scale=2; $TOTAL_SIZE_BYTES / 1024 / 1024 / 1024" | bc)
+          MAX_SIZE_BYTES=$(echo "$MAX_SIZE_GB * 1024 * 1024 * 1024" | bc | cut -d. -f1)
 
-          # Delete each cache
-          DELETED=0
-          FAILED=0
+          echo "Current total cache size: ${TOTAL_SIZE_GB} GB"
+          echo "Maximum allowed size: ${MAX_SIZE_GB} GB"
 
-          cat old_caches.json | jq -r '.id' | while read cache_id; do
-            echo "Deleting cache ID: $cache_id"
+          if (( TOTAL_SIZE_BYTES > MAX_SIZE_BYTES )); then
+            echo "⚠️  Size limit exceeded! Starting LRU cleanup..."
+            echo ""
 
-            if gh api \
-              --method DELETE \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              /repos/${{ github.repository }}/actions/caches/$cache_id; then
-              DELETED=$((DELETED + 1))
-              echo "✓ Deleted cache $cache_id"
-            else
-              FAILED=$((FAILED + 1))
-              echo "✗ Failed to delete cache $cache_id"
-            fi
-          done
+            # Sort by last_accessed_at (oldest first)
+            cat all_caches.json | jq -s 'sort_by(.last_accessed_at)' | jq -c '.[]' > sorted_caches.json
 
-          echo "---"
-          echo "Cleanup complete!"
-          echo "Deleted: $DELETED cache(s)"
-          [ "$FAILED" -gt 0 ] && echo "Failed: $FAILED cache(s)"
+            CURRENT_SIZE=$TOTAL_SIZE_BYTES
+            LRU_DELETED=0
+
+            while IFS= read -r cache_json; do
+              if (( CURRENT_SIZE <= MAX_SIZE_BYTES )); then
+                break
+              fi
+
+              cache_id=$(echo "$cache_json" | jq -r '.id')
+              cache_key=$(echo "$cache_json" | jq -r '.key')
+              cache_size=$(echo "$cache_json" | jq -r '.size_bytes')
+              cache_size_mb=$(echo "$cache_json" | jq -r '.size_mb')
+              cache_last_used=$(echo "$cache_json" | jq -r '.last_accessed_at')
+
+              echo "Deleting: $cache_key ($cache_size_mb MB, last used $cache_last_used)"
+
+              if delete_cache "$cache_id"; then
+                CURRENT_SIZE=$((CURRENT_SIZE - cache_size))
+                LRU_DELETED=$((LRU_DELETED + 1))
+                TOTAL_DELETED=$((TOTAL_DELETED + 1))
+                CURRENT_SIZE_GB=$(echo "scale=2; $CURRENT_SIZE / 1024 / 1024 / 1024" | bc)
+                echo "✓ Deleted. New total: ${CURRENT_SIZE_GB} GB"
+              else
+                TOTAL_FAILED=$((TOTAL_FAILED + 1))
+                echo "✗ Failed to delete"
+              fi
+            done < sorted_caches.json
+
+            echo ""
+            echo "Phase 2 complete: Deleted $LRU_DELETED cache(s) via LRU"
+            FINAL_SIZE_GB=$(echo "scale=2; $CURRENT_SIZE / 1024 / 1024 / 1024" | bc)
+            echo "Final cache size: ${FINAL_SIZE_GB} GB"
+          else
+            echo "✓ Size is within limit. No LRU cleanup needed."
+          fi
+
+          echo ""
+          echo "================================"
+          echo "Total deleted: $TOTAL_DELETED cache(s)"
+          [ "$TOTAL_FAILED" -gt 0 ] && echo "Total failed: $TOTAL_FAILED cache(s)"
+          echo "================================"
 
       - name: Show remaining caches
         env:
