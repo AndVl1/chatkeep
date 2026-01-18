@@ -230,13 +230,15 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
           BOT_TOKEN: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
+          DB_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.DB_PASSWORD || secrets.TEST_DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
           ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
         with:
           host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
           key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
-          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DOMAIN,ENV_NAME
+          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DB_PASSWORD,JWT_SECRET,DOMAIN,ENV_NAME
           script: |
             # Ensure deployment directory exists
             echo "Preparing deployment directories..."
@@ -255,8 +257,14 @@ jobs:
             cat > .env << EOF
             GITHUB_REPOSITORY=andvl1/chatkeep
             TELEGRAM_BOT_TOKEN=$BOT_TOKEN
+            DB_PASSWORD=$DB_PASSWORD
+            JWT_SECRET=$JWT_SECRET
             DOMAIN=$DOMAIN
             ENVIRONMENT=$ENV_NAME
+            MAIN_DOMAIN=$DOMAIN
+            API_DOMAIN=api.$DOMAIN
+            MINIAPP_DOMAIN=miniapp.$DOMAIN
+            ADMIN_DOMAIN=admin.$DOMAIN
             EOF
 
             # Login to GitHub Container Registry
