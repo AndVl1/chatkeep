@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       max_age_days:
-        description: 'Maximum age of caches to keep (in days)'
+        description: 'Delete caches not used for this many days'
         required: false
         default: '3'
         type: string
@@ -38,28 +38,28 @@ jobs:
             CUTOFF_DATE=$(date -u -d "${MAX_AGE_DAYS} days ago" +"%Y-%m-%dT%H:%M:%SZ")
           fi
 
-          echo "Will delete caches created before: $CUTOFF_DATE"
+          echo "Will delete caches last accessed before: $CUTOFF_DATE"
           echo "---"
 
-          # Get all caches and filter by age
+          # Get all caches and filter by last access time
           gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             /repos/${{ github.repository }}/actions/caches \
             --paginate \
-            --jq '.actions_caches[] | select(.created_at < "'"$CUTOFF_DATE"'") | {id: .id, key: .key, size_mb: (.size_in_bytes / 1024 / 1024 | floor), created_at: .created_at}' \
+            --jq '.actions_caches[] | select(.last_accessed_at < "'"$CUTOFF_DATE"'") | {id: .id, key: .key, size_mb: (.size_in_bytes / 1024 / 1024 | floor), last_accessed_at: .last_accessed_at, created_at: .created_at}' \
             > old_caches.json
 
           # Count caches to delete
           CACHE_COUNT=$(cat old_caches.json | jq -s 'length')
 
           if [ "$CACHE_COUNT" -eq 0 ]; then
-            echo "No caches older than $MAX_AGE_DAYS days found."
+            echo "No caches unused for more than $MAX_AGE_DAYS days found."
             exit 0
           fi
 
           echo "Found $CACHE_COUNT cache(s) to delete:"
-          cat old_caches.json | jq -r '"- \(.key) (\(.size_mb) MB) - created \(.created_at)"'
+          cat old_caches.json | jq -r '"- \(.key) (\(.size_mb) MB) - last used \(.last_accessed_at)"'
           echo "---"
 
           # Calculate total size
@@ -103,8 +103,8 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             /repos/${{ github.repository }}/actions/caches \
-            --jq '.actions_caches[] | {key: .key, size_mb: (.size_in_bytes / 1024 / 1024 | floor), created_at: .created_at}' \
-            | jq -r '"- \(.key) (\(.size_mb) MB) - created \(.created_at)"' \
+            --jq '.actions_caches[] | {key: .key, size_mb: (.size_in_bytes / 1024 / 1024 | floor), last_accessed_at: .last_accessed_at}' \
+            | jq -r '"- \(.key) (\(.size_mb) MB) - last used \(.last_accessed_at)"' \
             || echo "No caches remaining"
 
           # Show total cache usage
