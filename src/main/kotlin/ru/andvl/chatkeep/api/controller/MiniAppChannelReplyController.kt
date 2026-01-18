@@ -13,12 +13,18 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
 import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.multipart.MultipartFile
 import ru.andvl.chatkeep.api.dto.ButtonDto
 import ru.andvl.chatkeep.api.dto.ChannelReplyResponse
+import ru.andvl.chatkeep.api.dto.MediaUploadResponse
 import ru.andvl.chatkeep.api.dto.UpdateChannelReplyRequest
 import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.UnauthorizedException
+import ru.andvl.chatkeep.api.service.MediaUploadService
 import ru.andvl.chatkeep.domain.model.channelreply.ChannelReplySettings
+import ru.andvl.chatkeep.domain.model.channelreply.MediaType
 import ru.andvl.chatkeep.domain.model.channelreply.ReplyButton
 import ru.andvl.chatkeep.domain.service.channelreply.ChannelReplyService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
@@ -29,7 +35,10 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppChannelReplyController(
     private val channelReplyService: ChannelReplyService,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val mediaUploadService: MediaUploadService,
+    private val mediaStorageService: ru.andvl.chatkeep.domain.service.media.MediaStorageService,
+    private val linkedChannelService: ru.andvl.chatkeep.domain.service.channelreply.LinkedChannelService
 ) {
 
     private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
@@ -62,11 +71,24 @@ class MiniAppChannelReplyController(
 
         val buttons = channelReplyService.parseButtons(settings.buttonsJson)
 
+        // Get linked channel info
+        val linkedChannel = runBlocking(Dispatchers.IO) {
+            linkedChannelService.getLinkedChannel(chatId)?.let {
+                ru.andvl.chatkeep.api.dto.LinkedChannelDto(it.id, it.title)
+            }
+        }
+
+        val hasMedia = !settings.mediaHash.isNullOrBlank() || !settings.mediaFileId.isNullOrBlank()
+
         return ChannelReplyResponse(
             enabled = settings.enabled,
             replyText = settings.replyText,
             mediaFileId = settings.mediaFileId,
-            buttons = buttons.map { ButtonDto(it.text, it.url) }
+            mediaType = settings.mediaType,
+            mediaHash = settings.mediaHash,
+            hasMedia = hasMedia,
+            buttons = buttons.map { ButtonDto(it.text, it.url) },
+            linkedChannel = linkedChannel
         )
     }
 
@@ -110,5 +132,71 @@ class MiniAppChannelReplyController(
         }
 
         return getChannelReply(chatId, request)
+    }
+
+    @PostMapping("/media", consumes = ["multipart/form-data"])
+    @Transactional
+    @Operation(summary = "Upload media for channel reply")
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Media uploaded successfully"),
+        ApiResponse(responseCode = "400", description = "Validation error (file too large, invalid type, etc.)"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not admin")
+    )
+    fun uploadMedia(
+        @PathVariable chatId: Long,
+        @RequestParam("file") file: MultipartFile,
+        request: HttpServletRequest
+    ): ResponseEntity<MediaUploadResponse> {
+        val user = getUserFromRequest(request)
+
+        // Check admin permission (force refresh for write operation, use IO dispatcher)
+        val isAdmin = runBlocking(Dispatchers.IO) {
+            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
+        }
+        if (!isAdmin) {
+            throw AccessDeniedException("You are not an admin in this chat")
+        }
+
+        // Store file as blob and get hash
+        val hash = mediaStorageService.storeMedia(file)
+
+        // Determine media type from MIME type
+        val mediaType = when {
+            file.contentType?.startsWith("image/") == true -> MediaType.PHOTO
+            file.contentType?.startsWith("video/") == true -> MediaType.VIDEO
+            else -> MediaType.DOCUMENT
+        }
+
+        // Save media hash to database
+        channelReplyService.setMediaByHash(chatId, hash, mediaType)
+
+        return ResponseEntity.ok(MediaUploadResponse(hash, mediaType.name))
+    }
+
+    @DeleteMapping("/media")
+    @Transactional
+    @Operation(summary = "Delete media from channel reply")
+    @ApiResponses(
+        ApiResponse(responseCode = "204", description = "Media deleted successfully"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not admin")
+    )
+    fun deleteMedia(
+        @PathVariable chatId: Long,
+        request: HttpServletRequest
+    ): ResponseEntity<Void> {
+        val user = getUserFromRequest(request)
+
+        // Check admin permission (force refresh for write operation, use IO dispatcher)
+        val isAdmin = runBlocking(Dispatchers.IO) {
+            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
+        }
+        if (!isAdmin) {
+            throw AccessDeniedException("You are not an admin in this chat")
+        }
+
+        // Clear media from database
+        channelReplyService.clearMedia(chatId)
+
+        return ResponseEntity.noContent().build()
     }
 }

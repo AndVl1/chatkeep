@@ -63,7 +63,21 @@ data class ChannelReplyResponse(
     val enabled: Boolean,
     val replyText: String?,
     val mediaFileId: String?,
-    val buttons: List<ButtonDto>
+    val mediaType: String?,
+    val mediaHash: String?,
+    val hasMedia: Boolean,
+    val buttons: List<ButtonDto>,
+    val linkedChannel: LinkedChannelDto?
+)
+
+data class LinkedChannelDto(
+    val id: Long,
+    val title: String
+)
+
+data class MediaUploadResponse(
+    val fileId: String,
+    val mediaType: String
 )
 
 data class ButtonDto(

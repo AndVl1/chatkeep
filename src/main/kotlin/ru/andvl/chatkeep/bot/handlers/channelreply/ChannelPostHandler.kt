@@ -27,7 +27,8 @@ import ru.andvl.chatkeep.domain.service.channelreply.ChannelReplyService
 
 @Component
 class ChannelPostHandler(
-    private val channelReplyService: ChannelReplyService
+    private val channelReplyService: ChannelReplyService,
+    private val mediaStorageService: ru.andvl.chatkeep.domain.service.media.MediaStorageService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -56,23 +57,41 @@ class ChannelPostHandler(
 
                 // Check if we have something to send (text or media)
                 val hasText = !settings.replyText.isNullOrBlank()
-                val hasMedia = !settings.mediaFileId.isNullOrBlank() && !settings.mediaType.isNullOrBlank()
+                val hasMediaHash = !settings.mediaHash.isNullOrBlank()
+                val hasLegacyMedia = !settings.mediaFileId.isNullOrBlank() && !settings.mediaType.isNullOrBlank()
 
-                if (!hasText && !hasMedia) {
+                if (!hasText && !hasMediaHash && !hasLegacyMedia) {
                     logger.debug("Channel reply has no text or media for chat $chatId")
                     return@onContentMessage
                 }
 
+                // Resolve media if using hash-based storage
+                val resolvedSettings = if (hasMediaHash && settings.mediaHash != null) {
+                    try {
+                        val fileId = withContext(Dispatchers.IO) {
+                            mediaStorageService.resolveToTelegramFileId(settings.mediaHash, chatId)
+                        }
+                        // Update settings with resolved file_id for this message
+                        settings.copy(mediaFileId = fileId)
+                    } catch (e: Exception) {
+                        logger.error("Failed to resolve media hash ${settings.mediaHash}: ${e.message}", e)
+                        settings
+                    }
+                } else {
+                    settings
+                }
+
                 // Build URL keyboard if buttons configured
-                val keyboard = buildKeyboard(settings)
+                val keyboard = buildKeyboard(resolvedSettings)
 
                 // Send reply with media or text-only
-                if (hasMedia) {
-                    sendMediaReply(message, settings, keyboard)
+                val hasResolvedMedia = !resolvedSettings.mediaFileId.isNullOrBlank() && !resolvedSettings.mediaType.isNullOrBlank()
+                if (hasResolvedMedia) {
+                    sendMediaReply(message, resolvedSettings, keyboard)
                 } else {
                     reply(
                         to = message,
-                        text = settings.replyText!!,
+                        text = resolvedSettings.replyText!!,
                         replyMarkup = keyboard
                     )
                 }

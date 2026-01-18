@@ -9,7 +9,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:contract": "vitest run src/__tests__/contract/"
   },
   "dependencies": {
     "@telegram-apps/sdk": "^2.0.0",
