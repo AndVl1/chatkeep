@@ -63,11 +63,25 @@ class ChannelReplyService(
     }
 
     @Transactional
+    fun setMediaByHash(chatId: Long, hash: String, mediaType: MediaType) {
+        val settings = repository.findByChatId(chatId) ?: ChannelReplySettings(chatId = chatId)
+        val updated = settings.copy(
+            mediaHash = hash,
+            mediaType = mediaType.name,
+            mediaFileId = null, // Clear legacy file_id when using hash
+            updatedAt = Instant.now()
+        )
+        repository.save(updated)
+        logger.info("Channel reply media hash set for chat $chatId (type: ${mediaType.name})")
+    }
+
+    @Transactional
     fun clearMedia(chatId: Long) {
         val settings = repository.findByChatId(chatId) ?: return
         val updated = settings.copy(
             mediaFileId = null,
             mediaType = null,
+            mediaHash = null,
             updatedAt = Instant.now()
         )
         repository.save(updated)

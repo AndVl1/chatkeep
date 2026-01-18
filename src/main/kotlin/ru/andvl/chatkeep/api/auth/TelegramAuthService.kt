@@ -314,9 +314,7 @@ open class TelegramAuthService(
 
         // Log bytes for debugging encoding issues
         val dataBytes = dataCheckString.toByteArray(StandardCharsets.UTF_8)
-        val tokenBytes = tokenToUse.toByteArray(StandardCharsets.UTF_8)
         logger.warn("Hash validation - dataBytes hex (first 100): {}", dataBytes.take(100).joinToString("") { "%02x".format(it) })
-        logger.warn("Hash validation - tokenBytes hex: {}", tokenBytes.joinToString("") { "%02x".format(it) })
         logger.warn("Hash validation - expected: {}, received: {}", expectedHashHex, receivedHash)
 
         // Use constant-time comparison to prevent timing attacks

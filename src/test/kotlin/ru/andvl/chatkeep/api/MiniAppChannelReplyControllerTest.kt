@@ -1,18 +1,35 @@
 package ru.andvl.chatkeep.api
 
+import io.mockk.coEvery
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
+import org.springframework.mock.web.MockMultipartFile
+import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.multipart
 import org.springframework.test.web.servlet.put
+import ru.andvl.chatkeep.api.exception.ValidationException
+import ru.andvl.chatkeep.api.service.MediaUploadService
 import ru.andvl.chatkeep.api.support.TestDataFactory
 import ru.andvl.chatkeep.domain.model.channelreply.ChannelReplySettings
+import ru.andvl.chatkeep.domain.service.channelreply.ChannelReplyService
 
 /**
  * Integration tests for MiniAppChannelReplyController.
  * Tests channel reply settings retrieval and updates.
  */
 class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
+
+    @Autowired
+    private lateinit var mediaUploadService: MediaUploadService
+
+    @Autowired
+    private lateinit var mediaStorageService: ru.andvl.chatkeep.domain.service.media.MediaStorageService
+
+    @Autowired
+    private lateinit var channelReplyService: ChannelReplyService
 
     @Test
     fun `GET channel-reply - returns 401 when not authenticated`() {
@@ -464,6 +481,247 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
         }.andExpect {
             status { isOk() }
             jsonPath("$.replyText") { value(textWithSpecialChars) }
+        }
+    }
+
+    @Test
+    fun `POST media - returns 200 with fileId and mediaType for valid image`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        val testHash = "abc123def456789abc123def456789ab"
+
+        // Mock storage service to save media to repository
+        io.mockk.every {
+            mediaStorageService.storeMedia(any())
+        } answers {
+            val file = arg<org.springframework.web.multipart.MultipartFile>(0)
+            val mediaStorage = ru.andvl.chatkeep.domain.model.media.MediaStorage(
+                hash = testHash,
+                content = file.bytes,
+                mimeType = file.contentType ?: "application/octet-stream",
+                fileSize = file.size
+            )
+            mediaStorageRepository.save(mediaStorage)
+            testHash
+        }
+
+        // Create mock image file
+        val mockFile = MockMultipartFile(
+            "file",
+            "test.jpg",
+            "image/jpeg",
+            "fake image content".toByteArray()
+        )
+
+        mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
+            file(mockFile)
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.fileId") { value(testHash) }
+            jsonPath("$.mediaType") { value("PHOTO") }
+        }
+
+        // Verify media was saved
+        val settings = channelReplySettingsRepository.findByChatId(TestDataFactory.DEFAULT_CHAT_ID)
+        assertThat(settings?.mediaHash).isEqualTo(testHash)
+        assertThat(settings?.mediaType).isEqualTo("PHOTO")
+    }
+
+    @Test
+    fun `POST media - returns 400 when file exceeds size limit`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        // Mock validation error for file too large
+        io.mockk.every {
+            mediaStorageService.storeMedia(any())
+        } throws ValidationException("File size exceeds maximum allowed size of 10MB")
+
+        // Create large mock file (actual size doesn't matter, mock will reject it)
+        val mockFile = MockMultipartFile(
+            "file",
+            "large.jpg",
+            "image/jpeg",
+            "fake large content".toByteArray()
+        )
+
+        mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
+            file(mockFile)
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isBadRequest() }
+        }
+    }
+
+    @Test
+    fun `POST media - returns 400 for invalid MIME type`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        // Mock validation error for invalid MIME type
+        io.mockk.every {
+            mediaStorageService.storeMedia(any())
+        } throws ValidationException("File type 'text/plain' is not allowed")
+
+        // Create mock text file
+        val mockFile = MockMultipartFile(
+            "file",
+            "test.txt",
+            "text/plain",
+            "text content".toByteArray()
+        )
+
+        mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
+            file(mockFile)
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isBadRequest() }
+        }
+    }
+
+    @Test
+    fun `POST media - returns 401 when not authenticated`() {
+        // Create mock file
+        val mockFile = MockMultipartFile(
+            "file",
+            "test.jpg",
+            "image/jpeg",
+            "fake image content".toByteArray()
+        )
+
+        mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
+            file(mockFile)
+        }.andExpect {
+            status { isUnauthorized() }
+        }
+    }
+
+    @Test
+    fun `POST media - returns 403 when user is not admin`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+        mockUserNotAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        // Create mock file
+        val mockFile = MockMultipartFile(
+            "file",
+            "test.jpg",
+            "image/jpeg",
+            "fake image content".toByteArray()
+        )
+
+        mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
+            file(mockFile)
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isForbidden() }
+        }
+    }
+
+    @Test
+    fun `DELETE media - returns 204 when media exists`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        // Setup media in database first
+        channelReplySettingsRepository.save(
+            ChannelReplySettings(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                mediaFileId = "AgACAgIAAxUAAWZn..."
+            )
+        )
+
+        mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isNoContent() }
+        }
+
+        // Verify media was cleared
+        val settings = channelReplySettingsRepository.findByChatId(TestDataFactory.DEFAULT_CHAT_ID)
+        assertThat(settings?.mediaFileId).isNull()
+        assertThat(settings?.mediaType).isNull()
+    }
+
+    @Test
+    fun `DELETE media - returns 401 when not authenticated`() {
+        mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media")
+            .andExpect {
+                status { isUnauthorized() }
+            }
+    }
+
+    @Test
+    fun `DELETE media - returns 403 when user is not admin`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+        mockUserNotAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isForbidden() }
+        }
+    }
+
+    @Test
+    fun `DELETE media - returns 204 even when no media exists (idempotent)`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        // No media in database - delete should still succeed
+        mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isNoContent() }
+        }
+    }
+
+    @Test
+    fun `GET channel-reply - returns mediaType field after media upload`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        // Setup settings with media type
+        val settings = ChannelReplySettings(
+            chatId = TestDataFactory.DEFAULT_CHAT_ID,
+            enabled = true,
+            mediaFileId = "AgACAgIAAxUAAWZn..."
+        )
+        channelReplySettingsRepository.save(settings)
+        // Update mediaType separately using service
+        channelReplyService.setMedia(TestDataFactory.DEFAULT_CHAT_ID, "AgACAgIAAxUAAWZn...", ru.andvl.chatkeep.domain.model.channelreply.MediaType.VIDEO)
+
+        mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply") {
+            header("Authorization", authHeader)
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.mediaFileId") { value("AgACAgIAAxUAAWZn...") }
+            jsonPath("$.mediaType") { value("VIDEO") }
         }
     }
 }

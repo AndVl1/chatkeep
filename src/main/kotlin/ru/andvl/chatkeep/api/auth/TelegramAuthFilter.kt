@@ -29,7 +29,6 @@ class TelegramAuthFilter(
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
-        println("[FILTER] doFilterInternal called for: ${request.requestURI}")
         val path = request.requestURI
 
         // Only apply to Mini App API endpoints
@@ -58,10 +57,7 @@ class TelegramAuthFilter(
         val initDataRaw = authHeader.substring(4).trim()
 
         // Validate and parse
-        println("[FILTER TEST] Calling authService.validateAndParse with: ${initDataRaw.take(50)}")
-        println("[FILTER TEST] AuthService class: ${authService::class.java.name}")
         val user = authService.validateAndParse(initDataRaw)
-        println("[FILTER TEST] Returned user: $user")
         if (user == null) {
             logger.warn("Invalid Telegram auth for $path")
             sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED", "Invalid Telegram authentication")

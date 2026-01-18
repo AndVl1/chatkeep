@@ -89,6 +89,9 @@ abstract class MiniAppApiTestBase {
     @Autowired
     protected lateinit var channelReplySettingsRepository: ChannelReplySettingsRepository
 
+    @Autowired
+    protected lateinit var mediaStorageRepository: ru.andvl.chatkeep.infrastructure.repository.media.MediaStorageRepository
+
     @BeforeEach
     fun baseSetup() {
         // Clear test auth users
@@ -129,6 +132,7 @@ abstract class MiniAppApiTestBase {
         // Clean up in reverse order of dependencies
         blocklistPatternRepository.deleteAll()
         channelReplySettingsRepository.deleteAll()
+        mediaStorageRepository.deleteAll()
         lockSettingsRepository.deleteAll()
         moderationConfigRepository.deleteAll()
         chatSettingsRepository.deleteAll()
