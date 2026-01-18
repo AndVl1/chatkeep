@@ -196,6 +196,13 @@ jobs:
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
+      - name: Generate nginx configs from templates
+        run: |
+          chmod +x docker/nginx/generate-configs.sh
+          docker/nginx/generate-configs.sh ${{ env.DOMAIN }}
+          echo "Generated nginx configs for domain: ${{ env.DOMAIN }}"
+          ls -la docker/nginx/sites/
+
       - name: Copy Nginx configs to server
         uses: appleboy/scp-action@v0.1.7
         with:

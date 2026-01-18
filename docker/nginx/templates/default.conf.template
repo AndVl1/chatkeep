@@ -1,0 +1,17 @@
+# Default server - catch-all for unknown hosts
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    server_name _;
+
+    # ACME challenge for Let's Encrypt
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Return 444 (connection closed without response) for other requests
+    location / {
+        return 444;
+    }
+}
