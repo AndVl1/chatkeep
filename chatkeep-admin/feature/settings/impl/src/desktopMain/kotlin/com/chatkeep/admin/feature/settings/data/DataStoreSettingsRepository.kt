@@ -26,6 +26,7 @@ class DataStoreSettingsRepository(
 ) : SettingsRepository {
 
     private val themeKey = stringPreferencesKey("theme")
+    private val baseUrlKey = stringPreferencesKey("base_url")
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val _settings = MutableStateFlow(UserSettings(Theme.SYSTEM))
@@ -36,7 +37,11 @@ class DataStoreSettingsRepository(
         dataStore.data
             .map { preferences ->
                 val themeString = preferences[themeKey] ?: "SYSTEM"
-                UserSettings(theme = Theme.valueOf(themeString))
+                val baseUrl = preferences[baseUrlKey] ?: "https://admin.chatmoderatorbot.ru"
+                UserSettings(
+                    theme = Theme.valueOf(themeString),
+                    baseUrl = baseUrl
+                )
             }
             .onEach { _settings.value = it }
             .launchIn(scope)
@@ -47,5 +52,12 @@ class DataStoreSettingsRepository(
             preferences[themeKey] = theme.name
         }
         _settings.value = _settings.value.copy(theme = theme)
+    }
+
+    override suspend fun setBaseUrl(url: String) {
+        dataStore.edit { preferences ->
+            preferences[baseUrlKey] = url
+        }
+        _settings.value = _settings.value.copy(baseUrl = url)
     }
 }

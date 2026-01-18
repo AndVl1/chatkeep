@@ -1,206 +1,124 @@
 # TEAM STATE
 
 ## Classification
-- Type: FEATURE + BUG_FIX
+- Type: OPS
 - Complexity: COMPLEX
 - Workflow: FULL 7-PHASE
-- Branch: feat/mini-app-auto-reply-editor (existing)
 
 ## Task
-Улучшения функциональности Auto-Reply для Mini App:
+Настройка тестовой инфраструктуры с разделением prod/test окружений:
+1. Тестовый сервер: 204.77.3.163, chatmodtest.ru
+2. CI/CD пайплайны с автовыбором окружения по ветке
+3. Параметризация конфигов (домен, IP, bot token, DB)
+4. SSL через Let's Encrypt
+5. Mobile app: настройка base URL в UI
+6. SSH ключи и register-ssh для обоих доменов
 
-1. **Терминология**: Auto-reply работает на ПОСТЫ ПРИВЯЗАННОГО КАНАЛА (не просто "channel reply"). Если канал не привязан - фича должна быть выключена/недоступна.
-
-2. **Дебаунс текстового поля**: Добавить 500ms дебаунс при вводе текста реплая (избежать лишних API вызовов).
-
-3. **Новая архитектура загрузки медиа**:
-   - Проблема: MaxUploadSizeExceededException при загрузке 1.4MB картинки
-   - Решение: Отложенная загрузка в Telegram
-     - Загружаем картинку на сервер (MD5 hash → BLOB в БД)
-     - При первом посте в привязанном канале отправляем в Telegram
-     - Сохраняем file_id, удаляем BLOB
-     - TTL cleanup для "зависших" картинок
-
-## User Decisions (Phase 0)
-1. **Hash algorithm**: MD5 (быстрее, достаточно для идентификации)
-2. **Storage**: Database BLOB (всё в одном месте)
-3. **Orphan media**: TTL cleanup (удалять через N дней)
-4. **Debounce**: 500ms
+## Environment Mapping
+| Parameter | Production | Test |
+|-----------|------------|------|
+| Domain | chatmod.ru | chatmodtest.ru |
+| IP | prod IP | 204.77.3.163 |
+| Subdomains | api., admin., app. | api., admin., app. |
+| Bot Token | PROD_BOT_TOKEN | TEST_BOT_TOKEN |
+| SSH Secret | SSH_PRIVATE_KEY | TEST_SSH_TOKEN |
+| Database | prod DB | separate test DB |
 
 ## Progress
-- [x] Phase 0: Classification - COMPLETED
 - [x] Phase 1: Discovery - COMPLETED
 - [x] Phase 2: Exploration - COMPLETED
-- [x] Phase 3: Questions - COMPLETED
-- [x] Phase 4: Architecture - COMPLETED
-- [x] Phase 5: Implementation - COMPLETED
-- [x] Phase 6: Review - COMPLETED
-- [x] Phase 6.5: Review Fixes - COMPLETED
-- [x] Phase 7: Summary - COMPLETED
+- [x] Phase 3: Questions - SKIPPED (all clarified in Phase 1)
+- [ ] Phase 4: Architecture - IN PROGRESS
+- [ ] Phase 5: Implementation - pending
+- [ ] Phase 6: Review - pending
+- [ ] Phase 6.5: Review Fixes - pending (optional)
+- [ ] Phase 7: Summary - pending
+
+## Phase 1 Output
+- Confirmed requirements with user
+- Bot tokens already in GitHub secrets (PROD_BOT_TOKEN, TEST_BOT_TOKEN)
+- Same subdomain structure for both environments
+- Let's Encrypt for SSL
+- Separate database on test server
+- User going to sleep - working autonomously
+
+## Phase 2 Output
+
+### CI/CD Workflows Found (11 total)
+1. `ci.yml` - Build/test for backend, frontend, mobile
+2. `deploy.yml` - Production deployment (production branch → prod server)
+3. `register-ssh.yml` - Manual SSH key registration
+4. `deploy-files-to-server.yml` - Manual deployment with SSL
+5. `setup-ssl.yml` - SSL certificate update
+6. `update-ssl-cert.yml` - Direct SSL update
+7. `fix-nginx-and-ssl.yml` - Diagnostic workflow
+8. `init-git-repo.yml` - Initial server setup
+9. `create-production-pr.yml` - Automated PR creation
+10. `cleanup-caches.yml` - Cache management
+11. `debug-permissions.yml` - File permission diagnostics
+
+### Hardcoded Values to Parameterize
+
+**Domains (100+ occurrences):**
+- `chatmoderatorbot.ru` (main domain - NOT chatmod.ru as user said!)
+- All subdomains: api., miniapp., admin., grafana., prometheus., www.
+
+**Files with hardcoded domains:**
+- `.github/workflows/*.yml` - certbot commands
+- `docker/nginx/sites/*.conf` - server_name, ssl paths
+- `docker-compose.prod.yml` - grafana URLs
+- `src/main/kotlin/.../CorsConfig.kt` - CORS origins
+- `mini-app/.env.production` - bot username
+
+**Server path:** `/root/chatkeep` (hardcoded in multiple places)
+
+### Current Secrets/Variables
+**Secrets:** DEPLOY_SSH_KEY, DB_PASSWORD, JWT_SECRET, TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_BOT_TOKEN, GRAFANA_ADMIN_PASSWORD
+**Variables:** DEPLOY_ENABLED, DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH
+
+### Mobile App Architecture
+- Settings: DataStore (Android/iOS/Desktop), InMemory (WASM)
+- Network: Ktor Client with hardcoded base URL in PlatformFactory
+- Current base URL: `https://admin.chatmoderatorbot.ru` (hardcoded)
+- Pattern: SettingsRepository → DataStoreSettingsRepository (platform-specific)
+
+### Key Finding: Domain Mismatch!
+User said "chatmod.ru" and "chatmodtest.ru" but codebase uses "chatmoderatorbot.ru"!
+Need to verify correct domains.
 
 ## Key Decisions
-- Feature branch: feat/mini-app-auto-reply-editor (продолжаем работу)
-- Hash: MD5
-- Storage: PostgreSQL BLOB
-- Debounce: 500ms
-- Orphan cleanup: TTL-based
+- Environment selection: by branch (production → prod, other → test)
+- Nginx configs: template-based with envsubst
+- Base URL in mobile: add to UserSettings, persist in DataStore
 
 ## Files Identified
 
-### Backend
-1. `src/main/kotlin/ru/andvl/chatkeep/bot/handlers/channelreply/ChannelPostHandler.kt` - обработка постов канала
-2. `src/main/kotlin/ru/andvl/chatkeep/domain/service/channelreply/ChannelReplyService.kt` - сервис CRUD
-3. `src/main/kotlin/ru/andvl/chatkeep/api/service/MediaUploadService.kt` - загрузка медиа
-4. `src/main/kotlin/ru/andvl/chatkeep/api/config/MediaUploadConfig.kt` - конфиг размеров
-5. `src/main/resources/application.yml` - **НЕТ multipart конфига (причина ошибки)**
-6. `src/main/resources/db/migration/V8__add_channel_reply_settings.sql` - схема БД
+### CI/CD (need parameterization)
+- `.github/workflows/deploy.yml`
+- `.github/workflows/deploy-files-to-server.yml`
+- `.github/workflows/register-ssh.yml`
+- `.github/workflows/setup-ssl.yml`
+- `.github/workflows/init-git-repo.yml`
 
-### Frontend
-7. `mini-app/src/pages/ChannelReplyPage.tsx` - страница (нет debounce)
-8. `mini-app/src/components/channel-reply/TextEditor.tsx` - поле ввода текста
-9. `mini-app/src/hooks/api/useChannelReply.ts` - хук API
-10. `mini-app/src/hooks/ui/useDebouncedValue.ts` - **существует, но не используется**
-11. `mini-app/src/i18n/locales/ru.json` - **неправильная терминология**
+### Backend (hardcoded values)
+- `src/main/kotlin/ru/andvl/chatkeep/api/config/CorsConfig.kt`
+- `src/main/resources/application.yml`
 
-## Phase 2 Findings
+### Nginx (hardcoded domains)
+- `docker/nginx/sites/*.conf` (7 files)
 
-### 1. Терминология (КРИТИЧНО)
-i18n ключи описывают фичу как "автоответ новым участникам":
-- `settings.channelReply`: "Автоответ новым участникам"
-- `channelReply.enabledDescription`: "при присоединении новых участников"
-- `channelReply.previewNote`: "для новых участников"
+### Docker
+- `docker-compose.prod.yml`
 
-**На самом деле**: Это автоответ на ПОСТЫ ИЗ ПРИВЯЗАННОГО КАНАЛА в дискуссионном чате.
-
-### 2. MaxUploadSizeExceededException (ROOT CAUSE)
-- `application.yml` НЕ содержит `spring.servlet.multipart.max-file-size`
-- Spring Boot default = **1MB**
-- MediaUploadConfig.maxFileSizeMb = 10MB (проверка внутри кода)
-- 1.4MB файл отклоняется Spring'ом ДО достижения нашего кода
-
-### 3. Дебаунс отсутствует
-- `useDebouncedValue` хук существует (500ms default)
-- ChannelReplyPage.handleChange() вызывает mutate() напрямую
-- Каждое нажатие клавиши = API запрос
-
-### 4. Текущая архитектура медиа
-- Файл → Telegram Bot API → file_id → сохраняем в БД
-- Нет локального хранения
-- Нет BLOB в БД
-
-## Phase 3 Decisions
-1. **Architecture**: Full BLOB (MD5 hash, DB storage, lazy upload to Telegram)
-2. **TTL**: 7 days for orphan media cleanup
-3. **Linked channel validation**: Yes - проверять через Telegram API
+### Mobile App (base URL settings)
+- `feature/settings/api/src/commonMain/kotlin/.../Settings.kt`
+- `feature/settings/impl/src/*/kotlin/.../DataStoreSettingsRepository.kt`
+- `feature/settings/impl/src/commonMain/kotlin/.../ui/SettingsScreen.kt`
+- `composeApp/src/*/kotlin/.../PlatformFactory.*.kt`
 
 ## Chosen Approach
+(will be determined after architecture design)
 
-### Backend (BLOB Media Storage)
-1. Новая таблица `media_storage` (hash, BYTEA blob, mime_type, telegram_file_id)
-2. `MediaStorageService` - MD5 hashing, blob storage, lazy file_id resolution
-3. `MediaCleanupScheduler` - @Scheduled cleanup orphan media (7 days TTL)
-4. `LinkedChannelService` - проверка привязки канала через Telegram API
-5. Модификация `ChannelPostHandler` - resolve blob → file_id при первом посте
-6. Spring multipart config: max-file-size=20MB
-
-### Frontend
-1. i18n fix - исправить терминологию на "посты из привязанного канала"
-2. Debounce 500ms в `ChannelReplyPage.tsx` через `useDebouncedValue`
-3. `NoLinkedChannelWarning` component - предупреждение если нет канала
-4. Обновить types для linkedChannel info
-
-## Phase 5 Output
-
-### Backend (developer agent)
-**Commits:**
-- `b1cb884 feat: add media storage with hash-based deduplication`
-
-**Files Created:**
-- `src/main/resources/db/migration/V12__add_media_storage.sql`
-- `src/main/kotlin/ru/andvl/chatkeep/domain/model/media/MediaStorage.kt`
-- `src/main/kotlin/ru/andvl/chatkeep/infrastructure/repository/media/MediaStorageRepository.kt`
-- `src/main/kotlin/ru/andvl/chatkeep/domain/service/media/MediaStorageService.kt`
-- `src/main/kotlin/ru/andvl/chatkeep/domain/service/media/MediaCleanupScheduler.kt`
-- `src/main/kotlin/ru/andvl/chatkeep/domain/service/channelreply/LinkedChannelService.kt`
-
-**Files Modified:**
-- `application.yml` - added multipart config (20MB)
-- `ChannelReplySettings.kt` - added mediaHash field
-- `ChannelReplyService.kt` - added setMediaByHash
-- `MiniAppChannelReplyController.kt` - blob upload flow
-- `ChannelPostHandler.kt` - resolve hash to file_id
-- `ResponseDtos.kt` - added mediaHash, hasMedia, linkedChannel
-
-**Build Status:** ✅ PASS
-
-### Frontend (frontend-developer agent)
-**Commits:**
-- `71370bf feat: add debounced text input and linked channel warning`
-- `53280d3 feat: update ChannelReplyForm to support local text state`
-- `8792089 feat: add NoLinkedChannelWarning component`
-- `2eab3fa feat: add LinkedChannel type and extend ChannelReply`
-- `49445ef feat: update channel reply i18n terminology`
-
-**Files Created:**
-- `NoLinkedChannelWarning.tsx`
-
-**Files Modified:**
-- `ru.json`, `en.json` - fixed terminology
-- `types/index.ts` - added LinkedChannel
-- `ChannelReplyForm.tsx` - local text state
-- `ChannelReplyPage.tsx` - debounce + warning
-
-**Build Status:** ✅ PASS
-
-## Phase 6.5 Fixes
-
-### Code Review Issues Fixed:
-- `1217b1f fix: resolve code review issues in channel reply frontend`
-  - Fixed debounce effect missing dependencies (stale closures)
-  - Fixed race condition when switching chats (chatId validation)
-  - Fixed unstable fetchChannelReply callback
-
-### Test Fixes:
-- `5c3c025 test: fix media upload tests for hash-based storage`
-  - Updated tests to mock `mediaStorageService.storeMedia()` instead of old `mediaUploadService.uploadToTelegram()`
-  - Updated response assertions from `fileId` to `hash`
-
-### Migration Compatibility Fix:
-- `adb7a15 fix: use standard SQL TIMESTAMP WITH TIME ZONE for H2 compatibility`
-  - Changed `TIMESTAMPTZ` to `TIMESTAMP WITH TIME ZONE` in V12 migration
-  - Required for H2 PostgreSQL mode compatibility (OpenAPI generation profile)
-
-## Phase 7: Summary
-
-### Feature Completed Successfully ✅
-
-**Implemented Features:**
-
-1. **Terminology Fix**: Updated i18n strings (RU/EN) to correctly describe the feature as "auto-reply to linked channel posts" instead of "auto-reply to new members"
-
-2. **Debounce (500ms)**: Added debounce to text input in ChannelReplyPage to prevent excessive API calls
-
-3. **BLOB Media Storage Architecture**:
-   - New `media_storage` table with MD5 hash deduplication
-   - Upload stores BYTEA blob in DB, returns hash
-   - On first channel post, blob is uploaded to Telegram
-   - `telegram_file_id` cached, blob deleted
-   - 7-day TTL cleanup for orphan media via `MediaCleanupScheduler`
-
-4. **Linked Channel Validation**:
-   - `LinkedChannelService` checks if chat has linked channel via Telegram API
-   - `NoLinkedChannelWarning` component shows warning when no channel linked
-   - API returns `linkedChannel` info in response
-
-**All Commits:**
-```
-adb7a15 fix: use standard SQL TIMESTAMP WITH TIME ZONE for H2 compatibility
-5c3c025 test: fix media upload tests for hash-based storage
-1217b1f fix: resolve code review issues in channel reply frontend
-f14bac0 feat: add loading states and user feedback improvements
-...
-b1cb884 feat: add media storage with hash-based deduplication
-```
-
-**Build Status:** ✅ All tests pass locally
-**CI Status:** Pending (triggered)
+## Recovery
+Continue from Phase 4: Architecture design. All exploration complete, questions clarified.
+Need to design: 1) CI/CD parameterization, 2) Nginx templates, 3) Mobile settings UI

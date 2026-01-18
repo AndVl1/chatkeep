@@ -16,6 +16,7 @@ import com.chatkeep.admin.feature.settings.SettingsComponent
 fun SettingsScreen(component: SettingsComponent) {
     val state by component.state.subscribeAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showBaseUrlDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -53,6 +54,34 @@ fun SettingsScreen(component: SettingsComponent) {
                             text = state.theme.name.lowercase().replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Base URL Setting
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showBaseUrlDialog = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "API Server",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = state.baseUrl,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
                         )
                     }
                 }
@@ -106,6 +135,17 @@ fun SettingsScreen(component: SettingsComponent) {
             onDismiss = { showThemeDialog = false }
         )
     }
+
+    if (showBaseUrlDialog) {
+        BaseUrlDialog(
+            currentUrl = state.baseUrl,
+            onUrlSelected = { url ->
+                component.onBaseUrlChange(url)
+                showBaseUrlDialog = false
+            },
+            onDismiss = { showBaseUrlDialog = false }
+        )
+    }
 }
 
 @Composable
@@ -146,4 +186,105 @@ private fun ThemeSelectionDialog(
             }
         }
     )
+}
+
+@Composable
+private fun BaseUrlDialog(
+    currentUrl: String,
+    onUrlSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var customUrl by remember { mutableStateOf(currentUrl) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("API Server URL") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Preset buttons
+                PresetButton(
+                    label = "Production",
+                    url = "https://admin.chatmoderatorbot.ru",
+                    isSelected = currentUrl == "https://admin.chatmoderatorbot.ru",
+                    onClick = { onUrlSelected("https://admin.chatmoderatorbot.ru") }
+                )
+
+                PresetButton(
+                    label = "Test",
+                    url = "https://admin.chatmodtest.ru",
+                    isSelected = currentUrl == "https://admin.chatmodtest.ru",
+                    onClick = { onUrlSelected("https://admin.chatmodtest.ru") }
+                )
+
+                PresetButton(
+                    label = "Localhost",
+                    url = "http://localhost:8080",
+                    isSelected = currentUrl == "http://localhost:8080",
+                    onClick = { onUrlSelected("http://localhost:8080") }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Custom URL input
+                OutlinedTextField(
+                    value = customUrl,
+                    onValueChange = { customUrl = it },
+                    label = { Text("Custom URL") },
+                    placeholder = { Text("https://api.example.com") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (customUrl.isNotBlank()) {
+                        onUrlSelected(customUrl)
+                    }
+                }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun PresetButton(
+    label: String,
+    url: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = if (isSelected) {
+            ButtonDefaults.outlinedButtonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        } else {
+            ButtonDefaults.outlinedButtonColors()
+        }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, style = MaterialTheme.typography.labelLarge)
+            Text(
+                url,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }

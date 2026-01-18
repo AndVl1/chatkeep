@@ -18,4 +18,8 @@ class InMemorySettingsRepository : SettingsRepository {
     override suspend fun setTheme(theme: Theme) {
         _settings.value = _settings.value.copy(theme = theme)
     }
+
+    override suspend fun setBaseUrl(url: String) {
+        _settings.value = _settings.value.copy(baseUrl = url)
+    }
 }
