@@ -1,0 +1,119 @@
+name: Cleanup Old Caches
+
+on:
+  schedule:
+    # Run daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      max_age_days:
+        description: 'Maximum age of caches to keep (in days)'
+        required: false
+        default: '3'
+        type: string
+
+jobs:
+  cleanup:
+    name: Delete Old Caches
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cleanup old caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_AGE_DAYS: ${{ inputs.max_age_days || '3' }}
+        run: |
+          echo "Fetching cache list..."
+
+          # Calculate cutoff timestamp (MAX_AGE_DAYS ago)
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            CUTOFF_DATE=$(date -v-${MAX_AGE_DAYS}d -u +"%Y-%m-%dT%H:%M:%SZ")
+          else
+            CUTOFF_DATE=$(date -u -d "${MAX_AGE_DAYS} days ago" +"%Y-%m-%dT%H:%M:%SZ")
+          fi
+
+          echo "Will delete caches created before: $CUTOFF_DATE"
+          echo "---"
+
+          # Get all caches and filter by age
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/actions/caches \
+            --paginate \
+            --jq '.actions_caches[] | select(.created_at < "'"$CUTOFF_DATE"'") | {id: .id, key: .key, size_mb: (.size_in_bytes / 1024 / 1024 | floor), created_at: .created_at}' \
+            > old_caches.json
+
+          # Count caches to delete
+          CACHE_COUNT=$(cat old_caches.json | jq -s 'length')
+
+          if [ "$CACHE_COUNT" -eq 0 ]; then
+            echo "No caches older than $MAX_AGE_DAYS days found."
+            exit 0
+          fi
+
+          echo "Found $CACHE_COUNT cache(s) to delete:"
+          cat old_caches.json | jq -r '"- \(.key) (\(.size_mb) MB) - created \(.created_at)"'
+          echo "---"
+
+          # Calculate total size
+          TOTAL_SIZE_MB=$(cat old_caches.json | jq -s 'map(.size_mb) | add // 0')
+          echo "Total size to free: ${TOTAL_SIZE_MB} MB"
+          echo "---"
+
+          # Delete each cache
+          DELETED=0
+          FAILED=0
+
+          cat old_caches.json | jq -r '.id' | while read cache_id; do
+            echo "Deleting cache ID: $cache_id"
+
+            if gh api \
+              --method DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ github.repository }}/actions/caches/$cache_id; then
+              DELETED=$((DELETED + 1))
+              echo "✓ Deleted cache $cache_id"
+            else
+              FAILED=$((FAILED + 1))
+              echo "✗ Failed to delete cache $cache_id"
+            fi
+          done
+
+          echo "---"
+          echo "Cleanup complete!"
+          echo "Deleted: $DELETED cache(s)"
+          [ "$FAILED" -gt 0 ] && echo "Failed: $FAILED cache(s)"
+
+      - name: Show remaining caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "---"
+          echo "Remaining caches:"
+
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/actions/caches \
+            --jq '.actions_caches[] | {key: .key, size_mb: (.size_in_bytes / 1024 / 1024 | floor), created_at: .created_at}' \
+            | jq -r '"- \(.key) (\(.size_mb) MB) - created \(.created_at)"' \
+            || echo "No caches remaining"
+
+          # Show total cache usage
+          TOTAL_SIZE=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/actions/caches \
+            --jq '.actions_caches | map(.size_in_bytes) | add // 0')
+
+          TOTAL_SIZE_MB=$((TOTAL_SIZE / 1024 / 1024))
+          echo "---"
+          echo "Total cache usage: ${TOTAL_SIZE_MB} MB"
