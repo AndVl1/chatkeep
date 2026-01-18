@@ -100,7 +100,7 @@ class MiniAppChatsController(
 
                         ChatSummaryResponse(
                             chatId = chat.chatId,
-                            chatTitle = chat.chatTitle,
+                            chatTitle = chat.chatTitle!!,
                             memberCount = null,
                             isBotAdmin = isBotAdmin
                         )

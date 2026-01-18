@@ -15,6 +15,7 @@ import ru.andvl.chatkeep.api.dto.LockDto
 import ru.andvl.chatkeep.api.dto.LocksResponse
 import ru.andvl.chatkeep.api.dto.UpdateLocksRequest
 import ru.andvl.chatkeep.api.exception.AccessDeniedException
+import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
 import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.exception.ValidationException
 import ru.andvl.chatkeep.domain.model.locks.LockType
@@ -123,10 +124,13 @@ class MiniAppLocksController(
 
             // Log lock change if state changed
             if (oldLocked != lockDto.locked) {
+                val settings = chatSettings
+                    ?: throw ResourceNotFoundException("Chat", chatId)
+
                 logChannelService.logModerationAction(
                     ModerationLogEntry(
                         chatId = chatId,
-                        chatTitle = chatSettings?.chatTitle,
+                        chatTitle = settings.chatTitle,
                         adminId = user.id,
                         adminFirstName = user.firstName,
                         adminLastName = user.lastName,
@@ -146,10 +150,13 @@ class MiniAppLocksController(
                 lockSettingsService.setLockWarns(chatId, newValue)
 
                 // Log lock warns change
+                val settings = chatSettings
+                    ?: throw ResourceNotFoundException("Chat", chatId)
+
                 logChannelService.logModerationAction(
                     ModerationLogEntry(
                         chatId = chatId,
-                        chatTitle = chatSettings?.chatTitle,
+                        chatTitle = settings.chatTitle,
                         adminId = user.id,
                         adminFirstName = user.firstName,
                         adminLastName = user.lastName,
