@@ -6,19 +6,25 @@ import androidx.compose.ui.window.rememberWindowState
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
-import com.chatkeep.admin.core.network.createHttpClient
 import com.chatkeep.admin.di.AppFactory
 import com.chatkeep.admin.di.createPlatformDataStore
+import com.chatkeep.admin.di.createPlatformHttpClient
 import com.chatkeep.admin.di.createPlatformTokenStorage
-import com.chatkeep.admin.di.getApiBaseUrl
+import com.chatkeep.admin.di.getBaseUrlFromDataStore
+import kotlinx.coroutines.runBlocking
 
 fun main() = application {
     val lifecycle = LifecycleRegistry()
 
-    // Create platform dependencies
-    val baseUrl = getApiBaseUrl()
-    val httpClient = createHttpClient(baseUrl)
+    // Create DataStore first
     val dataStore = createPlatformDataStore(Unit)
+
+    // Load base URL synchronously for Desktop
+    val baseUrl = runBlocking {
+        getBaseUrlFromDataStore(dataStore) ?: "https://admin.chatmoderatorbot.ru"
+    }
+
+    val httpClient = createPlatformHttpClient(baseUrl)
     val tokenStorage = createPlatformTokenStorage(dataStore)
 
     // Create app factory

@@ -6,7 +6,7 @@ import com.chatkeep.admin.core.network.createHttpClient
 import io.ktor.client.*
 import io.ktor.client.engine.js.*
 
-actual fun createPlatformHttpClient(): HttpClient = createHttpClient()
+actual fun createPlatformHttpClient(baseUrl: String): HttpClient = createHttpClient(baseUrl)
 
 actual fun createPlatformDataStore(context: Any): Any {
     // WASM doesn't support DataStore - return dummy object
@@ -18,6 +18,7 @@ actual fun createPlatformTokenStorage(dataStore: Any): TokenStorage {
     return InMemoryTokenStorage()
 }
 
-actual fun getApiBaseUrl(): String {
-    return "https://admin.chatmoderatorbot.ru"
+actual suspend fun getBaseUrlFromDataStore(dataStore: Any): String? {
+    // WASM doesn't support DataStore - return null (will use default)
+    return null
 }
