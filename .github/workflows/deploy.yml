@@ -7,7 +7,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Use lowercase repository name (Docker registry requirement)
+  IMAGE_NAME: andvl1/chatkeep
 
 jobs:
   build-and-push:
@@ -153,25 +154,52 @@ jobs:
           name: admin-wasm
           path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
 
-      - name: Deploy via SSH
+      - name: Copy Docker Compose config to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
+          overwrite: true
+
+      - name: Copy Nginx configs to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker/nginx/*"
+          target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
+          overwrite: true
+
+      - name: Prepare deployment directories
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            # Ensure deployment directory exists
+            echo "Preparing deployment directories..."
+            mkdir -p ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
-            # Pull latest code (includes nginx configs, docker-compose files, etc.)
-            echo "Pulling latest code..."
-            git pull origin ${{ github.ref_name }}
-
-            # Pull latest image
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-            # Create directories if not exists
+            # Create directories for static files
             mkdir -p mini-app/dist
             mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
+            mkdir -p docker/nginx/sites
+
+            # Fix GITHUB_REPOSITORY in .env to lowercase (Docker requires lowercase)
+            if [ -f .env ]; then
+              echo "Fixing GITHUB_REPOSITORY in .env to lowercase..."
+              sed -i 's/GITHUB_REPOSITORY=AndVl1/GITHUB_REPOSITORY=andvl1/g' .env
+            fi
+
+            # Pull latest Docker image
+            echo "Pulling latest Docker image..."
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Copy Mini App files to server
         uses: appleboy/scp-action@v0.1.7
@@ -193,7 +221,7 @@ jobs:
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
-      - name: Restart services
+      - name: Verify configs and restart services
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ vars.DEPLOY_HOST }}
@@ -201,6 +229,19 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
+
+            # Verify docker-compose.prod.yml was updated correctly
+            echo "Verifying docker-compose.prod.yml..."
+            if grep -q "ghcr.io/\${GITHUB_REPOSITORY" docker-compose.prod.yml; then
+              echo "✓ docker-compose.prod.yml uses correct image format"
+            else
+              echo "✗ WARNING: docker-compose.prod.yml may have incorrect image format"
+              grep "image:" docker-compose.prod.yml | head -3
+            fi
+
+            # Show what image will be used
+            echo "Image configuration:"
+            docker compose -f docker-compose.prod.yml config | grep -A 2 "app:" | grep "image:"
 
             # Restart docker compose services
             # Force-recreate app to use new Docker image, nginx to pick up new static files
@@ -210,6 +251,10 @@ jobs:
             # Wait for app to be healthy
             echo "Waiting for app to be healthy..."
             sleep 10
+
+            # Verify containers are running with correct image
+            echo "Verifying deployed containers..."
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
 
             # Verify nginx config and reload
             echo "Verifying nginx configuration..."
