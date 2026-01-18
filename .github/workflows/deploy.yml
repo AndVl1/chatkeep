@@ -2,13 +2,28 @@ name: Deploy
 
 on:
   push:
-    branches: [production]
+    branches:
+      - production  # Deploy to PROD
+      - '**'        # Deploy to TEST for all other branches
+    branches-ignore:
+      - main        # Skip deployment on main (CI only)
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - production
+          - test
+        default: 'test'
 
 env:
   REGISTRY: ghcr.io
   # Use lowercase repository name (Docker registry requirement)
   IMAGE_NAME: andvl1/chatkeep
+  # Determine environment based on branch or manual input
+  IS_PROD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
 
 jobs:
   build-and-push:
@@ -137,7 +152,15 @@ jobs:
       packages: read
 
     # Only deploy if server credentials are configured
-    if: vars.DEPLOY_HOST != ''
+    if: vars.DEPLOY_HOST != '' || vars.TEST_DEPLOY_HOST != ''
+
+    env:
+      # Environment-specific variables
+      DEPLOY_HOST: ${{ env.IS_PROD == 'true' && vars.DEPLOY_HOST || vars.TEST_DEPLOY_HOST }}
+      DEPLOY_SSH_KEY: ${{ env.IS_PROD == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+      BOT_TOKEN: ${{ env.IS_PROD == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
+      DOMAIN: ${{ env.IS_PROD == 'true' && vars.PROD_DOMAIN || vars.TEST_DOMAIN }}
+      ENV_NAME: ${{ env.IS_PROD == 'true' && 'production' || 'test' }}
 
     steps:
       - name: Checkout code
@@ -155,12 +178,20 @@ jobs:
           name: admin-wasm
           path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
 
+      - name: Log deployment info
+        run: |
+          echo "### Deployment Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: ${{ env.ENV_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "Domain: ${{ env.DOMAIN }}" >> $GITHUB_STEP_SUMMARY
+          echo "Host: ${{ env.DEPLOY_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
       - name: Copy Docker Compose config to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
           source: "docker-compose.prod.yml"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
@@ -168,9 +199,9 @@ jobs:
       - name: Copy Nginx configs to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
           source: "docker/nginx/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
@@ -180,14 +211,19 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
+          BOT_TOKEN: ${{ env.BOT_TOKEN }}
+          DOMAIN: ${{ env.DOMAIN }}
+          ENV_NAME: ${{ env.ENV_NAME }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: GHCR_TOKEN,GHCR_USER
+          key: ${{ env.DEPLOY_SSH_KEY }}
+          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DOMAIN,ENV_NAME
           script: |
             # Ensure deployment directory exists
             echo "Preparing deployment directories..."
+            echo "Environment: $ENV_NAME"
+            echo "Domain: $DOMAIN"
             mkdir -p ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
@@ -196,11 +232,19 @@ jobs:
             mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
             mkdir -p docker/nginx/sites
 
-            # Fix GITHUB_REPOSITORY in .env to lowercase (Docker requires lowercase)
-            if [ -f .env ]; then
-              echo "Fixing GITHUB_REPOSITORY in .env to lowercase..."
-              sed -i 's/GITHUB_REPOSITORY=AndVl1/GITHUB_REPOSITORY=andvl1/g' .env
-            fi
+            # Update or create .env file with environment-specific variables
+            echo "Updating .env file for $ENV_NAME environment..."
+            cat > .env << 'EOF'
+            GITHUB_REPOSITORY=andvl1/chatkeep
+            BOT_TOKEN=$BOT_TOKEN
+            DOMAIN=$DOMAIN
+            ENVIRONMENT=$ENV_NAME
+            EOF
+
+            # Substitute actual values
+            sed -i "s|\$BOT_TOKEN|$BOT_TOKEN|g" .env
+            sed -i "s|\$DOMAIN|$DOMAIN|g" .env
+            sed -i "s|\$ENV_NAME|$ENV_NAME|g" .env
 
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
@@ -213,9 +257,9 @@ jobs:
       - name: Copy Mini App files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
           source: "mini-app/dist/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
@@ -223,21 +267,27 @@ jobs:
       - name: Copy WASM files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
           source: "chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
       - name: Verify configs and restart services
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          ENV_NAME: ${{ env.ENV_NAME }}
+          DOMAIN: ${{ env.DOMAIN }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
+          envs: ENV_NAME,DOMAIN
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
+
+            echo "Deploying to $ENV_NAME environment with domain $DOMAIN"
 
             # Verify docker-compose.prod.yml was updated correctly
             echo "Verifying docker-compose.prod.yml..."
@@ -254,7 +304,7 @@ jobs:
 
             # Restart docker compose services
             # Force-recreate app to use new Docker image, nginx to pick up new static files
-            echo "Restarting services..."
+            echo "Restarting services for $ENV_NAME environment..."
             docker compose -f docker-compose.prod.yml up -d --force-recreate app nginx
 
             # Wait for app to be healthy
@@ -277,3 +327,6 @@ jobs:
 
             # Cleanup old images
             docker image prune -f
+
+            echo "✓ Deployment to $ENV_NAME completed successfully!"
+            echo "Domain: $DOMAIN"
