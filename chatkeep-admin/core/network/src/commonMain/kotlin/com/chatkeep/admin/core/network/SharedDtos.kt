@@ -81,18 +81,18 @@ data class ChatResponse(
 // Logs DTOs
 @Serializable
 data class LogEntry(
-    val timestamp: String,  // Instant serialized as ISO-8601 string
-    val level: String,
-    val logger: String,
-    val message: String
+    val timestamp: String = "",  // Instant serialized as ISO-8601 string
+    val level: String = "INFO",
+    val logger: String = "",
+    val message: String = ""
 )
 
 @Serializable
 data class LogsResponse(
-    val entries: List<LogEntry>,
-    val totalCount: Int,
-    val fromTime: String,  // Instant serialized as ISO-8601 string
-    val toTime: String     // Instant serialized as ISO-8601 string
+    val entries: List<LogEntry> = emptyList(),
+    val totalCount: Int = 0,
+    val fromTime: String = "",  // Instant serialized as ISO-8601 string
+    val toTime: String = ""     // Instant serialized as ISO-8601 string
 )
 
 // Workflow DTOs

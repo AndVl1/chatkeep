@@ -109,24 +109,33 @@ class MiniAppChatsControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `GET chats - handles null chat title`() {
+    fun `GET chats - filters out chats with null or blank title`() {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
 
+        // Create chats with null and blank titles - these should be filtered out
         chatSettingsRepository.save(
             testDataFactory.createChatSettings(
                 chatId = TestDataFactory.DEFAULT_CHAT_ID,
                 chatTitle = null
             )
         )
+        chatSettingsRepository.save(
+            testDataFactory.createChatSettings(
+                chatId = TestDataFactory.SECONDARY_CHAT_ID,
+                chatTitle = "   "
+            )
+        )
 
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+        mockUserIsAdmin(TestDataFactory.SECONDARY_CHAT_ID, user.id)
 
         mockMvc.get("/api/v1/miniapp/chats") {
             header("Authorization", authHeader)
         }.andExpect {
             status { isOk() }
-            jsonPath("$[0].chatTitle") { doesNotExist() }
+            jsonPath("$") { isArray() }
+            jsonPath("$.length()") { value(0) } // Both chats should be filtered out
         }
     }
 
