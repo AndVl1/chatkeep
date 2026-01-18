@@ -71,12 +71,18 @@ class AdminCacheService(
         return try {
             logger.info("Fetching admin status: userId=$userId, chatId=$chatId")
             val admins = bot.getChatAdministrators(ChatId(RawChatId(chatId)))
-            logger.info("Got ${admins.size} admins for chat $chatId: ${admins.map { it.user.id.chatId.long }}")
-            val isAdmin = admins.any { it.user.id.chatId.long == userId }
-            logger.info("User $userId isAdmin=$isAdmin in chat $chatId")
+            val adminIds = admins.map { it.user.id.chatId.long }
+            logger.info("Got ${admins.size} admins for chat $chatId: $adminIds")
+            val isAdmin = adminIds.contains(userId)
+            logger.info("Admin check result: userId=$userId in chat=$chatId -> isAdmin=$isAdmin (admins: $adminIds)")
             isAdmin
         } catch (e: Exception) {
-            logger.error("Failed to get admins for chat $chatId: ${e.javaClass.simpleName}: ${e.message}", e)
+            logger.error(
+                "Failed to fetch admin status for userId=$userId, chatId=$chatId. " +
+                "Error: ${e.javaClass.simpleName}: ${e.message}. " +
+                "This may indicate bot lacks permissions or chat is inaccessible. Returning false.",
+                e
+            )
             false
         }
     }
