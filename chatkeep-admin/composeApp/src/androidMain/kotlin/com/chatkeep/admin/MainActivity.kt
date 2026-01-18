@@ -9,11 +9,7 @@ import androidx.core.view.WindowCompat
 import com.arkivanov.decompose.defaultComponentContext
 import com.chatkeep.admin.core.common.BuildConfig
 import com.chatkeep.admin.core.common.DeepLinkData
-import com.chatkeep.admin.core.network.createHttpClient
-import com.chatkeep.admin.di.AppFactory
-import com.chatkeep.admin.di.createPlatformDataStore
-import com.chatkeep.admin.di.createPlatformTokenStorage
-import com.chatkeep.admin.di.getApiBaseUrl
+import com.chatkeep.admin.di.AndroidAppGraph
 
 class MainActivity : ComponentActivity() {
 
@@ -25,29 +21,18 @@ class MainActivity : ComponentActivity() {
         // Initialize BuildConfig for debug mode detection
         BuildConfig.init(applicationContext)
 
-        // Create platform dependencies
-        val baseUrl = getApiBaseUrl()
-        val httpClient = createHttpClient(baseUrl)
-        val dataStore = createPlatformDataStore(this)
-        val tokenStorage = createPlatformTokenStorage(dataStore)
+        // Create dependency graph
+        val graph = AndroidAppGraph(this)
 
-        // Create app factory
-        val appFactory = AppFactory(
-            httpClient = httpClient,
-            baseUrl = baseUrl,
-            tokenStorage = tokenStorage,
-            dataStore = dataStore
-        )
-
-        // Create root component
-        rootComponent = appFactory.createRootComponent(
+        // Create root component with injected dependencies
+        rootComponent = graph.createRootComponent(
             componentContext = defaultComponentContext()
         )
 
         setContent {
             App(
                 rootComponent = rootComponent!!,
-                settingsRepository = appFactory.settingsRepository,
+                settingsRepository = graph.settingsRepository,
                 onThemeChanged = { darkTheme ->
                     // Update system bar appearance
                     WindowCompat.getInsetsController(window, window.decorView).apply {

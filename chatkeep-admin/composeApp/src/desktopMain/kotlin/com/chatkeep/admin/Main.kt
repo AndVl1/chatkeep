@@ -6,31 +6,16 @@ import androidx.compose.ui.window.rememberWindowState
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
-import com.chatkeep.admin.core.network.createHttpClient
-import com.chatkeep.admin.di.AppFactory
-import com.chatkeep.admin.di.createPlatformDataStore
-import com.chatkeep.admin.di.createPlatformTokenStorage
-import com.chatkeep.admin.di.getApiBaseUrl
+import com.chatkeep.admin.di.DesktopAppGraph
 
 fun main() = application {
     val lifecycle = LifecycleRegistry()
 
-    // Create platform dependencies
-    val baseUrl = getApiBaseUrl()
-    val httpClient = createHttpClient(baseUrl)
-    val dataStore = createPlatformDataStore(Unit)
-    val tokenStorage = createPlatformTokenStorage(dataStore)
+    // Create dependency graph
+    val graph = DesktopAppGraph()
 
-    // Create app factory
-    val appFactory = AppFactory(
-        httpClient = httpClient,
-        baseUrl = baseUrl,
-        tokenStorage = tokenStorage,
-        dataStore = dataStore
-    )
-
-    // Create root component
-    val rootComponent = appFactory.createRootComponent(
+    // Create root component with injected dependencies
+    val rootComponent = graph.createRootComponent(
         componentContext = DefaultComponentContext(lifecycle)
     )
 
@@ -45,7 +30,7 @@ fun main() = application {
 
         App(
             rootComponent = rootComponent,
-            settingsRepository = appFactory.settingsRepository
+            settingsRepository = graph.settingsRepository
         )
     }
 }
