@@ -134,6 +134,7 @@ jobs:
     needs: [build-and-push, build-mini-app, build-admin-wasm]
     permissions:
       contents: read
+      packages: read
 
     # Only deploy if server credentials are configured
     if: vars.DEPLOY_HOST != ''
