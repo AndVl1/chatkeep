@@ -3,10 +3,11 @@ name: Deploy
 on:
   push:
     branches:
-      - production  # Deploy to PROD
-      - '**'        # Deploy to TEST for all other branches
-    branches-ignore:
-      - main        # Skip deployment on main (CI only)
+      - production       # Deploy to PROD
+      - 'feat/**'        # Deploy to TEST for feature branches
+      - 'fix/**'         # Deploy to TEST for fix branches
+      - 'refactor/**'    # Deploy to TEST for refactor branches
+      - 'test/**'        # Deploy to TEST for test branches
   workflow_dispatch:
     inputs:
       environment:
