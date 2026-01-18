@@ -224,6 +224,16 @@ jobs:
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
+      - name: Copy Prometheus and Grafana configs to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          source: "infra/*"
+          target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
+          overwrite: true
+
       - name: Prepare deployment directories
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -232,13 +242,14 @@ jobs:
           BOT_TOKEN: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
           DB_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.DB_PASSWORD || secrets.TEST_DB_PASSWORD }}
           JWT_SECRET: ${{ env.IS_PRODUCTION == 'true' && secrets.JWT_SECRET || secrets.TEST_JWT_SECRET }}
+          GRAFANA_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.GRAFANA_ADMIN_PASSWORD || secrets.TEST_GRAFANA_ADMIN_PASSWORD }}
           DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
           ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
         with:
           host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
           key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
-          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DB_PASSWORD,JWT_SECRET,DOMAIN,ENV_NAME
+          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DB_PASSWORD,JWT_SECRET,GRAFANA_PASSWORD,DOMAIN,ENV_NAME
           script: |
             # Ensure deployment directory exists
             echo "Preparing deployment directories..."
@@ -247,10 +258,11 @@ jobs:
             mkdir -p ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
-            # Create directories for static files
+            # Create directories for static files and certbot
             mkdir -p mini-app/dist
             mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
             mkdir -p docker/nginx/sites
+            mkdir -p certbot/webroot
 
             # Update or create .env file with environment-specific variables
             echo "Updating .env file for $ENV_NAME environment..."
@@ -259,6 +271,7 @@ jobs:
             TELEGRAM_BOT_TOKEN=$BOT_TOKEN
             DB_PASSWORD=$DB_PASSWORD
             JWT_SECRET=$JWT_SECRET
+            GRAFANA_ADMIN_PASSWORD=$GRAFANA_PASSWORD
             DOMAIN=$DOMAIN
             ENVIRONMENT=$ENV_NAME
             MAIN_DOMAIN=$DOMAIN
@@ -326,7 +339,7 @@ jobs:
             # Restart docker compose services
             # Force-recreate app to use new Docker image, nginx to pick up new static files
             echo "Restarting services for $ENV_NAME environment..."
-            docker compose -f docker-compose.prod.yml up -d --force-recreate app nginx
+            docker compose -f docker-compose.prod.yml up -d --force-recreate
 
             # Wait for app to be healthy
             echo "Waiting for app to be healthy..."
