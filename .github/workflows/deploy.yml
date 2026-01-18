@@ -114,7 +114,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
-          cache-disabled: true
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Build WASM
         run: ./gradlew -p chatkeep-admin :composeApp:wasmJsBrowserDistribution
