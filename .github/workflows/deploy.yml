@@ -100,9 +100,18 @@ jobs:
       - name: Configure Mini App environment
         working-directory: mini-app
         run: |
-          BOT_USERNAME="${{ env.IS_PRODUCTION == 'true' && vars.PROD_BOT_USERNAME || vars.TEST_BOT_USERNAME }}"
+          BOT_USERNAME="${{ (env.IS_PRODUCTION == 'true' && vars.PROD_BOT_USERNAME) || vars.TEST_BOT_USERNAME }}"
           echo "Configuring Mini App for environment: ${{ env.IS_PRODUCTION == 'true' && 'production' || 'test' }}"
           echo "Bot username: $BOT_USERNAME"
+
+          # Validate BOT_USERNAME is not empty
+          if [ -z "$BOT_USERNAME" ]; then
+            echo "ERROR: BOT_USERNAME is empty!"
+            echo "Please ensure the following GitHub repository variables are set:"
+            echo "  - PROD_BOT_USERNAME (for production deployments)"
+            echo "  - TEST_BOT_USERNAME (for test deployments)"
+            exit 1
+          fi
 
           # Update .env.production with environment-specific bot username
           sed -i "s/^VITE_BOT_USERNAME=.*/VITE_BOT_USERNAME=$BOT_USERNAME/" .env.production
