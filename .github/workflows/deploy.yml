@@ -357,11 +357,22 @@ jobs:
             # Check if app is healthy before nginx operations
             if docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null | grep -q healthy; then
               echo "App is healthy, verifying nginx configuration..."
-              docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
+              # Check if nginx is running
+              if docker ps | grep -q chatkeep-nginx; then
+                docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
+              else
+                echo "WARNING: Nginx container is not running. Checking logs..."
+                docker logs chatkeep-nginx --tail 30 || true
+                echo "Checking SSL certificate files..."
+                ls -la /etc/letsencrypt/live/ || true
+                ls -la /etc/letsencrypt/live/$DOMAIN/ || true
+              fi
             else
               echo "WARNING: App is not healthy yet, skipping nginx reload"
               echo "App health status:"
               docker inspect --format='{{.State.Health.Status}}' chatkeep-app || true
+              echo "App logs:"
+              docker logs chatkeep-app --tail 30 || true
             fi
 
             # Show deployed files info
