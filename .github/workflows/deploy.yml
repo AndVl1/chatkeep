@@ -78,6 +78,10 @@ jobs:
     # Skip if no secrets configured
     if: github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true'
 
+    env:
+      # Determine environment to select correct bot username
+      IS_PRODUCTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -92,6 +96,19 @@ jobs:
       - name: Install dependencies
         working-directory: mini-app
         run: npm ci
+
+      - name: Configure Mini App environment
+        working-directory: mini-app
+        run: |
+          BOT_USERNAME="${{ env.IS_PRODUCTION == 'true' && vars.PROD_BOT_USERNAME || vars.TEST_BOT_USERNAME }}"
+          echo "Configuring Mini App for environment: ${{ env.IS_PRODUCTION == 'true' && 'production' || 'test' }}"
+          echo "Bot username: $BOT_USERNAME"
+
+          # Update .env.production with environment-specific bot username
+          sed -i "s/^VITE_BOT_USERNAME=.*/VITE_BOT_USERNAME=$BOT_USERNAME/" .env.production
+
+          echo "Updated .env.production:"
+          cat .env.production
 
       - name: Build Mini App
         working-directory: mini-app
