@@ -4,6 +4,7 @@ import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.AppResult
+import com.chatkeep.admin.core.common.BuildConfig
 import com.chatkeep.admin.core.common.DeepLinkData
 import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.common.componentScope
@@ -98,8 +99,8 @@ internal class DefaultAuthComponent(
         val stateToken = generateStateToken()
         expectedStateToken = stateToken
 
-        // Build OAuth URL using admin subdomain (configured in BotFather for @ChatAutoModAdminbot)
-        val oauthUrl = "https://admin.chatmoderatorbot.ru/auth/telegram-login?state=$stateToken"
+        // Build OAuth URL using environment-aware backend URL
+        val oauthUrl = "${BuildConfig.authBackendUrl}/auth/telegram-login?state=$stateToken"
 
         // Open browser
         try {

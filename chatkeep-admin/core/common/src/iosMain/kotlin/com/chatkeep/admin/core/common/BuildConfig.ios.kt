@@ -15,4 +15,6 @@ actual object BuildConfig {
             val debugFlag = bundle.objectForInfoDictionaryKey("IS_DEBUG") as? String
             return debugFlag == "1" || debugFlag?.lowercase() == "true"
         }
+
+    actual val authBackendUrl: String = "https://admin.chatmoderatorbot.ru"
 }

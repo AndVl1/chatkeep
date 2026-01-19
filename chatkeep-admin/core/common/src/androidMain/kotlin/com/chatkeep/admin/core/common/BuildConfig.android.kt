@@ -25,4 +25,6 @@ actual object BuildConfig {
             val ctx = context ?: return false
             return (ctx.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         }
+
+    actual val authBackendUrl: String = "https://admin.chatmoderatorbot.ru"
 }

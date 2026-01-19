@@ -13,4 +13,6 @@ actual object BuildConfig {
 
             return sysProp.toBoolean() || envVar.toBoolean()
         }
+
+    actual val authBackendUrl: String = "https://admin.chatmoderatorbot.ru"
 }
