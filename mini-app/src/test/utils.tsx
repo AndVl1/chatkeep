@@ -15,6 +15,7 @@ import { useChatStore } from '@/stores/chatStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useBlocklistStore } from '@/stores/blocklistStore';
 import { useLocksStore } from '@/stores/locksStore';
+import { useChannelReplyStore } from '@/stores/channelReplyStore';
 import { useAuthStore } from '@/stores/authStore';
 
 export function resetAllStores() {
@@ -31,6 +32,9 @@ export function resetAllStores() {
   });
   useLocksStore.setState({
     locksCache: {},
+  });
+  useChannelReplyStore.setState({
+    channelReplyCache: {},
   });
   useAuthStore.setState({
     token: null,

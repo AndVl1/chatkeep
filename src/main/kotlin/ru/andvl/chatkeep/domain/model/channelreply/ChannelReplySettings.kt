@@ -25,6 +25,9 @@ data class ChannelReplySettings(
     @Column("media_type")
     val mediaType: String? = null,
 
+    @Column("media_hash")
+    val mediaHash: String? = null,
+
     @Column("buttons_json")
     val buttonsJson: String? = null,
 

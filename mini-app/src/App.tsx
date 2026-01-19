@@ -7,6 +7,7 @@ import { HomePage } from '@/pages/HomePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { LocksPage } from '@/pages/LocksPage';
 import { BlocklistPage } from '@/pages/BlocklistPage';
+import { ChannelReplyPage } from '@/pages/ChannelReplyPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { useTelegramAuth } from '@/hooks/telegram/useTelegramAuth';
@@ -149,6 +150,7 @@ export function App() {
                           <Route path="settings" element={<SettingsPage />} />
                           <Route path="locks" element={<LocksPage />} />
                           <Route path="blocklist" element={<BlocklistPage />} />
+                          <Route path="channel-reply" element={<ChannelReplyPage />} />
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />
                       </Route>

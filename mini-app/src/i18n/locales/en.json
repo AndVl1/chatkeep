@@ -8,6 +8,7 @@
     "loading": "Loading...",
     "save": "Save",
     "delete": "Delete",
+    "deleting": "Deleting...",
     "add": "Add",
     "edit": "Edit",
     "close": "Close"
@@ -28,6 +29,7 @@
     "back": "← Back",
     "manageBlocklist": "Blocked Words & Phrases",
     "configureLocks": "Configure Locks",
+    "channelReply": "Channel Post Auto-Reply",
     "general": "General Settings",
     "collectionEnabled": "Collection Enabled",
     "collectionDescription": "Enable message collection for this chat",
@@ -156,5 +158,47 @@
   "warnings": {
     "botNotAdmin": "Bot is not an admin in this chat. Moderation features will not work.",
     "botNotAdminShort": "Bot not admin"
+  },
+  "channelReply": {
+    "pageTitle": "Channel Post Auto-Reply Settings",
+    "title": "Channel Post Auto-Reply",
+    "enabled": "Enable auto-reply",
+    "enabledDescription": "Automatically reply to posts from linked channel in discussion chat",
+    "textSection": "Reply Message",
+    "textPlaceholder": "Enter your auto-reply message...",
+    "mediaSection": "Media Attachment",
+    "uploadMedia": "Upload Image or Video",
+    "uploading": "Uploading...",
+    "buttonsSection": "Inline Buttons",
+    "noButtons": "No buttons added",
+    "addButton": "Add Button",
+    "buttonText": "Button Text",
+    "buttonTextPlaceholder": "e.g., Visit Website",
+    "buttonTextRequired": "Button text is required",
+    "buttonTextTooLong": "Button text must be 64 characters or less",
+    "buttonUrl": "Button URL",
+    "buttonUrlRequired": "Button URL is required",
+    "buttonUrlInvalid": "URL must start with https://, http://, or tg://",
+    "maxButtonsReached": "Maximum number of buttons reached",
+    "maxButtonsInfo": "Maximum {{max}} buttons allowed",
+    "preview": "Message Preview",
+    "previewEmpty": "Add text or media to see preview",
+    "previewNote": "This is how your reply to channel posts will look",
+    "noLinkedChannel": "No Linked Channel",
+    "noLinkedChannelDescription": "This feature only works for chats with a linked channel. Link a channel in Telegram settings.",
+    "mediaType": {
+      "PHOTO": "Photo",
+      "VIDEO": "Video",
+      "DOCUMENT": "Document",
+      "ANIMATION": "Animation"
+    },
+    "saveError": "Failed to save auto-reply settings",
+    "uploadSuccess": "Media uploaded successfully",
+    "uploadError": "Failed to upload media",
+    "deleteSuccess": "Media deleted successfully",
+    "deleteError": "Failed to delete media",
+    "fileTooLarge": "File size must be less than 20MB",
+    "invalidFileType": "Only images (JPEG, PNG, GIF, WebP) and videos (MP4, WebM, MOV) are allowed",
+    "textTruncated": "Text truncated to {{maxLength}} characters"
   }
 }

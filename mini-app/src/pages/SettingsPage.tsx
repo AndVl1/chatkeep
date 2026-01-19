@@ -79,6 +79,16 @@ export function SettingsPage() {
           {t('settings.configureLocks')}
         </Button>
       </div>
+
+      <div style={{ padding: '16px 0' }}>
+        <Button
+          size="l"
+          stretched
+          onClick={() => navigate(`/chat/${chatId}/channel-reply`)}
+        >
+          {t('settings.channelReply')}
+        </Button>
+      </div>
     </div>
   );
 }

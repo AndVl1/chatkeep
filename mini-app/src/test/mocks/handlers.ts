@@ -4,7 +4,7 @@
  */
 
 import { http, HttpResponse, delay } from 'msw';
-import type { ChatSettings, BlocklistPattern, AddBlocklistPatternRequest, UpdateLocksRequest, LockSettings } from '@/types';
+import type { ChatSettings, BlocklistPattern, AddBlocklistPatternRequest, UpdateLocksRequest, LockSettings, ChannelReply, UpdateChannelReplyRequest } from '@/types';
 import {
   mockChats,
   mockSettings,
@@ -20,6 +20,15 @@ let chatsData = [...mockChats];
 let settingsData: Record<number, ChatSettings> = { [mockSettings.chatId]: mockSettings };
 let blocklistData: Record<number, BlocklistPattern[]> = { 100: [...mockBlocklistPatterns] };
 let locksData: Record<number, LockSettings> = { 100: { ...mockLocks } };
+let channelReplyData: Record<number, ChannelReply> = {
+  100: {
+    enabled: false,
+    replyText: null,
+    mediaFileId: null,
+    mediaType: null,
+    buttons: [],
+  },
+};
 let nextPatternId = 100;
 
 // Response delay simulation (can be overridden per test)
@@ -35,6 +44,15 @@ export function resetMockState() {
   settingsData = { [mockSettings.chatId]: { ...mockSettings } };
   blocklistData = { 100: [...mockBlocklistPatterns] };
   locksData = { 100: { ...mockLocks } };
+  channelReplyData = {
+    100: {
+      enabled: false,
+      replyText: null,
+      mediaFileId: null,
+      mediaType: null,
+      buttons: [],
+    },
+  };
   nextPatternId = 100;
   responseDelay = 0;
   errorState = null;
@@ -66,6 +84,19 @@ export function setMockBlocklist(chatId: number, patterns: BlocklistPattern[]) {
 
 export function setMockLocks(chatId: number, locks: LockSettings) {
   locksData[chatId] = locks;
+}
+
+export function setMockChannelReply(chatId: number, data: Partial<ChannelReply>) {
+  if (!channelReplyData[chatId]) {
+    channelReplyData[chatId] = {
+      enabled: false,
+      replyText: null,
+      mediaFileId: null,
+      mediaType: null,
+      buttons: [],
+    };
+  }
+  channelReplyData[chatId] = { ...channelReplyData[chatId], ...data };
 }
 
 // === Helper Functions ===
@@ -238,6 +269,97 @@ export const handlers = [
     };
 
     return HttpResponse.json(locksData[chatId]);
+  }),
+
+  // GET /chats/:chatId/channel-reply - Get channel reply settings
+  http.get(`${API_BASE}/chats/:chatId/channel-reply`, async ({ params }) => {
+    await maybeDelay();
+    const error = checkError('channel-reply');
+    if (error) return error;
+
+    const chatId = Number(params.chatId);
+    const channelReply = channelReplyData[chatId];
+
+    if (!channelReply) {
+      return HttpResponse.json(
+        { error: 'Chat not found', message: 'Chat not found' },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(channelReply);
+  }),
+
+  // PUT /chats/:chatId/channel-reply - Update channel reply settings
+  http.put(`${API_BASE}/chats/:chatId/channel-reply`, async ({ params, request }) => {
+    await maybeDelay();
+    const error = checkError('channel-reply');
+    if (error) return error;
+
+    const chatId = Number(params.chatId);
+    const updates = await request.json() as UpdateChannelReplyRequest;
+
+    if (!channelReplyData[chatId]) {
+      channelReplyData[chatId] = {
+        enabled: false,
+        replyText: null,
+        mediaFileId: null,
+        mediaType: null,
+        buttons: [],
+      };
+    }
+
+    channelReplyData[chatId] = { ...channelReplyData[chatId], ...updates };
+    return HttpResponse.json(channelReplyData[chatId]);
+  }),
+
+  // POST /chats/:chatId/channel-reply/media - Upload media
+  http.post(`${API_BASE}/chats/:chatId/channel-reply/media`, async ({ params }) => {
+    await maybeDelay();
+    const error = checkError('channel-reply-media');
+    if (error) return error;
+
+    const chatId = Number(params.chatId);
+
+    if (!channelReplyData[chatId]) {
+      return HttpResponse.json(
+        { error: 'Chat not found', message: 'Chat not found' },
+        { status: 404 }
+      );
+    }
+
+    // Mock successful upload
+    const mockFileId = `mock-file-${Date.now()}`;
+    const mockMediaType = 'PHOTO';
+
+    channelReplyData[chatId].mediaFileId = mockFileId;
+    channelReplyData[chatId].mediaType = mockMediaType;
+
+    return HttpResponse.json({
+      fileId: mockFileId,
+      mediaType: mockMediaType,
+    }, { status: 200 });
+  }),
+
+  // DELETE /chats/:chatId/channel-reply/media - Delete media
+  http.delete(`${API_BASE}/chats/:chatId/channel-reply/media`, async ({ params }) => {
+    await maybeDelay();
+    const error = checkError('channel-reply-media');
+    if (error) return error;
+
+    const chatId = Number(params.chatId);
+
+    if (!channelReplyData[chatId]) {
+      return HttpResponse.json(
+        { error: 'Chat not found', message: 'Chat not found' },
+        { status: 404 }
+      );
+    }
+
+    channelReplyData[chatId].mediaFileId = null;
+    channelReplyData[chatId].mediaType = null;
+
+    return new HttpResponse(null, { status: 204 });
   }),
 ];
 

@@ -65,7 +65,9 @@ export function AuthCallbackPage() {
         // Redirect to home page
         navigate('/', { replace: true });
       } catch (err) {
-        console.error('[AuthCallback] Authentication error:', err);
+        if (import.meta.env.DEV) {
+          console.error('[AuthCallback] Authentication error:', err);
+        }
         setError(err instanceof Error ? err.message : 'Authentication failed');
       }
     };

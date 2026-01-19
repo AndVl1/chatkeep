@@ -8,6 +8,7 @@
     "loading": "Загрузка...",
     "save": "Сохранить",
     "delete": "Удалить",
+    "deleting": "Удаление...",
     "add": "Добавить",
     "edit": "Изменить",
     "close": "Закрыть"
@@ -28,6 +29,7 @@
     "back": "← Назад",
     "manageBlocklist": "Блокировка слов и фраз",
     "configureLocks": "Настройка блокировок",
+    "channelReply": "Автоответ на посты канала",
     "general": "Общие настройки",
     "collectionEnabled": "Сбор сообщений",
     "collectionDescription": "Включить сбор сообщений для этого чата",
@@ -156,5 +158,47 @@
   "warnings": {
     "botNotAdmin": "Бот не является администратором этого чата. Функции модерации не будут работать.",
     "botNotAdminShort": "Бот не админ"
+  },
+  "channelReply": {
+    "pageTitle": "Автоответ на посты канала",
+    "title": "Автоответ на посты канала",
+    "enabled": "Включить автоответ",
+    "enabledDescription": "Автоматически отвечать на посты из привязанного канала в дискуссионном чате",
+    "textSection": "Текст сообщения",
+    "textPlaceholder": "Введите текст автоответа...",
+    "mediaSection": "Медиафайл",
+    "uploadMedia": "Загрузить изображение или видео",
+    "uploading": "Загрузка...",
+    "buttonsSection": "Встроенные кнопки",
+    "noButtons": "Кнопки не добавлены",
+    "addButton": "Добавить кнопку",
+    "buttonText": "Текст кнопки",
+    "buttonTextPlaceholder": "например, Посетить сайт",
+    "buttonTextRequired": "Требуется текст кнопки",
+    "buttonTextTooLong": "Текст кнопки должен быть не более 64 символов",
+    "buttonUrl": "URL кнопки",
+    "buttonUrlRequired": "Требуется URL кнопки",
+    "buttonUrlInvalid": "URL должен начинаться с https://, http:// или tg://",
+    "maxButtonsReached": "Достигнуто максимальное количество кнопок",
+    "maxButtonsInfo": "Максимум {{max}} кнопок",
+    "preview": "Предпросмотр сообщения",
+    "previewEmpty": "Добавьте текст или медиа для просмотра",
+    "previewNote": "Так будет выглядеть ваш ответ на пост канала",
+    "noLinkedChannel": "Нет привязанного канала",
+    "noLinkedChannelDescription": "Эта функция работает только для чатов с привязанным каналом. Привяжите канал в настройках Telegram.",
+    "mediaType": {
+      "PHOTO": "Фото",
+      "VIDEO": "Видео",
+      "DOCUMENT": "Документ",
+      "ANIMATION": "Анимация"
+    },
+    "saveError": "Не удалось сохранить настройки автоответа",
+    "uploadSuccess": "Медиафайл успешно загружен",
+    "uploadError": "Не удалось загрузить медиафайл",
+    "deleteSuccess": "Медиафайл успешно удален",
+    "deleteError": "Не удалось удалить медиафайл",
+    "fileTooLarge": "Размер файла должен быть меньше 20МБ",
+    "invalidFileType": "Разрешены только изображения (JPEG, PNG, GIF, WebP) и видео (MP4, WebM, MOV)",
+    "textTruncated": "Текст обрезан до {{maxLength}} символов"
   }
 }

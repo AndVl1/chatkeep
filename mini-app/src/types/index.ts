@@ -75,6 +75,38 @@ export interface UpdateLocksRequest {
   lockWarnsEnabled?: boolean;
 }
 
+export interface LinkedChannel {
+  id: number;
+  title: string;
+}
+
+export interface ChannelReply {
+  enabled: boolean;
+  replyText: string | null;
+  mediaFileId: string | null;
+  mediaType: 'PHOTO' | 'VIDEO' | 'DOCUMENT' | 'ANIMATION' | null;
+  buttons: ReplyButton[];
+  mediaHash?: string | null;
+  hasMedia?: boolean;
+  linkedChannel?: LinkedChannel | null;
+}
+
+export interface ReplyButton {
+  text: string;
+  url: string;
+}
+
+export interface UpdateChannelReplyRequest {
+  enabled?: boolean;
+  replyText?: string | null;
+  buttons?: ReplyButton[];
+}
+
+export interface MediaUploadResponse {
+  fileId: string;
+  mediaType: 'PHOTO' | 'VIDEO' | 'DOCUMENT' | 'ANIMATION';
+}
+
 // === Telegram Types ===
 
 export interface TelegramUser {
