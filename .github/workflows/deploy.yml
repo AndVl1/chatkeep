@@ -266,19 +266,23 @@ jobs:
 
             # Update or create .env file with environment-specific variables
             echo "Updating .env file for $ENV_NAME environment..."
-            cat > .env << EOF
-            GITHUB_REPOSITORY=andvl1/chatkeep
-            TELEGRAM_BOT_TOKEN=$BOT_TOKEN
-            DB_PASSWORD=$DB_PASSWORD
-            JWT_SECRET=$JWT_SECRET
-            GRAFANA_ADMIN_PASSWORD=$GRAFANA_PASSWORD
-            DOMAIN=$DOMAIN
-            ENVIRONMENT=$ENV_NAME
-            MAIN_DOMAIN=$DOMAIN
-            API_DOMAIN=api.$DOMAIN
-            MINIAPP_DOMAIN=miniapp.$DOMAIN
-            ADMIN_DOMAIN=admin.$DOMAIN
-            EOF
+            cat > .env << 'ENVEOF'
+GITHUB_REPOSITORY=andvl1/chatkeep
+ENVEOF
+            cat >> .env << ENVEOF
+TELEGRAM_BOT_TOKEN=$BOT_TOKEN
+DB_PASSWORD=$DB_PASSWORD
+JWT_SECRET=$JWT_SECRET
+GRAFANA_ADMIN_PASSWORD=$GRAFANA_PASSWORD
+DOMAIN=$DOMAIN
+ENVIRONMENT=$ENV_NAME
+MAIN_DOMAIN=$DOMAIN
+API_DOMAIN=api.$DOMAIN
+MINIAPP_DOMAIN=miniapp.$DOMAIN
+ADMIN_DOMAIN=admin.$DOMAIN
+ENVEOF
+            echo "Generated .env file:"
+            cat .env | head -15
 
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
