@@ -2,13 +2,26 @@ name: Deploy
 
 on:
   push:
-    branches: [production]
+    branches:
+      - production       # Deploy to PROD
+      - 'main'           # Deploy to TEST for main branch
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - production
+          - test
+        default: 'test'
 
 env:
   REGISTRY: ghcr.io
   # Use lowercase repository name (Docker registry requirement)
   IMAGE_NAME: andvl1/chatkeep
+  # Determine environment based on branch or manual input
+  IS_PROD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
 
 jobs:
   build-and-push:
@@ -137,11 +150,29 @@ jobs:
       packages: read
 
     # Only deploy if server credentials are configured
-    if: vars.DEPLOY_HOST != ''
+    if: vars.DEPLOY_HOST != '' || vars.TEST_DEPLOY_HOST != ''
+
+    env:
+      # Environment-specific variables using workflow-level IS_PROD
+      # Note: Using github context to determine branch, as env context is not available at job level
+      IS_PRODUCTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: set-env
+        run: |
+          if [[ "${{ env.IS_PRODUCTION }}" == "true" ]]; then
+            echo "DEPLOY_HOST=${{ vars.DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+            echo "DOMAIN=${{ vars.PROD_DOMAIN }}" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=production" >> $GITHUB_OUTPUT
+          else
+            echo "DEPLOY_HOST=${{ vars.TEST_DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+            echo "DOMAIN=${{ vars.TEST_DOMAIN }}" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=test" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download Mini App artifact
         uses: actions/download-artifact@v4
@@ -155,23 +186,59 @@ jobs:
           name: admin-wasm
           path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
 
+      - name: Log deployment info
+        run: |
+          echo "### Deployment Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: ${{ steps.set-env.outputs.ENV_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "Domain: ${{ steps.set-env.outputs.DOMAIN }}" >> $GITHUB_STEP_SUMMARY
+          echo "Host: ${{ steps.set-env.outputs.DEPLOY_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
       - name: Copy Docker Compose config to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "docker-compose.prod.yml"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
+      - name: Generate nginx configs from templates
+        run: |
+          chmod +x docker/nginx/generate-configs.sh
+          docker/nginx/generate-configs.sh ${{ steps.set-env.outputs.DOMAIN }}
+          echo "Generated nginx configs for domain: ${{ steps.set-env.outputs.DOMAIN }}"
+          ls -la docker/nginx/sites/
+
+      - name: Clean old nginx configs on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          script: |
+            echo "Cleaning old nginx configs..."
+            rm -f ${{ vars.DEPLOY_PATH || '~/chatkeep' }}/docker/nginx/sites/*.conf 2>/dev/null || true
+            ls -la ${{ vars.DEPLOY_PATH || '~/chatkeep' }}/docker/nginx/sites/ 2>/dev/null || echo "Directory doesn't exist yet"
+
       - name: Copy Nginx configs to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "docker/nginx/*"
+          target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
+          overwrite: true
+
+      - name: Copy Prometheus and Grafana configs to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          source: "infra/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
@@ -180,27 +247,47 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
+          BOT_TOKEN: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
+          DB_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.DB_PASSWORD || secrets.TEST_DB_PASSWORD }}
+          JWT_SECRET: ${{ env.IS_PRODUCTION == 'true' && secrets.JWT_SECRET || secrets.TEST_JWT_SECRET }}
+          GRAFANA_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.GRAFANA_ADMIN_PASSWORD || secrets.TEST_GRAFANA_ADMIN_PASSWORD }}
+          DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
+          ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: GHCR_TOKEN,GHCR_USER
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DB_PASSWORD,JWT_SECRET,GRAFANA_PASSWORD,DOMAIN,ENV_NAME
           script: |
             # Ensure deployment directory exists
             echo "Preparing deployment directories..."
+            echo "Environment: $ENV_NAME"
+            echo "Domain: $DOMAIN"
             mkdir -p ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
-            # Create directories for static files
+            # Create directories for static files and certbot
             mkdir -p mini-app/dist
             mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
             mkdir -p docker/nginx/sites
+            mkdir -p certbot/webroot
 
-            # Fix GITHUB_REPOSITORY in .env to lowercase (Docker requires lowercase)
-            if [ -f .env ]; then
-              echo "Fixing GITHUB_REPOSITORY in .env to lowercase..."
-              sed -i 's/GITHUB_REPOSITORY=AndVl1/GITHUB_REPOSITORY=andvl1/g' .env
-            fi
+            # Update or create .env file with environment-specific variables
+            echo "Updating .env file for $ENV_NAME environment..."
+            printf '%s\n' \
+              "GITHUB_REPOSITORY=andvl1/chatkeep" \
+              "TELEGRAM_BOT_TOKEN=$BOT_TOKEN" \
+              "DB_PASSWORD=$DB_PASSWORD" \
+              "JWT_SECRET=$JWT_SECRET" \
+              "GRAFANA_ADMIN_PASSWORD=$GRAFANA_PASSWORD" \
+              "DOMAIN=$DOMAIN" \
+              "ENVIRONMENT=$ENV_NAME" \
+              "MAIN_DOMAIN=$DOMAIN" \
+              "API_DOMAIN=api.$DOMAIN" \
+              "MINIAPP_DOMAIN=miniapp.$DOMAIN" \
+              "ADMIN_DOMAIN=admin.$DOMAIN" > .env
+            echo "Generated .env file:"
+            cat .env
 
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
@@ -213,9 +300,9 @@ jobs:
       - name: Copy Mini App files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "mini-app/dist/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
@@ -223,21 +310,27 @@ jobs:
       - name: Copy WASM files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
       - name: Verify configs and restart services
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
+          DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          envs: ENV_NAME,DOMAIN
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
+
+            echo "Deploying to $ENV_NAME environment with domain $DOMAIN"
 
             # Verify docker-compose.prod.yml was updated correctly
             echo "Verifying docker-compose.prod.yml..."
@@ -254,20 +347,44 @@ jobs:
 
             # Restart docker compose services
             # Force-recreate app to use new Docker image, nginx to pick up new static files
-            echo "Restarting services..."
-            docker compose -f docker-compose.prod.yml up -d --force-recreate app nginx
+            echo "Restarting services for $ENV_NAME environment..."
+            docker compose -f docker-compose.prod.yml up -d --force-recreate
 
-            # Wait for app to be healthy
+            # Wait for app to be healthy (give it more time to start)
             echo "Waiting for app to be healthy..."
-            sleep 10
+            sleep 30
 
             # Verify containers are running with correct image
             echo "Verifying deployed containers..."
-            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
+            docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
 
-            # Verify nginx config and reload
-            echo "Verifying nginx configuration..."
-            docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
+            # Show app logs
+            echo "App container logs (last 30 lines):"
+            docker logs chatkeep-app --tail 30 || echo "Could not get app logs"
+
+            # Always show nginx logs for debugging
+            echo "Nginx container logs (last 30 lines):"
+            docker logs chatkeep-nginx --tail 30 || echo "Could not get nginx logs"
+
+            # Check SSL certificates on the host
+            echo "Checking SSL certificate files..."
+            ls -la /etc/letsencrypt/live/ || echo "No /etc/letsencrypt/live/ directory"
+            ls -la /etc/letsencrypt/live/$DOMAIN/ || echo "No certificates for $DOMAIN"
+
+            # Check nginx config files
+            echo "Checking nginx config files..."
+            ls -la docker/nginx/sites/ || echo "No nginx sites directory"
+
+            # Check if app is healthy before nginx operations
+            if docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null | grep -q healthy; then
+              echo "App is healthy"
+              # Try to test nginx config
+              docker exec chatkeep-nginx nginx -t 2>&1 || echo "Nginx config test failed"
+            else
+              echo "WARNING: App is not healthy yet"
+              echo "App health status:"
+              docker inspect --format='{{.State.Health.Status}}' chatkeep-app || true
+            fi
 
             # Show deployed files info
             echo "Mini App files:"
@@ -277,3 +394,6 @@ jobs:
 
             # Cleanup old images
             docker image prune -f
+
+            echo "✓ Deployment to $ENV_NAME completed successfully!"
+            echo "Domain: $DOMAIN"

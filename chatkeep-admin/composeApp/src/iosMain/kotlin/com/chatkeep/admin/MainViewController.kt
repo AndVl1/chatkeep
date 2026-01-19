@@ -1,5 +1,10 @@
 package com.chatkeep.admin
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.ComposeUIViewController
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.ApplicationLifecycle
@@ -7,15 +12,21 @@ import com.chatkeep.admin.di.AppFactory
 import com.chatkeep.admin.di.createPlatformDataStore
 import com.chatkeep.admin.di.createPlatformHttpClient
 import com.chatkeep.admin.di.createPlatformTokenStorage
-import com.chatkeep.admin.di.getApiBaseUrl
+import com.chatkeep.admin.di.getBaseUrlFromDataStore
+import kotlinx.coroutines.runBlocking
 import platform.UIKit.UIViewController
 
 fun MainViewController(): UIViewController {
-    // Create platform dependencies
-    val httpClient = createPlatformHttpClient()
+    // Create DataStore first
     val dataStore = createPlatformDataStore(Unit)
+
+    // Load base URL synchronously for iOS (no async initialization)
+    val baseUrl = runBlocking {
+        getBaseUrlFromDataStore(dataStore) ?: "https://admin.chatmoderatorbot.ru"
+    }
+
+    val httpClient = createPlatformHttpClient(baseUrl)
     val tokenStorage = createPlatformTokenStorage(dataStore)
-    val baseUrl = getApiBaseUrl()
 
     // Create app factory
     val appFactory = AppFactory(

@@ -3,6 +3,14 @@ name: Register SSH Key
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - production
+          - test
+        default: 'test'
       ssh_public_key:
         description: 'SSH public key to add (e.g., ssh-ed25519 AAAA... user@host)'
         required: true
@@ -14,7 +22,14 @@ jobs:
     runs-on: ubuntu-latest
 
     # Only run if server credentials are configured
-    if: vars.DEPLOY_HOST != ''
+    if: vars.DEPLOY_HOST != '' || vars.TEST_DEPLOY_HOST != ''
+
+    env:
+      # Environment-specific variables
+      IS_PROD: ${{ github.event.inputs.environment == 'production' }}
+      DEPLOY_HOST: ${{ github.event.inputs.environment == 'production' && vars.DEPLOY_HOST || vars.TEST_DEPLOY_HOST }}
+      DEPLOY_SSH_KEY: ${{ github.event.inputs.environment == 'production' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+      ENV_NAME: ${{ github.event.inputs.environment }}
 
     steps:
       - name: Validate SSH public key format
@@ -40,11 +55,16 @@ jobs:
 
       - name: Add SSH key to server
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          ENV_NAME: ${{ env.ENV_NAME }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
+          envs: ENV_NAME
           script: |
+            echo "Registering SSH key for $ENV_NAME environment"
+
             # Create .ssh directory if it doesn't exist
             mkdir -p ~/.ssh
             chmod 700 ~/.ssh
@@ -65,7 +85,7 @@ jobs:
 
             # Add the new key
             echo "${{ github.event.inputs.ssh_public_key }}" >> ~/.ssh/authorized_keys
-            echo "SSH key successfully added to authorized_keys"
+            echo "SSH key successfully added to authorized_keys for $ENV_NAME"
 
             # Show the number of registered keys
             KEY_COUNT=$(wc -l < ~/.ssh/authorized_keys)
@@ -74,9 +94,9 @@ jobs:
       - name: Verify key registration
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
           script: |
             echo "Registered SSH keys:"
             echo "===================="
@@ -93,7 +113,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The SSH public key has been successfully added to the server." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Server:** ${{ vars.DEPLOY_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ env.ENV_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Server:** ${{ env.DEPLOY_HOST }}" >> $GITHUB_STEP_SUMMARY
           echo "**User:** ${{ vars.DEPLOY_USER }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "You can now use SSH key authentication to access the server." >> $GITHUB_STEP_SUMMARY

@@ -3,6 +3,7 @@ package com.chatkeep.admin.di
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.chatkeep.admin.core.common.IosPlatformContext
 import com.chatkeep.admin.core.common.createDataStorePath
 import com.chatkeep.admin.core.data.local.DataStoreTokenStorage
@@ -10,10 +11,11 @@ import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.network.createHttpClient
 import io.ktor.client.*
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.flow.first
 import okio.Path.Companion.toPath
 
 @OptIn(ExperimentalForeignApi::class)
-actual fun createPlatformHttpClient(): HttpClient = createHttpClient()
+actual fun createPlatformHttpClient(baseUrl: String): HttpClient = createHttpClient(baseUrl)
 
 actual fun createPlatformDataStore(context: Any): Any {
     val platformContext = IosPlatformContext()
@@ -28,6 +30,10 @@ actual fun createPlatformTokenStorage(dataStore: Any): TokenStorage {
     return DataStoreTokenStorage(dataStore as DataStore<Preferences>)
 }
 
-actual fun getApiBaseUrl(): String {
-    return "https://admin.chatmoderatorbot.ru"
+actual suspend fun getBaseUrlFromDataStore(dataStore: Any): String? {
+    @Suppress("UNCHECKED_CAST")
+    val ds = dataStore as DataStore<Preferences>
+    val preferences = ds.data.first()
+    val baseUrlKey = stringPreferencesKey("base_url")
+    return preferences[baseUrlKey]
 }

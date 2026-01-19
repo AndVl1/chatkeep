@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.chatkeep.admin.core.common.AndroidPlatformContext
 import com.chatkeep.admin.core.common.createDataStorePath
@@ -12,10 +13,11 @@ import com.chatkeep.admin.core.common.TokenStorage
 import com.chatkeep.admin.core.network.createHttpClient
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import kotlinx.coroutines.flow.first
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "chatkeep_admin_prefs")
 
-actual fun createPlatformHttpClient(): HttpClient = createHttpClient()
+actual fun createPlatformHttpClient(baseUrl: String): HttpClient = createHttpClient(baseUrl)
 
 actual fun createPlatformDataStore(context: Any): Any {
     require(context is Context) { "Expected Android Context" }
@@ -27,6 +29,10 @@ actual fun createPlatformTokenStorage(dataStore: Any): TokenStorage {
     return DataStoreTokenStorage(dataStore as DataStore<Preferences>)
 }
 
-actual fun getApiBaseUrl(): String {
-    return "https://admin.chatmoderatorbot.ru"  // TODO: Move to BuildConfig
+actual suspend fun getBaseUrlFromDataStore(dataStore: Any): String? {
+    @Suppress("UNCHECKED_CAST")
+    val ds = dataStore as DataStore<Preferences>
+    val preferences = ds.data.first()
+    val baseUrlKey = stringPreferencesKey("base_url")
+    return preferences[baseUrlKey]
 }

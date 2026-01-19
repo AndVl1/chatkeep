@@ -5,11 +5,10 @@ import androidx.compose.ui.window.CanvasBasedWindow
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.chatkeep.admin.core.common.DeepLinkData
-import com.chatkeep.admin.core.network.createHttpClient
 import com.chatkeep.admin.di.AppFactory
 import com.chatkeep.admin.di.createPlatformDataStore
+import com.chatkeep.admin.di.createPlatformHttpClient
 import com.chatkeep.admin.di.createPlatformTokenStorage
-import com.chatkeep.admin.di.getApiBaseUrl
 
 // External JS functions for window message handling
 @JsFun("(callback) => { window.addEventListener('message', (event) => { callback(event.data); }); }")
@@ -47,9 +46,10 @@ fun main() {
     val lifecycle = LifecycleRegistry()
 
     // Create platform dependencies
-    val baseUrl = getApiBaseUrl()
-    val httpClient = createHttpClient(baseUrl)
     val dataStore = createPlatformDataStore(Unit)
+    // WASM doesn't support DataStore, so always use default
+    val baseUrl = "https://admin.chatmoderatorbot.ru"
+    val httpClient = createPlatformHttpClient(baseUrl)
     val tokenStorage = createPlatformTokenStorage(dataStore)
 
     // Create app factory

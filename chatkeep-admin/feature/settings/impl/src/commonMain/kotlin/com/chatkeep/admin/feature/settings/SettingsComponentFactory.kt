@@ -3,6 +3,7 @@ package com.chatkeep.admin.feature.settings
 import com.arkivanov.decompose.ComponentContext
 import com.chatkeep.admin.feature.settings.data.InMemorySettingsRepository
 import com.chatkeep.admin.feature.settings.domain.SettingsRepository
+import com.chatkeep.admin.feature.settings.domain.SetBaseUrlUseCase
 import com.chatkeep.admin.feature.settings.domain.SetThemeUseCase
 
 /**
@@ -15,11 +16,13 @@ fun createSettingsComponent(
     onLogout: () -> Unit
 ): SettingsComponent {
     val setThemeUseCase = SetThemeUseCase(settingsRepository)
+    val setBaseUrlUseCase = SetBaseUrlUseCase(settingsRepository)
 
     return DefaultSettingsComponent(
         componentContext = componentContext,
         settingsRepository = settingsRepository,
         setThemeUseCase = setThemeUseCase,
+        setBaseUrlUseCase = setBaseUrlUseCase,
         onLogout = onLogout
     )
 }

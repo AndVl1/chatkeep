@@ -3,6 +3,8 @@ package ru.andvl.chatkeep.config
 import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.bot.ktor.telegramBot
 import dev.inmo.tgbotapi.requests.abstracts.Request
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -18,7 +20,9 @@ class TelegramBotConfig {
         @Value("\${telegram.bot.token}")
         token: String
     ): TelegramBot {
-        return dev.inmo.tgbotapi.bot.ktor.telegramBot(token)
+        return telegramBot(token) {
+            client = HttpClient(CIO)
+        }
     }
 
     /**
