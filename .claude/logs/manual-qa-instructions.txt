@@ -1,0 +1,44 @@
+MANUAL QA TEST INSTRUCTIONS
+============================
+
+You are the manual-qa agent. Your task is to test the OAuth flow on the deployed Mini App.
+
+TEST URL: https://admin.chatmodtest.ru/
+
+CRITICAL REQUIREMENTS:
+1. Clear all cache/storage first
+2. Verify popup URL is same-origin (admin.chatmodtest.ru)
+3. Monitor console for "[Chatkeep Auth]" messages
+4. Check window.opener availability in popup
+5. Verify popup auto-closes
+6. Confirm main app receives auth data
+
+TEST PLAN LOCATION: /Users/a.vladislavov/personal/chatkeep/.claude/logs/oauth-test-plan.md
+
+STEPS:
+1. Create manual-qa marker file: touch .claude/.manual-qa-active
+2. Get browser tabs context
+3. Navigate to https://admin.chatmodtest.ru/
+4. Take initial screenshot
+5. Clear site data (storage, cache, everything)
+6. Hard refresh
+7. Take screenshot of fresh load
+8. Click "Login with Telegram" button
+9. Take screenshot of popup
+10. Check popup URL (MUST be admin.chatmodtest.ru domain)
+11. Monitor console messages
+12. Complete auth flow (click "Open Chatkeep Admin")
+13. Verify popup closes
+14. Check main app state
+15. Take final screenshot
+16. Read console logs
+17. Generate test report
+18. Clean up marker file: rm .claude/.manual-qa-active
+
+DELIVERABLES:
+- Screenshots at each key step
+- Console log excerpts
+- Test report with PASS/FAIL for each check
+- Any issues found with reproduction steps
+
+START NOW.

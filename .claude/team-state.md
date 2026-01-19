@@ -1,124 +1,128 @@
 # TEAM STATE
 
 ## Classification
-- Type: OPS
-- Complexity: COMPLEX
-- Workflow: FULL 7-PHASE
+- Type: BUG_FIX + OPS
+- Complexity: MEDIUM
+- Workflow: STANDARD (5 phases + deployment verification)
 
 ## Task
-Настройка тестовой инфраструктуры с разделением prod/test окружений:
-1. Тестовый сервер: 204.77.3.163, chatmodtest.ru
-2. CI/CD пайплайны с автовыбором окружения по ветке
-3. Параметризация конфигов (домен, IP, bot token, DB)
-4. SSL через Let's Encrypt
-5. Mobile app: настройка base URL в UI
-6. SSH ключи и register-ssh для обоих доменов
-
-## Environment Mapping
-| Parameter | Production | Test |
-|-----------|------------|------|
-| Domain | chatmod.ru | chatmodtest.ru |
-| IP | prod IP | 204.77.3.163 |
-| Subdomains | api., admin., app. | api., admin., app. |
-| Bot Token | PROD_BOT_TOKEN | TEST_BOT_TOKEN |
-| SSH Secret | SSH_PRIVATE_KEY | TEST_SSH_TOKEN |
-| Database | prod DB | separate test DB |
+Fix test environment login button showing production bot nickname (@chatautomoderbot) instead of test bot (@tg_chat_dev_env_bot). Parameterize bot nickname configuration, deploy to test environment from custom branch, and verify login button at chatmodtest.ru.
 
 ## Progress
 - [x] Phase 1: Discovery - COMPLETED
 - [x] Phase 2: Exploration - COMPLETED
-- [x] Phase 3: Questions - SKIPPED (all clarified in Phase 1)
-- [ ] Phase 4: Architecture - IN PROGRESS
-- [ ] Phase 5: Implementation - pending
-- [ ] Phase 6: Review - pending
-- [ ] Phase 6.5: Review Fixes - pending (optional)
-- [ ] Phase 7: Summary - pending
+- [x] Phase 3: Questions - SKIPPED (clear bug fix)
+- [x] Phase 4: Architecture - COMPLETED
+- [x] Phase 5: Implementation - COMPLETED
+- [x] Phase 6: Review - COMPLETED
+- [x] Phase 6.5: Review Fixes - COMPLETED
+- [x] Phase 7: Deployment & Verification - COMPLETED
+- [x] Phase 8: Summary - COMPLETED
 
-## Phase 1 Output
-- Confirmed requirements with user
-- Bot tokens already in GitHub secrets (PROD_BOT_TOKEN, TEST_BOT_TOKEN)
-- Same subdomain structure for both environments
-- Let's Encrypt for SSL
-- Separate database on test server
-- User going to sleep - working autonomously
+## Phase 5 Output
+**Commit**: e140f97
 
-## Phase 2 Output
+**Changes Made**:
+1. `.github/workflows/deploy.yml`:
+   - Added `IS_PRODUCTION` env to `build-mini-app` job
+   - Added "Configure Mini App environment" step before build
+   - Dynamically injects bot username from GitHub variables
+   - Uses `PROD_BOT_USERNAME` for production, `TEST_BOT_USERNAME` for test
 
-### CI/CD Workflows Found (11 total)
-1. `ci.yml` - Build/test for backend, frontend, mobile
-2. `deploy.yml` - Production deployment (production branch → prod server)
-3. `register-ssh.yml` - Manual SSH key registration
-4. `deploy-files-to-server.yml` - Manual deployment with SSL
-5. `setup-ssl.yml` - SSL certificate update
-6. `update-ssl-cert.yml` - Direct SSL update
-7. `fix-nginx-and-ssl.yml` - Diagnostic workflow
-8. `init-git-repo.yml` - Initial server setup
-9. `create-production-pr.yml` - Automated PR creation
-10. `cleanup-caches.yml` - Cache management
-11. `debug-permissions.yml` - File permission diagnostics
+**Files Modified**:
+- .github/workflows/deploy.yml (added env block + new step)
 
-### Hardcoded Values to Parameterize
+## Phase 6 Output
+**Review Findings**:
+1. CRITICAL: Missing validation for empty BOT_USERNAME
+2. CRITICAL: GitHub variables not created yet
+3. MEDIUM: Expression syntax could be clearer
 
-**Domains (100+ occurrences):**
-- `chatmoderatorbot.ru` (main domain - NOT chatmod.ru as user said!)
-- All subdomains: api., miniapp., admin., grafana., prometheus., www.
+## Phase 6.5 Output
+**Commit**: ba58ee6
 
-**Files with hardcoded domains:**
-- `.github/workflows/*.yml` - certbot commands
-- `docker/nginx/sites/*.conf` - server_name, ssl paths
-- `docker-compose.prod.yml` - grafana URLs
-- `src/main/kotlin/.../CorsConfig.kt` - CORS origins
-- `mini-app/.env.production` - bot username
+**Fixes Applied**:
+1. Added BOT_USERNAME validation with helpful error message
+2. Improved expression syntax with explicit parentheses
+3. Prevents silent failures when GitHub variables not set
 
-**Server path:** `/root/chatkeep` (hardcoded in multiple places)
+## Phase 7 Output
+**GitHub Variables Created**:
+- `PROD_BOT_USERNAME = chatAutoModerBot`
+- `TEST_BOT_USERNAME = tg_chat_dev_env_bot`
 
-### Current Secrets/Variables
-**Secrets:** DEPLOY_SSH_KEY, DB_PASSWORD, JWT_SECRET, TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_BOT_TOKEN, GRAFANA_ADMIN_PASSWORD
-**Variables:** DEPLOY_ENABLED, DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH
+**Deployment**:
+- Workflow Run: 21152521334
+- Triggered: workflow_dispatch on branch fix/test-env-bot-nickname-parameterization
+- Environment: test
+- Status: ✓ SUCCESS (all jobs completed)
+- Total time: ~11 minutes
 
-### Mobile App Architecture
-- Settings: DataStore (Android/iOS/Desktop), InMemory (WASM)
-- Network: Ktor Client with hardcoded base URL in PlatformFactory
-- Current base URL: `https://admin.chatmoderatorbot.ru` (hardcoded)
-- Pattern: SettingsRepository → DataStoreSettingsRepository (platform-specific)
-
-### Key Finding: Domain Mismatch!
-User said "chatmod.ru" and "chatmodtest.ru" but codebase uses "chatmoderatorbot.ru"!
-Need to verify correct domains.
+**Verification Results** (manual-qa):
+- ✅ chatmodtest.ru login button shows `@tg_chat_dev_env_bot`
+- ✅ No references to production bot `@chatautomoderbot`
+- ✅ Widget script tag: `data-telegram-login="tg_chat_dev_env_bot"`
+- ✅ No console errors
+- ✅ READY FOR RELEASE
 
 ## Key Decisions
-- Environment selection: by branch (production → prod, other → test)
-- Nginx configs: template-based with envsubst
-- Base URL in mobile: add to UserSettings, persist in DataStore
+- Created fix branch: fix/test-env-bot-nickname-parameterization
+- Need to find all hardcoded bot references (@chatautomoderbot)
+- Need to parameterize bot nickname for different environments
+- Deploy to test environment and verify at chatmodtest.ru
+
+## Phase 2 Findings
+
+### Root Cause
+Mini App uses hardcoded bot username in `.env.production` file:
+- File: `mini-app/.env.production`
+- Line 6: `VITE_BOT_USERNAME=chatAutoModerBot` (production bot)
+- This is used for BOTH production AND test deployments
+- Test environment should use `VITE_BOT_USERNAME=tg_chat_dev_env_bot`
+
+### Current Architecture
+1. **Frontend (Mini App)**:
+   - Build time: Uses `.env.production` for both prod and test
+   - Runtime: `VITE_BOT_USERNAME` embedded in built JavaScript
+   - Component: `LoginPage.tsx` reads bot username and passes to Telegram Widget
+
+2. **Backend**:
+   - Already parameterized via `TELEGRAM_BOT_TOKEN` (prod vs test secrets)
+   - Validates authentication hash against bot token
+   - No bot username configuration needed in backend
+
+3. **Deploy Workflow** (`.github/workflows/deploy.yml`):
+   - Line 158: Detects environment (production vs test)
+   - Line 250-253: Uses correct secrets per environment (BOT_TOKEN, DB_PASSWORD, etc.)
+   - Line 98: Builds Mini App with `npm run build` (ALWAYS uses `.env.production`)
+
+### Missing Configuration
+- `TELEGRAM_BOT_USERNAME` not exposed to Mini App build process
+- Mini App build doesn't know which environment it's deploying to
+- No `.env.test` file for test-specific bot username
 
 ## Files Identified
 
-### CI/CD (need parameterization)
-- `.github/workflows/deploy.yml`
-- `.github/workflows/deploy-files-to-server.yml`
-- `.github/workflows/register-ssh.yml`
-- `.github/workflows/setup-ssl.yml`
-- `.github/workflows/init-git-repo.yml`
-
-### Backend (hardcoded values)
-- `src/main/kotlin/ru/andvl/chatkeep/api/config/CorsConfig.kt`
-- `src/main/resources/application.yml`
-
-### Nginx (hardcoded domains)
-- `docker/nginx/sites/*.conf` (7 files)
-
-### Docker
-- `docker-compose.prod.yml`
-
-### Mobile App (base URL settings)
-- `feature/settings/api/src/commonMain/kotlin/.../Settings.kt`
-- `feature/settings/impl/src/*/kotlin/.../DataStoreSettingsRepository.kt`
-- `feature/settings/impl/src/commonMain/kotlin/.../ui/SettingsScreen.kt`
-- `composeApp/src/*/kotlin/.../PlatformFactory.*.kt`
+### Files Requiring Changes
+1. `mini-app/.env.production` - Production bot username
+2. `mini-app/.env.test` - NEW: Test bot username
+3. `.github/workflows/deploy.yml` - Update Mini App build step to select correct .env file
+4. GitHub Variables - Add `TEST_BOT_USERNAME` and `PROD_BOT_USERNAME`
 
 ## Chosen Approach
-(will be determined after architecture design)
+**Dynamic Environment Variable Injection from GitHub Variables**
+
+Implementation:
+1. Add GitHub Variables: PROD_BOT_USERNAME, TEST_BOT_USERNAME
+2. Update deploy workflow to inject bot username before Mini App build
+3. Use sed to update .env.production with correct username based on environment
+4. Build Mini App with environment-specific configuration
+
+Benefits:
+- Bot usernames managed centrally in GitHub Variables
+- Not stored in repository
+- Follows existing pattern (DEPLOY_HOST/TEST_DEPLOY_HOST)
+- No duplicate .env files needed
 
 ## Recovery
-Continue from Phase 4: Architecture design. All exploration complete, questions clarified.
-Need to design: 1) CI/CD parameterization, 2) Nginx templates, 3) Mobile settings UI
+Currently at Phase 1 complete. Feature branch created. Moving to Phase 2 exploration.

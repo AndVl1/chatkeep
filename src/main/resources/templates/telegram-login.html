@@ -184,75 +184,29 @@
             // Show redirect section with button
             document.getElementById('redirect-section').style.display = 'block';
 
-            if (!isMobile && hasOpener) {
-                // WASM environment: use postMessage to communicate with opener window
-                // Determine the target origin based on current domain
-                const targetOrigin = window.location.hostname === 'localhost'
-                    ? 'http://localhost:8080'
-                    : window.location.origin;
+            // For web (non-mobile), use redirect flow instead of postMessage
+            if (!isMobile) {
+                console.log('[Chatkeep Auth] Using redirect flow for web');
 
-                console.log('[Chatkeep Auth] Target origin:', targetOrigin);
-                console.log('[Chatkeep Auth] window.opener available:', window.opener !== null);
+                // Build redirect URL with auth data
+                const redirectUrl = `${window.location.origin}/?` + params.toString();
 
                 document.getElementById('open-app-btn').onclick = function(e) {
                     e.preventDefault();
-
-                    try {
-                        console.log('[Chatkeep Auth] Sending auth data via postMessage...');
-                        window.opener.postMessage({
-                            type: 'chatkeep-auth',
-                            data: authData
-                        }, targetOrigin);
-                        console.log('[Chatkeep Auth] postMessage sent successfully');
-
-                        // Close popup after short delay to ensure message is received
-                        setTimeout(() => window.close(), 300);
-                    } catch (err) {
-                        console.error('[Chatkeep Auth] Failed to send postMessage:', err);
-                        alert('Authentication complete, but could not communicate with app. Please close this window and refresh the app.');
-                    }
+                    console.log('[Chatkeep Auth] Redirecting to:', redirectUrl);
+                    window.location.href = redirectUrl;
                 };
                 document.getElementById('open-app-btn').href = '#';
 
-                // Also try auto-posting after a short delay
+                // Auto-redirect after short delay
                 setTimeout(() => {
-                    if (window.opener) {
-                        try {
-                            console.log('[Chatkeep Auth] Auto-sending auth data...');
-                            window.opener.postMessage({
-                                type: 'chatkeep-auth',
-                                data: authData
-                            }, targetOrigin);
-                            console.log('[Chatkeep Auth] Auto-send successful');
-                        } catch (err) {
-                            console.error('[Chatkeep Auth] Auto-send failed:', err);
-                        }
-                    } else {
-                        console.warn('[Chatkeep Auth] window.opener not available for auto-send');
-                    }
-                }, 500);
-            } else {
-                // Mobile environment: use deeplinks
-                const deeplinkUrl = `chatkeep://auth/callback?${params.toString()}`;
-
-                // Use Android Intent URL format for better compatibility with Chrome
-                const isAndroid = /Android/i.test(navigator.userAgent);
-                const intentUrl = `intent://auth/callback?${params.toString()}#Intent;scheme=chatkeep;package=com.chatkeep.admin;end`;
-
-                // Set the href on the button - user tap will trigger intent
-                const redirectUrl = isAndroid ? intentUrl : deeplinkUrl;
-                document.getElementById('open-app-btn').href = redirectUrl;
-
-                // Also try auto-redirect via hidden iframe (more reliable on some browsers)
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.src = redirectUrl;
-                document.body.appendChild(iframe);
-
-                // Remove iframe after attempt
-                setTimeout(() => {
-                    document.body.removeChild(iframe);
+                    console.log('[Chatkeep Auth] Auto-redirecting...');
+                    window.location.href = redirectUrl;
                 }, 1000);
+            } else {
+                // Mobile: use deeplink
+                const deeplinkUrl = `chatkeep://auth/callback?${params.toString()}`;
+                document.getElementById('open-app-btn').href = deeplinkUrl;
             }
         }
     </script>

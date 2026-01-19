@@ -41,6 +41,37 @@ private external fun getAuthHash(data: JsAny): JsString
 @JsFun("(data) => data.data.state")
 private external fun getAuthState(data: JsAny): JsString
 
+// URL parameter checking
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.has('id') && params.has('hash'); }")
+private external fun hasAuthParamsInUrl(): Boolean
+
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.get('id') || ''; }")
+private external fun getUrlParamId(): JsString
+
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.get('first_name') || ''; }")
+private external fun getUrlParamFirstName(): JsString
+
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.get('last_name') || null; }")
+private external fun getUrlParamLastName(): JsString?
+
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.get('username') || null; }")
+private external fun getUrlParamUsername(): JsString?
+
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.get('photo_url') || null; }")
+private external fun getUrlParamPhotoUrl(): JsString?
+
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.get('auth_date') || ''; }")
+private external fun getUrlParamAuthDate(): JsString
+
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.get('hash') || ''; }")
+private external fun getUrlParamHash(): JsString
+
+@JsFun("() => { const params = new URLSearchParams(window.location.search); return params.get('state') || ''; }")
+private external fun getUrlParamState(): JsString
+
+@JsFun("() => { window.history.replaceState({}, '', window.location.pathname); }")
+private external fun clearUrlParams()
+
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     val lifecycle = LifecycleRegistry()
@@ -64,6 +95,31 @@ fun main() {
     val rootComponent = appFactory.createRootComponent(
         componentContext = DefaultComponentContext(lifecycle)
     )
+
+    // Check URL parameters for auth callback (redirect flow)
+    if (hasAuthParamsInUrl()) {
+        println("[Auth] Found auth data in URL, processing...")
+
+        val id = getUrlParamId().toString().toLongOrNull()
+        val authDate = getUrlParamAuthDate().toString().toLongOrNull()
+
+        if (id != null && authDate != null) {
+            val deepLinkData = DeepLinkData(
+                id = id,
+                firstName = getUrlParamFirstName().toString(),
+                lastName = getUrlParamLastName()?.toString(),
+                username = getUrlParamUsername()?.toString(),
+                photoUrl = getUrlParamPhotoUrl()?.toString(),
+                authDate = authDate,
+                hash = getUrlParamHash().toString(),
+                state = getUrlParamState().toString()
+            )
+            rootComponent.handleDeepLink(deepLinkData)
+
+            // Clean URL after processing
+            clearUrlParams()
+        }
+    }
 
     // Listen for auth callback messages from login popup
     addMessageListener { data ->
@@ -89,3 +145,4 @@ fun main() {
         )
     }
 }
+
