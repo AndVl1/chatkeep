@@ -341,17 +341,27 @@ jobs:
             echo "Restarting services for $ENV_NAME environment..."
             docker compose -f docker-compose.prod.yml up -d --force-recreate
 
-            # Wait for app to be healthy
+            # Wait for app to be healthy (give it more time to start)
             echo "Waiting for app to be healthy..."
-            sleep 10
+            sleep 30
 
             # Verify containers are running with correct image
             echo "Verifying deployed containers..."
             docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
 
-            # Verify nginx config and reload
-            echo "Verifying nginx configuration..."
-            docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
+            # Show app logs if unhealthy
+            echo "App container logs (last 50 lines):"
+            docker logs chatkeep-app --tail 50 || echo "Could not get app logs"
+
+            # Check if app is healthy before nginx operations
+            if docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null | grep -q healthy; then
+              echo "App is healthy, verifying nginx configuration..."
+              docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
+            else
+              echo "WARNING: App is not healthy yet, skipping nginx reload"
+              echo "App health status:"
+              docker inspect --format='{{.State.Health.Status}}' chatkeep-app || true
+            fi
 
             # Show deployed files info
             echo "Mini App files:"
