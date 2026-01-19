@@ -5,6 +5,7 @@ import dev.inmo.tgbotapi.bot.ktor.telegramBot
 import dev.inmo.tgbotapi.requests.abstracts.Request
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -21,7 +22,13 @@ class TelegramBotConfig {
         token: String
     ): TelegramBot {
         return telegramBot(token) {
-            client = HttpClient(CIO)
+            client = HttpClient(CIO) {
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 60_000  // 60s for long polling
+                    connectTimeoutMillis = 10_000   // 10s for connection
+                    socketTimeoutMillis = 60_000    // 60s for socket
+                }
+            }
         }
     }
 
