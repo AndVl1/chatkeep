@@ -264,6 +264,10 @@ jobs:
             mkdir -p docker/nginx/sites
             mkdir -p certbot/webroot
 
+            # Clean up old nginx configs to ensure only current domain configs are used
+            echo "Cleaning up old nginx configs..."
+            rm -f docker/nginx/sites/*.conf 2>/dev/null || true
+
             # Update or create .env file with environment-specific variables
             echo "Updating .env file for $ENV_NAME environment..."
             printf '%s\n' \
