@@ -4,10 +4,7 @@ on:
   push:
     branches:
       - production       # Deploy to PROD
-      - 'feat/**'        # Deploy to TEST for feature branches
-      - 'fix/**'         # Deploy to TEST for fix branches
-      - 'refactor/**'    # Deploy to TEST for refactor branches
-      - 'test/**'        # Deploy to TEST for test branches
+      - 'main'           # Deploy to TEST for main branch
   workflow_dispatch:
     inputs:
       environment:
