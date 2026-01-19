@@ -348,31 +348,34 @@ jobs:
 
             # Verify containers are running with correct image
             echo "Verifying deployed containers..."
-            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
+            docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
 
-            # Show app logs if unhealthy
-            echo "App container logs (last 50 lines):"
-            docker logs chatkeep-app --tail 50 || echo "Could not get app logs"
+            # Show app logs
+            echo "App container logs (last 30 lines):"
+            docker logs chatkeep-app --tail 30 || echo "Could not get app logs"
+
+            # Always show nginx logs for debugging
+            echo "Nginx container logs (last 30 lines):"
+            docker logs chatkeep-nginx --tail 30 || echo "Could not get nginx logs"
+
+            # Check SSL certificates on the host
+            echo "Checking SSL certificate files..."
+            ls -la /etc/letsencrypt/live/ || echo "No /etc/letsencrypt/live/ directory"
+            ls -la /etc/letsencrypt/live/$DOMAIN/ || echo "No certificates for $DOMAIN"
+
+            # Check nginx config files
+            echo "Checking nginx config files..."
+            ls -la docker/nginx/sites/ || echo "No nginx sites directory"
 
             # Check if app is healthy before nginx operations
             if docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null | grep -q healthy; then
-              echo "App is healthy, verifying nginx configuration..."
-              # Check if nginx is running
-              if docker ps | grep -q chatkeep-nginx; then
-                docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
-              else
-                echo "WARNING: Nginx container is not running. Checking logs..."
-                docker logs chatkeep-nginx --tail 30 || true
-                echo "Checking SSL certificate files..."
-                ls -la /etc/letsencrypt/live/ || true
-                ls -la /etc/letsencrypt/live/$DOMAIN/ || true
-              fi
+              echo "App is healthy"
+              # Try to test nginx config
+              docker exec chatkeep-nginx nginx -t 2>&1 || echo "Nginx config test failed"
             else
-              echo "WARNING: App is not healthy yet, skipping nginx reload"
+              echo "WARNING: App is not healthy yet"
               echo "App health status:"
               docker inspect --format='{{.State.Health.Status}}' chatkeep-app || true
-              echo "App logs:"
-              docker logs chatkeep-app --tail 30 || true
             fi
 
             # Show deployed files info
