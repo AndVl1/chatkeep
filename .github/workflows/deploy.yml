@@ -214,6 +214,17 @@ jobs:
           echo "Generated nginx configs for domain: ${{ steps.set-env.outputs.DOMAIN }}"
           ls -la docker/nginx/sites/
 
+      - name: Clean old nginx configs on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          script: |
+            echo "Cleaning old nginx configs..."
+            rm -f ${{ vars.DEPLOY_PATH || '~/chatkeep' }}/docker/nginx/sites/*.conf 2>/dev/null || true
+            ls -la ${{ vars.DEPLOY_PATH || '~/chatkeep' }}/docker/nginx/sites/ 2>/dev/null || echo "Directory doesn't exist yet"
+
       - name: Copy Nginx configs to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -263,10 +274,6 @@ jobs:
             mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
             mkdir -p docker/nginx/sites
             mkdir -p certbot/webroot
-
-            # Clean up old nginx configs to ensure only current domain configs are used
-            echo "Cleaning up old nginx configs..."
-            rm -f docker/nginx/sites/*.conf 2>/dev/null || true
 
             # Update or create .env file with environment-specific variables
             echo "Updating .env file for $ENV_NAME environment..."
