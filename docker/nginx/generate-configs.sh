@@ -14,6 +14,10 @@ echo "Generating nginx configs for domain: $DOMAIN"
 # Create sites directory if not exists
 mkdir -p "$SITES_DIR"
 
+# Clean existing configs to prevent mixing domains
+echo "Cleaning existing configs..."
+rm -f "$SITES_DIR"/*.conf 2>/dev/null || true
+
 # Function to generate config from template
 generate_config() {
     local template_name="$1"
