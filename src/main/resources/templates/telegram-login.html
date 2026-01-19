@@ -186,23 +186,49 @@
 
             if (!isMobile && hasOpener) {
                 // WASM environment: use postMessage to communicate with opener window
+                // Determine the target origin based on current domain
+                const targetOrigin = window.location.hostname === 'localhost'
+                    ? 'http://localhost:8080'
+                    : window.location.origin;
+
+                console.log('[Chatkeep Auth] Target origin:', targetOrigin);
+                console.log('[Chatkeep Auth] window.opener available:', window.opener !== null);
+
                 document.getElementById('open-app-btn').onclick = function(e) {
                     e.preventDefault();
-                    window.opener.postMessage({
-                        type: 'chatkeep-auth',
-                        data: authData
-                    }, '*');
-                    window.close();
+
+                    try {
+                        console.log('[Chatkeep Auth] Sending auth data via postMessage...');
+                        window.opener.postMessage({
+                            type: 'chatkeep-auth',
+                            data: authData
+                        }, targetOrigin);
+                        console.log('[Chatkeep Auth] postMessage sent successfully');
+
+                        // Close popup after short delay to ensure message is received
+                        setTimeout(() => window.close(), 300);
+                    } catch (err) {
+                        console.error('[Chatkeep Auth] Failed to send postMessage:', err);
+                        alert('Authentication complete, but could not communicate with app. Please close this window and refresh the app.');
+                    }
                 };
                 document.getElementById('open-app-btn').href = '#';
 
                 // Also try auto-posting after a short delay
                 setTimeout(() => {
                     if (window.opener) {
-                        window.opener.postMessage({
-                            type: 'chatkeep-auth',
-                            data: authData
-                        }, '*');
+                        try {
+                            console.log('[Chatkeep Auth] Auto-sending auth data...');
+                            window.opener.postMessage({
+                                type: 'chatkeep-auth',
+                                data: authData
+                            }, targetOrigin);
+                            console.log('[Chatkeep Auth] Auto-send successful');
+                        } catch (err) {
+                            console.error('[Chatkeep Auth] Auto-send failed:', err);
+                        }
+                    } else {
+                        console.warn('[Chatkeep Auth] window.opener not available for auto-send');
                     }
                 }, 500);
             } else {
