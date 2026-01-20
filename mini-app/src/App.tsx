@@ -8,6 +8,15 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { LocksPage } from '@/pages/LocksPage';
 import { BlocklistPage } from '@/pages/BlocklistPage';
 import { ChannelReplyPage } from '@/pages/ChannelReplyPage';
+import { StatisticsPage } from '@/pages/StatisticsPage';
+import { ModerationPage } from '@/pages/ModerationPage';
+import { SessionPage } from '@/pages/SessionPage';
+import { AdminLogsPage } from '@/pages/AdminLogsPage';
+import { WelcomePage } from '@/pages/WelcomePage';
+import { RulesPage } from '@/pages/RulesPage';
+import { NotesPage } from '@/pages/NotesPage';
+import { AntiFloodPage } from '@/pages/AntiFloodPage';
+import { CapabilitiesPage } from '@/pages/CapabilitiesPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { useTelegramAuth } from '@/hooks/telegram/useTelegramAuth';
@@ -146,11 +155,20 @@ export function App() {
                     <Routes>
                       <Route element={<AppLayout />}>
                         <Route index element={<HomePage />} />
+                        <Route path="capabilities" element={<CapabilitiesPage />} />
                         <Route path="chat/:chatId">
                           <Route path="settings" element={<SettingsPage />} />
                           <Route path="locks" element={<LocksPage />} />
                           <Route path="blocklist" element={<BlocklistPage />} />
                           <Route path="channel-reply" element={<ChannelReplyPage />} />
+                          <Route path="statistics" element={<StatisticsPage />} />
+                          <Route path="moderation" element={<ModerationPage />} />
+                          <Route path="session" element={<SessionPage />} />
+                          <Route path="admin-logs" element={<AdminLogsPage />} />
+                          <Route path="welcome" element={<WelcomePage />} />
+                          <Route path="rules" element={<RulesPage />} />
+                          <Route path="notes" element={<NotesPage />} />
+                          <Route path="antiflood" element={<AntiFloodPage />} />
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />
                       </Route>
