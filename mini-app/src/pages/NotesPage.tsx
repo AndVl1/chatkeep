@@ -31,9 +31,9 @@ export function NotesPage() {
     setIsModalOpen(true);
   }, []);
 
-  const handleEdit = useCallback((note: { id: number; name: string; content: string }) => {
+  const handleEdit = useCallback((note: { id: number; noteName: string; content: string }) => {
     setEditingNoteId(note.id);
-    setNoteName(note.name);
+    setNoteName(note.noteName);
     setNoteContent(note.content);
     setIsModalOpen(true);
   }, []);
@@ -46,10 +46,10 @@ export function NotesPage() {
 
     try {
       if (editingNoteId) {
-        await update(editingNoteId, { name: noteName, content: noteContent });
+        await update(editingNoteId, { noteName, content: noteContent });
         showSuccess(t('notes.updateSuccess'));
       } else {
-        await add({ name: noteName, content: noteContent });
+        await add({ noteName, content: noteContent });
         showSuccess(t('notes.addSuccess'));
       }
       setIsModalOpen(false);
@@ -106,7 +106,7 @@ export function NotesPage() {
           {notes.map((note) => (
             <Card key={note.id} style={{ padding: '12px', marginBottom: '8px' }}>
               <div style={{ marginBottom: '8px' }}>
-                <strong>{note.name}</strong>
+                <strong>{note.noteName}</strong>
               </div>
               <div style={{ fontSize: '14px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
                 {note.content}

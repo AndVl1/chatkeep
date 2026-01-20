@@ -17,35 +17,37 @@ export function WelcomePage() {
   const { showSuccess, showError } = useNotification();
 
   const [enabled, setEnabled] = useState(false);
-  const [welcomeText, setWelcomeText] = useState('');
-  const [goodbyeText, setGoodbyeText] = useState('');
-  const [deleteAfter, setDeleteAfter] = useState('');
-  const [cleanPrevious, setCleanPrevious] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [sendToChat, setSendToChat] = useState(true);
+  const [deleteAfterMinutes, setDeleteAfterMinutes] = useState('');
 
   useEffect(() => {
     if (welcome) {
       setEnabled(welcome.enabled);
-      setWelcomeText(welcome.welcomeText || '');
-      setGoodbyeText(welcome.goodbyeText || '');
-      setDeleteAfter(welcome.deleteAfterMinutes?.toString() || '');
-      setCleanPrevious(welcome.cleanPrevious);
+      setMessageText(welcome.messageText || '');
+      setSendToChat(welcome.sendToChat);
+      // Convert seconds to minutes for UI
+      const minutes = welcome.deleteAfterSeconds ? Math.floor(welcome.deleteAfterSeconds / 60) : null;
+      setDeleteAfterMinutes(minutes?.toString() || '');
     }
   }, [welcome]);
 
   const handleSave = useCallback(async () => {
     try {
+      // Convert minutes to seconds for API
+      const deleteAfterSeconds = deleteAfterMinutes ? Number(deleteAfterMinutes) * 60 : null;
+
       await mutate({
         enabled,
-        welcomeText: welcomeText || null,
-        goodbyeText: goodbyeText || null,
-        deleteAfterMinutes: deleteAfter ? Number(deleteAfter) : null,
-        cleanPrevious,
+        messageText: messageText || null,
+        sendToChat,
+        deleteAfterSeconds,
       });
       showSuccess(t('welcome.saveSuccess'));
     } catch (err) {
       showError((err as Error).message || t('welcome.saveError'));
     }
-  }, [enabled, welcomeText, goodbyeText, deleteAfter, cleanPrevious, mutate, showSuccess, showError, t]);
+  }, [enabled, messageText, sendToChat, deleteAfterMinutes, mutate, showSuccess, showError, t]);
 
   if (!chatId || isNaN(numericChatId)) {
     return <Navigate to="/" replace />;
@@ -81,19 +83,8 @@ export function WelcomePage() {
         <div style={{ padding: '12px' }}>
           <Textarea
             placeholder={t('welcome.welcomePlaceholder')}
-            value={welcomeText}
-            onChange={(e) => setWelcomeText(e.target.value)}
-            rows={4}
-          />
-        </div>
-      </Section>
-
-      <Section header={t('welcome.goodbyeMessage')}>
-        <div style={{ padding: '12px' }}>
-          <Textarea
-            placeholder={t('welcome.goodbyePlaceholder')}
-            value={goodbyeText}
-            onChange={(e) => setGoodbyeText(e.target.value)}
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
             rows={4}
           />
         </div>
@@ -101,26 +92,28 @@ export function WelcomePage() {
 
       <Section header={t('welcome.options')}>
         <div style={{ padding: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <div>{t('welcome.sendToChat')}</div>
+              <div style={{ fontSize: '14px', color: 'var(--tg-theme-hint-color)' }}>
+                {t('welcome.sendToChatHint')}
+              </div>
+            </div>
+            <Switch checked={sendToChat} onChange={(e) => setSendToChat(e.target.checked)} />
+          </div>
+
           <label style={{ display: 'block', marginBottom: '8px' }}>
             {t('welcome.deleteAfter')}
           </label>
           <Input
             type="number"
             placeholder="0"
-            value={deleteAfter}
-            onChange={(e) => setDeleteAfter(e.target.value)}
-            style={{ marginBottom: '16px' }}
+            value={deleteAfterMinutes}
+            onChange={(e) => setDeleteAfterMinutes(e.target.value)}
+            style={{ marginBottom: '4px' }}
           />
-          <p style={{ fontSize: '14px', color: 'var(--tg-theme-hint-color)', margin: '0 0 16px 0' }}>
+          <p style={{ fontSize: '14px', color: 'var(--tg-theme-hint-color)', margin: '0' }}>
             {t('welcome.deleteAfterHint')}
-          </p>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>{t('welcome.cleanPrevious')}</span>
-            <Switch checked={cleanPrevious} onChange={(e) => setCleanPrevious(e.target.checked)} />
-          </div>
-          <p style={{ fontSize: '14px', color: 'var(--tg-theme-hint-color)', margin: '4px 0 0 0' }}>
-            {t('welcome.cleanPreviousHint')}
           </p>
         </div>
       </Section>

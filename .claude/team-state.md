@@ -24,8 +24,8 @@ Achieve feature parity between Telegram bot commands and Mini App UI:
 - [x] Phase 3: Questions - COMPLETED (autonomous decisions made)
 - [x] Phase 4: Architecture - COMPLETED (Clean Architecture chosen)
 - [x] Phase 5: Implementation - COMPLETED (backend + frontend in parallel)
-- [x] Phase 6: Review - IN PROGRESS
-- [ ] Phase 6.5: Review Fixes - pending (optional, if issues found)
+- [x] Phase 6: Review - COMPLETED (3 parallel reviews: qa, code-reviewer, security-tester)
+- [x] Phase 6.5: Review Fixes - IN PROGRESS
 - [ ] Phase 7: Summary - pending
 
 ## Key Decisions
@@ -149,6 +149,48 @@ Achieve feature parity between Telegram bot commands and Mini App UI:
 - State: stores/{auth,chat}Store.ts (Zustand)
 - Hooks: hooks/api/{useChats,useSettings,useLocks,useBlocklist,useChannelReply}.ts
 - Types: types/index.ts (TypeScript definitions)
+
+## Phase 6 Output
+
+**QA Review (agent a644582):**
+- ❌ Backend test infrastructure broken (80 tests failing - Docker/Testcontainers)
+- ⚠️ Missing 8 controller integration tests (Statistics, Moderation, Session, Logs, Welcome, Rules, Notes, Antiflood)
+- ⚠️ Missing 4 service unit tests (WelcomeService, RulesService, NotesService, AntifloodService)
+- ⚠️ Missing 7 frontend flow tests for new pages
+- ⚠️ Hardcoded zeros in StatisticsController (messagesToday, messagesYesterday)
+- ⚠️ AntifloodService in-memory tracking not cluster-safe
+- ✅ Frontend: 154 tests passing
+
+**Code Review (agent a78ef54):**
+- 🔴 HIGH: Frontend/Backend type mismatches
+  - Note: `name` vs `noteName` field mismatch
+  - WelcomeMessage: `welcomeText` vs `messageText`, missing `goodbyeText`, `deleteAfterMinutes` vs `deleteAfterSeconds`
+  - ChatRules: `privateRules` field missing in backend
+  - AntiFloodSettings: missing `chatId` in frontend type
+- 🟡 MEDIUM: Duplicate admin check pattern across all controllers (code smell)
+- 🟡 MEDIUM: Memory leak risk in AntifloodService (no cleanup for inactive users)
+- 🟡 MEDIUM: Missing API rate limiting for MiniApp endpoints
+- ✅ Clean Architecture principles followed
+- ✅ Proper transaction management
+- ✅ Consistent patterns across codebase
+
+**Security Review (agent a5580dc):**
+- 🔴 HIGH: Memory leak in AntifloodService (unbounded ConcurrentHashMap)
+- 🔴 HIGH: Session API design issue (unused chatId parameter)
+- 🟡 MEDIUM: Path traversal risk in LocalFileExportAdapter
+- 🟡 MEDIUM: Rate limiter memory issue (IP buckets stored indefinitely)
+- 🟡 MEDIUM: Missing user ID validation in moderation DTOs
+- 🟡 MEDIUM: ReDoS risk in BlocklistService wildcard patterns
+- ✅ Authentication properly implemented (Ed25519, HMAC-SHA256)
+- ✅ Authorization checks consistent
+- ✅ No SQL injection vulnerabilities
+- ✅ No stack trace exposure
+
+**Verdict**: NEEDS CHANGES before merge
+- CRITICAL: Fix test infrastructure
+- HIGH: Fix frontend/backend type mismatches
+- HIGH: Fix AntifloodService memory leak
+- MEDIUM: Add missing tests
 
 ## Phase 5 Output
 

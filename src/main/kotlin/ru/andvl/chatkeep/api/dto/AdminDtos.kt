@@ -87,8 +87,9 @@ data class ChatStatisticsResponse(
     val totalMessages: Long,
     val uniqueUsers: Long,
     val collectionEnabled: Boolean,
-    val messagesToday: Int = 0,
-    val messagesYesterday: Int = 0
+    // Optional time-based statistics (not all endpoints populate these)
+    val messagesToday: Int? = null,
+    val messagesYesterday: Int? = null
 )
 
 // Workflow DTOs

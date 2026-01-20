@@ -1,12 +1,15 @@
 package ru.andvl.chatkeep.domain.service
 
+import com.github.benmanes.caffeine.cache.Caffeine
+import com.github.benmanes.caffeine.cache.LoadingCache
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import ru.andvl.chatkeep.domain.model.AntifloodSettings
 import ru.andvl.chatkeep.infrastructure.repository.AntifloodSettingsRepository
+import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
 
 @Service
 class AntifloodService(
@@ -15,8 +18,19 @@ class AntifloodService(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    // In-memory message tracking: chatId -> userId -> list of timestamps
-    private val messageTimestamps = ConcurrentHashMap<Long, ConcurrentHashMap<Long, MutableList<Instant>>>()
+    // In-memory message tracking with time-based eviction to prevent memory leaks
+    // Outer cache: chatId -> inner cache (evicts after 1 hour of inactivity, max 10k chats)
+    // Inner cache: userId -> list of timestamps (evicts after 5 minutes of inactivity, max 1k users per chat)
+    private val messageTimestamps: LoadingCache<Long, LoadingCache<Long, MutableList<Instant>>> =
+        Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofHours(1))
+            .maximumSize(10000)
+            .build { _ ->
+                Caffeine.newBuilder()
+                    .expireAfterAccess(Duration.ofMinutes(5))
+                    .maximumSize(1000)
+                    .build<Long, MutableList<Instant>> { Collections.synchronizedList(mutableListOf()) }
+            }
 
     fun getSettings(chatId: Long): AntifloodSettings? {
         return repository.findByChatId(chatId)
@@ -52,11 +66,11 @@ class AntifloodService(
         val now = Instant.now()
         val windowStart = now.minusSeconds(settings.timeWindowSeconds.toLong())
 
-        // Get or create chat message map
-        val chatMap = messageTimestamps.getOrPut(chatId) { ConcurrentHashMap() }
+        // Get or create chat message cache
+        val chatCache = messageTimestamps.get(chatId)
 
         // Get or create user message list
-        val userMessages = chatMap.getOrPut(userId) { mutableListOf() }
+        val userMessages = chatCache.get(userId)
 
         // Remove old messages outside the window
         synchronized(userMessages) {
@@ -80,13 +94,13 @@ class AntifloodService(
      * Clear flood tracking for a user (called after punishment).
      */
     fun clearFloodTracking(chatId: Long, userId: Long) {
-        messageTimestamps[chatId]?.remove(userId)
+        messageTimestamps.getIfPresent(chatId)?.invalidate(userId)
     }
 
     /**
      * Clear all flood tracking for a chat.
      */
     fun clearChatTracking(chatId: Long) {
-        messageTimestamps.remove(chatId)
+        messageTimestamps.invalidate(chatId)
     }
 }

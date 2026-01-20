@@ -203,18 +203,16 @@ export interface AdminLogsFilter {
 
 export interface WelcomeMessage {
   enabled: boolean;
-  welcomeText: string | null;
-  goodbyeText: string | null;
-  deleteAfterMinutes: number | null;
-  cleanPrevious: boolean;
+  messageText: string | null;
+  sendToChat: boolean;
+  deleteAfterSeconds: number | null;
 }
 
 export interface UpdateWelcomeMessageRequest {
   enabled?: boolean;
-  welcomeText?: string | null;
-  goodbyeText?: string | null;
-  deleteAfterMinutes?: number | null;
-  cleanPrevious?: boolean;
+  messageText?: string | null;
+  sendToChat?: boolean;
+  deleteAfterSeconds?: number | null;
 }
 
 // === Rules Types ===
@@ -222,38 +220,38 @@ export interface UpdateWelcomeMessageRequest {
 export interface ChatRules {
   chatId: number;
   rulesText: string | null;
-  privateRules: boolean;
 }
 
 export interface UpdateRulesRequest {
   rulesText?: string | null;
-  privateRules?: boolean;
 }
 
 // === Notes Types ===
 
 export interface Note {
   id: number;
-  name: string;
+  noteName: string;
   content: string;
+  chatId: number;
   createdBy: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface AddNoteRequest {
-  name: string;
+  noteName: string;
   content: string;
 }
 
 export interface UpdateNoteRequest {
-  name?: string;
+  noteName?: string;
   content?: string;
 }
 
 // === Anti-Flood Types ===
 
 export interface AntiFloodSettings {
+  chatId: number;
   enabled: boolean;
   maxMessages: number;
   timeWindowSeconds: number;

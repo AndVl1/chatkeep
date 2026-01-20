@@ -103,7 +103,6 @@ class MiniAppAdminSessionController(
         ApiResponse(responseCode = "200", description = "Success")
     )
     fun disconnectSession(
-        @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ModerationActionResponse {
         val user = getUserFromRequest(request)

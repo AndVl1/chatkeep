@@ -61,9 +61,7 @@ class MiniAppStatisticsController(
             chatTitle = stats.chatTitle,
             totalMessages = stats.totalMessages,
             uniqueUsers = stats.uniqueUsers,
-            collectionEnabled = stats.collectionEnabled,
-            messagesToday = 0,
-            messagesYesterday = 0
+            collectionEnabled = stats.collectionEnabled
         )
     }
 }
