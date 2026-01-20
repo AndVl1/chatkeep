@@ -40,19 +40,19 @@ export function StatisticsPage() {
         <Card style={{ padding: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span>{t('statistics.totalMessages')}</span>
-            <strong>{stats.totalMessages.toLocaleString()}</strong>
+            <strong>{(stats?.totalMessages ?? 0).toLocaleString()}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span>{t('statistics.last24h')}</span>
-            <strong>{stats.messagesLast24h.toLocaleString()}</strong>
+            <strong>{(stats?.messagesLast24h ?? 0).toLocaleString()}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span>{t('statistics.last7d')}</span>
-            <strong>{stats.messagesLast7d.toLocaleString()}</strong>
+            <strong>{(stats?.messagesLast7d ?? 0).toLocaleString()}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>{t('statistics.last30d')}</span>
-            <strong>{stats.messagesLast30d.toLocaleString()}</strong>
+            <strong>{(stats?.messagesLast30d ?? 0).toLocaleString()}</strong>
           </div>
         </Card>
       </Section>
@@ -61,7 +61,7 @@ export function StatisticsPage() {
         <Card style={{ padding: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>{t('statistics.totalUsers')}</span>
-            <strong>{stats.totalUsers.toLocaleString()}</strong>
+            <strong>{(stats?.totalUsers ?? 0).toLocaleString()}</strong>
           </div>
         </Card>
       </Section>
@@ -70,19 +70,19 @@ export function StatisticsPage() {
         <Card style={{ padding: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span>{t('statistics.activeWarnings')}</span>
-            <strong>{stats.activeWarnings.toLocaleString()}</strong>
+            <strong>{(stats?.activeWarnings ?? 0).toLocaleString()}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span>{t('statistics.totalBans')}</span>
-            <strong>{stats.totalBans.toLocaleString()}</strong>
+            <strong>{(stats?.totalBans ?? 0).toLocaleString()}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span>{t('statistics.totalMutes')}</span>
-            <strong>{stats.totalMutes.toLocaleString()}</strong>
+            <strong>{(stats?.totalMutes ?? 0).toLocaleString()}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>{t('statistics.totalKicks')}</span>
-            <strong>{stats.totalKicks.toLocaleString()}</strong>
+            <strong>{(stats?.totalKicks ?? 0).toLocaleString()}</strong>
           </div>
         </Card>
       </Section>
