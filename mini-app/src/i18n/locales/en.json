@@ -258,15 +258,9 @@
   },
   "adminLogs": {
     "title": "Admin Action Logs",
-    "export": "Export",
-    "recentActions": "Recent Actions",
-    "performedBy": "Performed by",
-    "target": "Target",
-    "noLogs": "No admin logs",
-    "noLogsDescription": "No admin actions have been logged for this chat",
-    "previous": "Previous",
-    "next": "Next",
-    "pageInfo": "Page {{current}} of {{total}}",
+    "export": "Export Logs",
+    "exportHeader": "Export Admin Logs",
+    "exportDescription": "Download a JSON file containing all admin actions (warnings, bans, kicks, etc.) for this chat.",
     "exportSuccess": "Logs exported successfully",
     "exportFailed": "Failed to export logs"
   },
