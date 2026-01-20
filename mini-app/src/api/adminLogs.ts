@@ -25,6 +25,6 @@ export async function exportAdminLogs(chatId: number, filter?: AdminLogsFilter):
   if (filter?.startDate) searchParams.set('startDate', filter.startDate);
   if (filter?.endDate) searchParams.set('endDate', filter.endDate);
 
-  const url = `chats/${chatId}/logs/export${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  const url = `chats/${chatId}/logs${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
   return client.get(url).blob();
 }
