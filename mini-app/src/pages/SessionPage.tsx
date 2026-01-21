@@ -42,8 +42,12 @@ export function SessionPage() {
     return <LoadingSpinner />;
   }
 
-  if (error || !session) {
-    return <ErrorState error={error || new Error('Failed to load session')} onRetry={refetch} />;
+  if (error) {
+    return <ErrorState error={error} onRetry={refetch} />;
+  }
+
+  if (!session) {
+    return <LoadingSpinner />;
   }
 
   return (

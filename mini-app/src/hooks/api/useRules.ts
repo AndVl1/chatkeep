@@ -24,7 +24,14 @@ export function useRules(chatId: number): UseRulesResult {
       const rules = await getRules(chatId);
       setData(rules);
     } catch (err) {
-      setError(err as Error);
+      // If 404 (rules not found), treat as empty rules - not an error
+      const httpError = err as { response?: { status?: number } };
+      if (httpError.response?.status === 404) {
+        // Return empty rules object so user can create new rules
+        setData({ chatId, rulesText: null });
+      } else {
+        setError(err as Error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -35,10 +42,10 @@ export function useRules(chatId: number): UseRulesResult {
   }, [fetchRules]);
 
   const mutate = useCallback(async (updates: UpdateRulesRequest) => {
-    if (!data) return;
+    const previousData = data;
 
-    // Optimistic update
-    const optimisticData = { ...data, ...updates };
+    // Optimistic update (use empty rules if data is null)
+    const optimisticData = { chatId, rulesText: null, ...previousData, ...updates };
     setData(optimisticData);
 
     try {
@@ -47,7 +54,7 @@ export function useRules(chatId: number): UseRulesResult {
       setData(updated);
     } catch (err) {
       // Rollback on error
-      setData(data);
+      setData(previousData);
       throw err;
     } finally {
       setIsSaving(false);

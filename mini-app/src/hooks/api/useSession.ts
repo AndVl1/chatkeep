@@ -25,7 +25,14 @@ export function useSession(chatId: number): UseSessionResult {
       const session = await getSession(chatId);
       setData(session);
     } catch (err) {
-      setError(err as Error);
+      // If 404 (session not found), treat as not connected - not an error
+      const httpError = err as { response?: { status?: number } };
+      if (httpError.response?.status === 404) {
+        // Return empty session object so user can connect
+        setData({ chatId, isConnected: false, connectedAt: undefined, lastActivity: undefined });
+      } else {
+        setError(err as Error);
+      }
     } finally {
       setIsLoading(false);
     }

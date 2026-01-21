@@ -43,8 +43,12 @@ export function RulesPage() {
     return <LoadingSpinner />;
   }
 
-  if (error || !rules) {
-    return <ErrorState error={error || new Error('Failed to load rules')} onRetry={refetch} />;
+  if (error) {
+    return <ErrorState error={error} onRetry={refetch} />;
+  }
+
+  if (!rules) {
+    return <LoadingSpinner />;
   }
 
   return (
