@@ -22,7 +22,7 @@ import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { useTelegramAuth } from '@/hooks/telegram/useTelegramAuth';
 import { useAuthMode } from '@/hooks/auth/useAuthMode';
 import { useAuthStore } from '@/stores/authStore';
-import { setAuthHeader } from '@/api';
+import { setAuthHeader, setLogoutHandler } from '@/api';
 import { ConfirmDialogProvider } from '@/components/common/ConfirmDialog';
 import { ToastProvider } from '@/components/common/Toast';
 import '@telegram-apps/telegram-ui/dist/styles.css';
@@ -30,7 +30,7 @@ import '@telegram-apps/telegram-ui/dist/styles.css';
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const { isMiniApp, isWeb } = useAuthMode();
   const { isAuthenticated: isMiniAppAuthenticated, getAuthHeader } = useTelegramAuth();
-  const { isAuthenticated: isWebAuthenticated, token, initialize } = useAuthStore();
+  const { isAuthenticated: isWebAuthenticated, token, initialize, logout } = useAuthStore();
 
   // Initialize web auth store on mount
   useEffect(() => {
@@ -38,6 +38,13 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       initialize();
     }
   }, [isWeb, initialize]);
+
+  // Register logout handler for API client
+  useEffect(() => {
+    if (isWeb) {
+      setLogoutHandler(logout);
+    }
+  }, [isWeb, logout]);
 
   // Set auth header based on mode
   useEffect(() => {
