@@ -43,9 +43,6 @@ export const useAuthStore = create<AuthState>()(
           if (storedToken && storedUser) {
             const user = JSON.parse(storedUser) as TelegramUser;
             set({ token: storedToken, user, isAuthenticated: true });
-          } else {
-            // If either is missing, logout
-            set({ token: null, user: null, isAuthenticated: false });
           }
         } catch (error) {
           if (import.meta.env.DEV) {
@@ -65,26 +62,6 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
-
-// Listen for storage events to sync logout across tabs and from API client
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (event) => {
-    // Check if auth tokens were removed
-    if (
-      event.key === TOKEN_STORAGE_KEY ||
-      event.key === USER_STORAGE_KEY ||
-      event.key === null // localStorage.clear()
-    ) {
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-      const user = localStorage.getItem(USER_STORAGE_KEY);
-
-      // If either is missing, logout
-      if (!token || !user) {
-        useAuthStore.getState().logout();
-      }
-    }
-  });
-}
 
 // Selector hooks for performance
 export const useAuthToken = () => useAuthStore(s => s.token);

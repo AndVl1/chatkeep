@@ -51,9 +51,6 @@ dependencies {
     // Rate Limiting
     implementation("com.bucket4j:bucket4j-core:8.7.0")
 
-    // Cache with time-based eviction
-    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
-
     // Telegram Bot API
     implementation("dev.inmo:tgbotapi:30.0.2")
 

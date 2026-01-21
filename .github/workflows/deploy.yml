@@ -78,27 +78,9 @@ jobs:
     # Skip if no secrets configured
     if: github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true'
 
-    env:
-      IS_PRODUCTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Create environment-specific .env file
-        working-directory: mini-app
-        run: |
-          if [[ "${{ env.IS_PRODUCTION }}" == "true" ]]; then
-            BOT_USERNAME="${{ vars.PROD_BOT_USERNAME }}"
-          else
-            BOT_USERNAME="${{ vars.TEST_BOT_USERNAME }}"
-          fi
-
-          echo "VITE_API_URL=/api/v1/miniapp" > .env.production
-          echo "VITE_BOT_USERNAME=$BOT_USERNAME" >> .env.production
-
-          echo "Generated .env.production for $([ "${{ env.IS_PRODUCTION }}" == "true" ] && echo "PRODUCTION" || echo "TEST") environment"
-          cat .env.production
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

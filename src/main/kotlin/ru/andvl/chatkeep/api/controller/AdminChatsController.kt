@@ -41,9 +41,6 @@ class AdminChatsController(
             ChatStatisticsResponse(
                 chatId = chat.chatId,
                 chatTitle = chat.chatTitle,
-                totalMessages = 0L,
-                uniqueUsers = 0L,
-                collectionEnabled = chat.collectionEnabled,
                 messagesToday = messagesToday,
                 messagesYesterday = messagesYesterday
             )
