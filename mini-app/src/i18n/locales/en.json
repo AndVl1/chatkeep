@@ -11,7 +11,8 @@
     "deleting": "Deleting...",
     "add": "Add",
     "edit": "Edit",
-    "close": "Close"
+    "close": "Close",
+    "logout": "Logout"
   },
   "login": {
     "title": "Chatkeep",

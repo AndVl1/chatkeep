@@ -11,7 +11,8 @@
     "deleting": "Удаление...",
     "add": "Добавить",
     "edit": "Изменить",
-    "close": "Закрыть"
+    "close": "Закрыть",
+    "logout": "Выйти"
   },
   "login": {
     "title": "Chatkeep",
