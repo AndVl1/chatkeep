@@ -460,4 +460,4 @@ If a sub-agent is not explicitly responsible for executing commands, it MUST NOT
 ### Testing (web)
 
 For testing web ui in browser in most cases you need to redeploy site and backend. You should use deploy workflow to
-deploy from current branch to test domain and test on chatmodtest.ru, if user prompt doesn't say anything against in
+deploy from current branch to test domain and test on chatmodtest.ru, if user prompt doesn't say anything against it
