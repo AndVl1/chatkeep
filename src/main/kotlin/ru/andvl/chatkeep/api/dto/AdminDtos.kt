@@ -84,8 +84,12 @@ data class QuickStats(
 data class ChatStatisticsResponse(
     val chatId: Long,
     val chatTitle: String?,
-    val messagesToday: Int,
-    val messagesYesterday: Int
+    val totalMessages: Long,
+    val uniqueUsers: Long,
+    val collectionEnabled: Boolean,
+    // Optional time-based statistics (not all endpoints populate these)
+    val messagesToday: Int? = null,
+    val messagesYesterday: Int? = null
 )
 
 // Workflow DTOs

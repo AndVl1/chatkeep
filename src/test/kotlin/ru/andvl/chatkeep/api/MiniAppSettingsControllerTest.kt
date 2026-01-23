@@ -159,7 +159,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT settings - updates moderation config and logs CONFIG_CHANGED`() = runBlocking {
+    fun `PUT settings - updates moderation config and logs CONFIG_CHANGED`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -269,7 +269,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT settings - updates multiple settings at once`() = runBlocking {
+    fun `PUT settings - updates multiple settings at once`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -321,7 +321,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT settings - does not log when no changes made`() = runBlocking {
+    fun `PUT settings - does not log when no changes made`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -349,7 +349,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT settings - updates log channel ID`() = runBlocking {
+    fun `PUT settings - updates log channel ID`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)

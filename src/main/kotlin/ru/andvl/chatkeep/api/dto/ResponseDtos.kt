@@ -156,3 +156,51 @@ data class UserPreferencesResponse(
     val userId: Long,
     val locale: String
 )
+
+// Moderation actions
+data class ModerationActionResponse(
+    val success: Boolean,
+    val message: String
+)
+
+// Admin session
+data class AdminSessionResponse(
+    val userId: Long,
+    val connectedChatId: Long,
+    val connectedChatTitle: String?
+)
+
+// Welcome settings
+data class WelcomeSettingsResponse(
+    val chatId: Long,
+    val enabled: Boolean,
+    val messageText: String?,
+    val sendToChat: Boolean,
+    val deleteAfterSeconds: Int?
+)
+
+// Rules
+data class RulesResponse(
+    val chatId: Long,
+    val rulesText: String
+)
+
+// Notes
+data class NoteResponse(
+    val id: Long,
+    val chatId: Long,
+    val noteName: String,
+    val content: String,
+    val createdBy: Long,
+    val createdAt: String
+)
+
+// Anti-flood
+data class AntifloodSettingsResponse(
+    val chatId: Long,
+    val enabled: Boolean,
+    val maxMessages: Int,
+    val timeWindowSeconds: Int,
+    val action: String,
+    val actionDurationMinutes: Int?
+)

@@ -60,3 +60,77 @@ data class UpdatePreferencesRequest(
     @field:Pattern(regexp = "^(en|ru)$", message = "Locale must be 'en' or 'ru'")
     val locale: String
 )
+
+// Moderation actions
+data class WarnRequest(
+    val userId: Long,
+    val reason: String? = null
+)
+
+data class MuteRequest(
+    val userId: Long,
+    val durationMinutes: Int? = null,
+    val reason: String? = null
+)
+
+data class BanRequest(
+    val userId: Long,
+    val durationMinutes: Int? = null,
+    val reason: String? = null
+)
+
+data class KickRequest(
+    val userId: Long,
+    val reason: String? = null
+)
+
+// Welcome/Goodbye
+data class UpdateWelcomeRequest(
+    val enabled: Boolean? = null,
+
+    @field:Size(max = 4096)
+    val messageText: String? = null,
+
+    val sendToChat: Boolean? = null,
+    val deleteAfterSeconds: Int? = null
+)
+
+// Rules
+data class UpdateRulesRequest(
+    @field:NotBlank
+    @field:Size(max = 10000)
+    val rulesText: String
+)
+
+// Notes
+data class CreateNoteRequest(
+    @field:NotBlank
+    @field:Size(max = 255)
+    val noteName: String,
+
+    @field:NotBlank
+    @field:Size(max = 4096)
+    val content: String
+)
+
+data class UpdateNoteRequest(
+    @field:NotBlank
+    @field:Size(max = 4096)
+    val content: String
+)
+
+// Anti-flood
+data class UpdateAntifloodRequest(
+    val enabled: Boolean? = null,
+
+    @field:Min(1)
+    @field:Max(100)
+    val maxMessages: Int? = null,
+
+    @field:Min(1)
+    @field:Max(60)
+    val timeWindowSeconds: Int? = null,
+
+    val action: String? = null,
+    val actionDurationMinutes: Int? = null
+)
