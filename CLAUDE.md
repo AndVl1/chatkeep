@@ -338,6 +338,28 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
 **CRITICAL: Never commit directly to main. Always use feature branches.**
 
+### Protected Branches (MANDATORY RULE)
+
+**NEVER directly modify, commit to, merge to, or push to the following branches:**
+- `main` - production-ready code, requires PR with review
+- `production` - deployed to production environment
+
+**What this means:**
+- NEVER run `git checkout main && git merge ...`
+- NEVER run `git push origin main`
+- NEVER run `git commit` while on `main` or `production` branches
+- ALWAYS create a feature branch for any changes
+- ALWAYS use Pull Requests to merge changes into protected branches
+- If you accidentally make changes on a protected branch, revert immediately
+
+**Only the repository owner can merge PRs into protected branches.**
+
+This rule exists because:
+1. Direct pushes bypass CI/CD checks
+2. Direct pushes bypass code review
+3. Direct pushes can break production deployments
+4. Reverting pushed changes is disruptive for the team
+
 ## Technical Debt Tracking
 
 **MANDATORY for all agents during research and development.**
@@ -362,7 +384,7 @@ When agents (main or sub-agents) discover code that needs refactoring, improveme
 ### Tech Debt Entry Format
 
 ```markdown
-## [Date] - [Brief Title]
+## [Date (dd/mm/yyyy)] - [Brief Title]
 
 **Found by**: [agent name or "main agent"]
 **Location**: [file path and line numbers]
@@ -434,3 +456,8 @@ If a sub-agent is not explicitly responsible for executing commands, it MUST NOT
 - ALWAYS use the `AskUserQuestion` tool for any clarifications
 - This applies to BOTH main agent and ALL sub-agents
 - Provide clear, structured options when possible
+
+### Testing (web)
+
+For testing web ui in browser in most cases you need to redeploy site and backend. You should use deploy workflow to
+deploy from current branch to test domain and test on chatmodtest.ru, if user prompt doesn't say anything against in
