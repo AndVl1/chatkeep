@@ -8,6 +8,13 @@ export function setAuthHeader(header: Record<string, string>) {
   authHeader = header;
 }
 
+// Import authStore logout function (dynamic to avoid circular dependency)
+let logoutFn: (() => void) | null = null;
+
+export function setLogoutHandler(logout: () => void) {
+  logoutFn = logout;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -24,6 +31,7 @@ const client: KyInstance = ky.create({
   timeout: 30000,
   retry: {
     limit: 2,
+    // CRITICAL: Never retry 401 - it will cause infinite loops
     statusCodes: [408, 429, 500, 502, 503, 504],
   },
   hooks: {
@@ -54,17 +62,34 @@ const client: KyInstance = ky.create({
             // Failed to parse error response
           }
 
-          // Handle 401 Unauthorized in web mode
+          // Handle 401 Unauthorized
           if (response.status === 401) {
-            // Check if we're in web mode (no initData)
+            // Check if we're in Telegram Mini App or web browser
             const webApp = (window as any).Telegram?.WebApp;
             const hasInitData = !!webApp?.initData && webApp.initData.length > 0;
 
-            if (!hasInitData) {
-              // Web mode: clear auth and reload to login page
-              localStorage.removeItem('chatkeep_auth_token');
-              localStorage.removeItem('chatkeep_auth_user');
-              window.location.href = '/';
+            if (hasInitData) {
+              // Telegram Mini App mode: initData expired
+              // Don't reload - just throw error with special message
+              // The error will be caught and shown to user
+              throw new ApiError(
+                401,
+                'Session expired. Please restart the bot to re-authenticate.',
+                { isSessionExpired: true }
+              );
+            } else {
+              // Web mode: token expired or invalid
+              // Trigger logout via authStore (which will clear localStorage)
+              if (logoutFn) {
+                logoutFn();
+              } else {
+                // Fallback: clear localStorage directly
+                localStorage.removeItem('chatkeep_auth_token');
+                localStorage.removeItem('chatkeep_auth_user');
+              }
+
+              // Throw error to stop current request
+              throw new ApiError(401, 'Authentication required. Please log in again.', errorDetails);
             }
           }
 
