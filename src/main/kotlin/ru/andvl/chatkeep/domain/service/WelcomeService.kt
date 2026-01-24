@@ -29,7 +29,13 @@ class WelcomeService(
                 updatedAt = Instant.now()
             )
         } else {
-            settings.copy(chatId = chatId)
+            WelcomeSettings.createNew(
+                chatId = chatId,
+                enabled = settings.enabled,
+                messageText = settings.messageText,
+                sendToChat = settings.sendToChat,
+                deleteAfterSeconds = settings.deleteAfterSeconds
+            )
         }
 
         val saved = repository.save(updated)

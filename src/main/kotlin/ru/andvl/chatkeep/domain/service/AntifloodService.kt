@@ -47,7 +47,14 @@ class AntifloodService(
                 updatedAt = Instant.now()
             )
         } else {
-            settings.copy(chatId = chatId)
+            AntifloodSettings.createNew(
+                chatId = chatId,
+                enabled = settings.enabled,
+                maxMessages = settings.maxMessages,
+                timeWindowSeconds = settings.timeWindowSeconds,
+                action = settings.action,
+                actionDurationMinutes = settings.actionDurationMinutes
+            )
         }
 
         val saved = repository.save(updated)

@@ -28,7 +28,7 @@ class RulesService(
                 updatedAt = Instant.now()
             )
         } else {
-            Rules(
+            Rules.createNew(
                 chatId = chatId,
                 rulesText = rulesText
             )
