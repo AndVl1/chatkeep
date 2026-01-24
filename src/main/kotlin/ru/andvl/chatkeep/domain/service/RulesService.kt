@@ -21,21 +21,25 @@ class RulesService(
     @Transactional
     fun setRules(chatId: Long, rulesText: String): Rules {
         val existing = repository.findByChatId(chatId)
+        logger.info("setRules: chatId=$chatId, existingFound=${existing != null}")
 
         val rules = if (existing != null) {
+            logger.info("Updating existing rules for chatId=$chatId")
             existing.copy(
                 rulesText = rulesText,
                 updatedAt = Instant.now()
             )
         } else {
+            logger.info("Creating new rules for chatId=$chatId with isNew=true")
             Rules.createNew(
                 chatId = chatId,
                 rulesText = rulesText
             )
         }
 
+        logger.info("Saving rules: isNew=${rules.isNew()}")
         val saved = repository.save(rules)
-        logger.info("Updated rules for chatId=$chatId")
+        logger.info("Successfully saved rules for chatId=$chatId")
         return saved
     }
 

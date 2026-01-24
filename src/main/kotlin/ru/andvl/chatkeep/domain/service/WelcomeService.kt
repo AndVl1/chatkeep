@@ -21,14 +21,19 @@ class WelcomeService(
     @Transactional
     fun updateWelcomeSettings(chatId: Long, settings: WelcomeSettings): WelcomeSettings {
         val existing = repository.findByChatId(chatId)
+        logger.info("updateWelcomeSettings: chatId=$chatId, existingFound=${existing != null}")
 
         val updated = if (existing != null) {
-            settings.copy(
-                chatId = chatId,
-                createdAt = existing.createdAt,
+            logger.info("Updating existing welcome settings for chatId=$chatId")
+            existing.copy(
+                enabled = settings.enabled,
+                messageText = settings.messageText,
+                sendToChat = settings.sendToChat,
+                deleteAfterSeconds = settings.deleteAfterSeconds,
                 updatedAt = Instant.now()
             )
         } else {
+            logger.info("Creating new welcome settings for chatId=$chatId with isNew=true")
             WelcomeSettings.createNew(
                 chatId = chatId,
                 enabled = settings.enabled,
@@ -38,8 +43,9 @@ class WelcomeService(
             )
         }
 
+        logger.info("Saving welcome settings: isNew=${updated.isNew()}")
         val saved = repository.save(updated)
-        logger.info("Updated welcome settings for chatId=$chatId")
+        logger.info("Successfully saved welcome settings for chatId=$chatId")
         return saved
     }
 }
