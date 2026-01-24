@@ -282,10 +282,13 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
 
         chatSettingsRepository.save(testDataFactory.createChatSettings())
+        // Setup config with different values than what we'll send, so changes are logged
         moderationConfigRepository.save(
             ModerationConfig(
                 chatId = TestDataFactory.DEFAULT_CHAT_ID,
-                logChannelId = -1001234567890L
+                logChannelId = -1001234567890L,
+                thresholdAction = PunishmentType.BAN.name, // Different from MUTE we'll send
+                defaultBlocklistAction = PunishmentType.BAN.name // Different from WARN we'll send
             )
         )
 

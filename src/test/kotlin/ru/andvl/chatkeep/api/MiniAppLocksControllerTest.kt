@@ -293,7 +293,15 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
             )
         )
 
-        // Initially enabled (default)
+        // First enable lock warns (default is false)
+        lockSettingsRepository.save(
+            LockSettings.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                lockWarns = true
+            )
+        )
+
+        // Now disable lock warns - this should trigger a log
         mockMvc.put("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
