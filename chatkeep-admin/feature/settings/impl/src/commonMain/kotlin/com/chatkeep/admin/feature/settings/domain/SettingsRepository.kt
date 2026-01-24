@@ -7,4 +7,5 @@ import kotlinx.coroutines.flow.StateFlow
 interface SettingsRepository {
     val settings: StateFlow<UserSettings>
     suspend fun setTheme(theme: Theme)
+    suspend fun setBaseUrl(url: String)
 }

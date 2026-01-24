@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { TelegramUser } from '@/types';
 
-const TOKEN_STORAGE_KEY = 'chatkeep_auth_token';
-const USER_STORAGE_KEY = 'chatkeep_auth_user';
+// Note: Zustand persist middleware automatically handles localStorage hydration
+// on store initialization. No manual initialize() function needed.
 
 interface AuthState {
   // State
@@ -14,7 +14,6 @@ interface AuthState {
   // Actions
   login: (token: string, user: TelegramUser) => void;
   logout: () => void;
-  initialize: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -33,24 +32,6 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         set({ token: null, user: null, isAuthenticated: false });
       },
-
-      initialize: () => {
-        // Load from localStorage on mount
-        try {
-          const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-          const storedUser = localStorage.getItem(USER_STORAGE_KEY);
-
-          if (storedToken && storedUser) {
-            const user = JSON.parse(storedUser) as TelegramUser;
-            set({ token: storedToken, user, isAuthenticated: true });
-          }
-        } catch (error) {
-          if (import.meta.env.DEV) {
-            console.error('[AuthStore] Failed to initialize from localStorage:', error);
-          }
-          set({ token: null, user: null, isAuthenticated: false });
-        }
-      },
     }),
     {
       name: 'chatkeep-auth-storage',
@@ -62,6 +43,7 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
 
 // Selector hooks for performance
 export const useAuthToken = () => useAuthStore(s => s.token);

@@ -1,8 +1,16 @@
-import { Outlet } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useCallback } from 'react';
 import { viewport } from '@telegram-apps/sdk-react';
+import { useBackButton } from '@/hooks/telegram/useBackButton';
+import { useAuthMode } from '@/hooks/auth/useAuthMode';
 
 export function AppLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isMiniApp } = useAuthMode();
+
+  const isHomePage = location.pathname === '/';
+
   useEffect(() => {
     if (viewport.mount.isAvailable()) {
       viewport.mount();
@@ -17,6 +25,15 @@ export function AppLayout() {
       }
     };
   }, []);
+
+  // Wrap navigate callback to prevent memory leak
+  const handleBack = useCallback(() => navigate(-1), [navigate]);
+
+  // Show back button only in Mini App mode and when not on home page
+  useBackButton({
+    onClick: handleBack,
+    visible: isMiniApp && !isHomePage,
+  });
 
   return (
     <div style={{

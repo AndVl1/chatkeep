@@ -338,6 +338,28 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
 **CRITICAL: Never commit directly to main. Always use feature branches.**
 
+### Protected Branches (MANDATORY RULE)
+
+**NEVER directly modify, commit to, merge to, or push to the following branches:**
+- `main` - production-ready code, requires PR with review
+- `production` - deployed to production environment
+
+**What this means:**
+- NEVER run `git checkout main && git merge ...`
+- NEVER run `git push origin main`
+- NEVER run `git commit` while on `main` or `production` branches
+- ALWAYS create a feature branch for any changes
+- ALWAYS use Pull Requests to merge changes into protected branches
+- If you accidentally make changes on a protected branch, revert immediately
+
+**Only the repository owner can merge PRs into protected branches.**
+
+This rule exists because:
+1. Direct pushes bypass CI/CD checks
+2. Direct pushes bypass code review
+3. Direct pushes can break production deployments
+4. Reverting pushed changes is disruptive for the team
+
 ## Technical Debt Tracking
 
 **MANDATORY for all agents during research and development.**
@@ -362,7 +384,7 @@ When agents (main or sub-agents) discover code that needs refactoring, improveme
 ### Tech Debt Entry Format
 
 ```markdown
-## [Date] - [Brief Title]
+## [Date (dd/mm/yyyy)] - [Brief Title]
 
 **Found by**: [agent name or "main agent"]
 **Location**: [file path and line numbers]
@@ -400,6 +422,57 @@ Create a `PermissionUtils` object with reusable permission checking functions.
 - **DO** commit tech debt updates as separate commits with message: `docs: add tech debt entry - [brief description]`
 - **DO** continue with the main task after documenting
 
+## Known Issues & Bug Tracking
+
+**Location**: `docs/KNOWN_ISSUES.md`
+
+This file tracks significant bugs, their root causes, and fixes. It serves as institutional memory to prevent repeating mistakes.
+
+### When to READ this file
+
+- **Before investigating a bug** - check if similar issues were fixed before
+- **Before implementing a feature** - learn from past mistakes in related areas
+- **When you see a pattern** that seems unusual - it might exist to fix a previous bug
+
+### When to WRITE to this file
+
+After fixing any significant bug, add an entry with:
+- Issue description and symptoms
+- Root cause analysis
+- Fix applied
+- Files changed
+- Lesson learned
+
+### Entry Format
+
+```markdown
+## YYYY-MM-DD: Brief title
+
+**Issue**: One-line description
+
+**Symptoms**:
+- What the user/developer observed
+
+**Root Cause**:
+Why the bug occurred.
+
+**Fix**:
+What was changed.
+
+**Files Changed**:
+- List of files
+
+**Lesson Learned**:
+Key takeaway to prevent similar issues.
+```
+
+### Key Patterns from Past Bugs
+
+| Pattern | Issue | Solution |
+|---------|-------|----------|
+| Spring Data JDBC + non-auto-generated PK | INSERT fails with NULL constraint | Implement `Persistable<T>` interface |
+| Testing config change logging | No log written | Ensure initial state differs from final state |
+
 ## Global Execution Rules (IMPORTANT)
 
 These rules apply to the main agent and ALL sub-agents.
@@ -434,3 +507,8 @@ If a sub-agent is not explicitly responsible for executing commands, it MUST NOT
 - ALWAYS use the `AskUserQuestion` tool for any clarifications
 - This applies to BOTH main agent and ALL sub-agents
 - Provide clear, structured options when possible
+
+### Testing (web)
+
+For testing web ui in browser in most cases you need to redeploy site and backend. You should use deploy workflow to
+deploy from current branch to test domain and test on chatmodtest.ru, if user prompt doesn't say anything against it

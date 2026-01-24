@@ -23,6 +23,7 @@ import {
   mockSettings,
 } from '@/test/mocks/server';
 import { mockSettingsAllEnabled, mockSettingsDisabled } from '@/test/mocks/data';
+import { simulateWebMode } from '@/test/setup';
 
 describe('Settings Page Flow', () => {
   const chatId = 100;
@@ -183,7 +184,10 @@ describe('Settings Page Flow', () => {
   });
 
   describe('Navigation', () => {
-    it('should have back button', async () => {
+    it('should have back button in web mode', async () => {
+      // Back button is only visible in web mode (hidden in Mini App mode where native back is used)
+      const restoreMiniApp = simulateWebMode();
+
       setMockSettings(chatId, mockSettings);
       renderWithProviders(<SettingsPage />, {
         initialEntries: [`/chat/${chatId}/settings`],
@@ -194,6 +198,8 @@ describe('Settings Page Flow', () => {
       });
 
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
+
+      restoreMiniApp();
     });
 
     it('should have manage blocklist button', async () => {

@@ -39,6 +39,10 @@ services:
       ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       GITHUB_PAT: ${GITHUB_PAT:-}
+      MAIN_DOMAIN: ${MAIN_DOMAIN:-chatmoderatorbot.ru}
+      API_DOMAIN: ${API_DOMAIN:-chatmoderatorbot.ru}
+      MINIAPP_DOMAIN: ${MINIAPP_DOMAIN:-miniapp.chatmoderatorbot.ru}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-admin.chatmoderatorbot.ru}
     restart: always
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
@@ -99,8 +103,8 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=https://grafana.chatmoderatorbot.ru
-      - GF_SERVER_DOMAIN=grafana.chatmoderatorbot.ru
+      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN:-chatmoderatorbot.ru}
+      - GF_SERVER_DOMAIN=grafana.${DOMAIN:-chatmoderatorbot.ru}
     volumes:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana

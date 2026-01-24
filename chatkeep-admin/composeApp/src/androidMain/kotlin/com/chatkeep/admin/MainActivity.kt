@@ -6,14 +6,16 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import com.arkivanov.decompose.defaultComponentContext
 import com.chatkeep.admin.core.common.BuildConfig
 import com.chatkeep.admin.core.common.DeepLinkData
-import com.chatkeep.admin.core.network.createHttpClient
 import com.chatkeep.admin.di.AppFactory
 import com.chatkeep.admin.di.createPlatformDataStore
+import com.chatkeep.admin.di.createPlatformHttpClient
 import com.chatkeep.admin.di.createPlatformTokenStorage
-import com.chatkeep.admin.di.getApiBaseUrl
+import com.chatkeep.admin.di.getBaseUrlFromDataStore
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -25,42 +27,46 @@ class MainActivity : ComponentActivity() {
         // Initialize BuildConfig for debug mode detection
         BuildConfig.init(applicationContext)
 
-        // Create platform dependencies
-        val baseUrl = getApiBaseUrl()
-        val httpClient = createHttpClient(baseUrl)
+        // Create DataStore first
         val dataStore = createPlatformDataStore(this)
-        val tokenStorage = createPlatformTokenStorage(dataStore)
 
-        // Create app factory
-        val appFactory = AppFactory(
-            httpClient = httpClient,
-            baseUrl = baseUrl,
-            tokenStorage = tokenStorage,
-            dataStore = dataStore
-        )
+        // Load base URL asynchronously and initialize app
+        lifecycleScope.launch {
+            val baseUrl = getBaseUrlFromDataStore(dataStore) ?: "https://admin.chatmoderatorbot.ru"
+            val httpClient = createPlatformHttpClient(baseUrl)
+            val tokenStorage = createPlatformTokenStorage(dataStore)
 
-        // Create root component
-        rootComponent = appFactory.createRootComponent(
-            componentContext = defaultComponentContext()
-        )
-
-        setContent {
-            App(
-                rootComponent = rootComponent!!,
-                settingsRepository = appFactory.settingsRepository,
-                onThemeChanged = { darkTheme ->
-                    // Update system bar appearance
-                    WindowCompat.getInsetsController(window, window.decorView).apply {
-                        isAppearanceLightStatusBars = !darkTheme
-                        isAppearanceLightNavigationBars = !darkTheme
-                    }
-                }
+            // Create app factory
+            val appFactory = AppFactory(
+                httpClient = httpClient,
+                baseUrl = baseUrl,
+                tokenStorage = tokenStorage,
+                dataStore = dataStore
             )
-        }
 
-        // Handle deeplink from initial intent - deferred to ensure component is ready
-        window.decorView.post {
-            handleDeepLink(intent)
+            // Create root component
+            rootComponent = appFactory.createRootComponent(
+                componentContext = defaultComponentContext()
+            )
+
+            setContent {
+                App(
+                    rootComponent = rootComponent!!,
+                    settingsRepository = appFactory.settingsRepository,
+                    onThemeChanged = { darkTheme ->
+                        // Update system bar appearance
+                        WindowCompat.getInsetsController(window, window.decorView).apply {
+                            isAppearanceLightStatusBars = !darkTheme
+                            isAppearanceLightNavigationBars = !darkTheme
+                        }
+                    }
+                )
+            }
+
+            // Handle deeplink from initial intent - deferred to ensure component is ready
+            window.decorView.post {
+                handleDeepLink(intent)
+            }
         }
     }
 

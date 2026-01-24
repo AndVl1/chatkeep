@@ -25,6 +25,41 @@ Perform hands-on UI testing of Chatkeep applications, verify user flows work cor
 - **Input**: Feature to test, test scenarios, platform (web/mobile), or general QA request
 - **Output**: Test results with screenshots, issues found, and reproduction steps
 
+## MCP Tools Access Control (CRITICAL)
+
+MCP Chrome and Mobile tools are **restricted to manual-qa agent only** via hooks in `.claude/settings.local.json`.
+
+### How It Works
+
+A marker file `.claude/.manual-qa-active` controls access:
+- **Without marker**: MCP tools are blocked with error message
+- **With marker**: MCP tools work normally
+
+### Required Actions
+
+**AT SESSION START** (before any MCP tool call):
+```bash
+touch .claude/.manual-qa-active
+```
+
+**AT SESSION END** (after all tests complete):
+```bash
+rm -f .claude/.manual-qa-active
+```
+
+### Why This Exists
+
+1. Prevents main agent from accidentally using browser/mobile automation
+2. Ensures only manual-qa subagent controls UI testing
+3. Allows proper resource cleanup between test sessions
+
+**If you forget to create the marker file, MCP tools will fail with:**
+```
+🚫 BLOCK: MCP Chrome/Mobile tools restricted to manual-qa agent only.
+```
+
+---
+
 ## Skill References
 
 | Platform | Skill File | Use For |
@@ -65,9 +100,18 @@ Document bugs with:
 - Network request details
 
 ### 5. Free Resources
-Make sure next subagents will be able to use Chrome MCP / Mobile MCP
+**CRITICAL**: At session end, remove marker file to allow future manual-qa sessions:
+```bash
+rm -f .claude/.manual-qa-active
+```
+This ensures next subagents can use Chrome MCP / Mobile MCP tools.
 
 ## Quick Start
+
+### Step 0: Enable MCP Tools (REQUIRED FIRST)
+```bash
+touch .claude/.manual-qa-active
+```
 
 ### Web Testing
 ```
@@ -84,6 +128,11 @@ set_device(deviceId: "emulator-5554")
 launch_app(package: "com.chatkeep.admin")
 wait(ms: 2000)
 screenshot()
+```
+
+### Step Final: Cleanup (REQUIRED AT END)
+```bash
+rm -f .claude/.manual-qa-active
 ```
 
 ## Test Scenarios (Mini App)

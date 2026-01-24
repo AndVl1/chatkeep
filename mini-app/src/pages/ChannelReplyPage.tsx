@@ -1,12 +1,12 @@
-import { useParams, Navigate, useNavigate } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@telegram-apps/telegram-ui';
 import { ChannelReplyForm } from '@/components/channel-reply/ChannelReplyForm';
 import { NoLinkedChannelWarning } from '@/components/channel-reply/NoLinkedChannelWarning';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
 import { AdminWarningBanner } from '@/components/common/AdminWarningBanner';
+import { CustomBackButton } from '@/components/common/CustomBackButton';
 import { useChannelReply } from '@/hooks/api/useChannelReply';
 import { useNotification } from '@/hooks/ui/useNotification';
 import { useDebouncedValue } from '@/hooks/ui/useDebouncedValue';
@@ -16,7 +16,6 @@ import type { ChannelReply } from '@/types';
 export function ChannelReplyPage() {
   const { t } = useTranslation();
   const { chatId } = useParams<{ chatId: string }>();
-  const navigate = useNavigate();
   const numericChatId = Number(chatId);
 
   const {
@@ -111,9 +110,7 @@ export function ChannelReplyPage() {
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
-        <Button size="s" mode="plain" onClick={() => navigate(`/chat/${chatId}/settings`)}>
-          {t('settings.back')}
-        </Button>
+        <CustomBackButton to={`/chat/${chatId}/settings`} />
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
           {t('channelReply.pageTitle')}
         </h1>

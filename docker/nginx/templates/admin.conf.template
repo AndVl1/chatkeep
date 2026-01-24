@@ -1,11 +1,11 @@
-# Admin App - admin.chatmoderatorbot.ru
+# Admin App - admin.{{DOMAIN}}
 # HTTPS with Let's Encrypt certificates
 
 # HTTP server - ACME challenge and redirect to HTTPS
 server {
     listen 80;
     listen [::]:80;
-    server_name admin.chatmoderatorbot.ru;
+    server_name admin.{{DOMAIN}};
 
     # ACME challenge for Let's Encrypt
     location /.well-known/acme-challenge/ {
@@ -23,11 +23,11 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name admin.chatmoderatorbot.ru;
+    server_name admin.{{DOMAIN}};
 
     # SSL certificates from Let's Encrypt
-    ssl_certificate /etc/letsencrypt/live/admin.chatmoderatorbot.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/admin.chatmoderatorbot.ru/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/{{DOMAIN}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{DOMAIN}}/privkey.pem;
 
     # Serve Admin WASM App
     root /var/www/admin;
@@ -43,7 +43,7 @@ server {
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
     # CSP for WASM
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.chatmoderatorbot.ru; worker-src 'self' blob:;" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.{{DOMAIN}}; worker-src 'self' blob:;" always;
 
     # Cross-Origin headers for WASM
     add_header Cross-Origin-Opener-Policy "same-origin" always;
@@ -101,7 +101,7 @@ server {
         proxy_read_timeout 60s;
 
         # CSP for Telegram Login Widget (needs 'unsafe-inline' and 'unsafe-eval' for widget)
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org https://*.telegram.org; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.chatmoderatorbot.ru https://*.telegram.org; frame-src 'self' https://*.telegram.org;" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org https://*.telegram.org; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.{{DOMAIN}} https://*.telegram.org; frame-src 'self' https://*.telegram.org;" always;
     }
 
     # Health check

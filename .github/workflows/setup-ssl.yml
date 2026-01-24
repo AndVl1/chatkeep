@@ -2,6 +2,15 @@ name: Setup SSL Certificate
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - production
+          - test
+        default: 'test'
 
 env:
   REGISTRY: ghcr.io
@@ -13,7 +22,15 @@ jobs:
     runs-on: ubuntu-latest
 
     # Only run if server credentials are configured
-    if: vars.DEPLOY_HOST != ''
+    if: vars.DEPLOY_HOST != '' || vars.TEST_DEPLOY_HOST != ''
+
+    env:
+      # Environment-specific variables
+      IS_PROD: ${{ github.event.inputs.environment == 'production' }}
+      DEPLOY_HOST: ${{ github.event.inputs.environment == 'production' && vars.DEPLOY_HOST || vars.TEST_DEPLOY_HOST }}
+      DEPLOY_SSH_KEY: ${{ github.event.inputs.environment == 'production' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+      DOMAIN: ${{ github.event.inputs.environment == 'production' && vars.PROD_DOMAIN || vars.TEST_DOMAIN }}
+      ENV_NAME: ${{ github.event.inputs.environment }}
 
     steps:
       - name: Checkout code
@@ -21,52 +38,66 @@ jobs:
 
       - name: Run SSL setup via SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DOMAIN: ${{ env.DOMAIN }}
+          ENV_NAME: ${{ env.ENV_NAME }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
+          envs: DOMAIN,ENV_NAME
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
-            echo "Running SSL certificate setup..."
-            echo "This will add miniapp.chatmoderatorbot.ru to the certificate"
+            echo "Running SSL certificate setup for $ENV_NAME environment"
+            echo "Domain: $DOMAIN"
 
-            # Run certbot directly with all domains including miniapp
-            echo "Running certbot with domains: chatmoderatorbot.ru www miniapp api grafana prometheus admin"
-            sudo certbot certonly --webroot \
+            # Define subdomains for certificate
+            SUBDOMAINS="www miniapp api grafana prometheus admin"
+            echo "Subdomains to include: $SUBDOMAINS"
+
+            # Build certbot command with all subdomains
+            CERTBOT_CMD="sudo certbot certonly --webroot \
               -w /root/chatkeep/certbot/webroot \
-              -d chatmoderatorbot.ru \
-              -d www.chatmoderatorbot.ru \
-              -d miniapp.chatmoderatorbot.ru \
-              -d api.chatmoderatorbot.ru \
-              -d grafana.chatmoderatorbot.ru \
-              -d prometheus.chatmoderatorbot.ru \
-              -d admin.chatmoderatorbot.ru \
+              -d $DOMAIN"
+
+            # Add each subdomain
+            for subdomain in $SUBDOMAINS; do
+              CERTBOT_CMD="$CERTBOT_CMD -d ${subdomain}.${DOMAIN}"
+            done
+
+            # Add certbot flags
+            CERTBOT_CMD="$CERTBOT_CMD \
               --non-interactive \
               --agree-tos \
-              --email admin@chatmoderatorbot.ru \
+              --email admin@${DOMAIN} \
               --expand \
               --force-renewal \
-              -v
+              -v"
 
+            echo "Running certbot command:"
+            echo "$CERTBOT_CMD"
+
+            # Execute certbot
+            eval $CERTBOT_CMD
             CERT_RESULT=$?
             echo "Certbot exit code: $CERT_RESULT"
 
             if [ $CERT_RESULT -eq 0 ]; then
-              echo "✓ Certificate updated successfully!"
+              echo "✓ Certificate updated successfully for $ENV_NAME!"
 
               # Show certificate info
               echo "Certificate details:"
-              sudo certbot certificates | grep -A 10 "chatmoderatorbot.ru"
+              sudo certbot certificates | grep -A 10 "$DOMAIN"
             else
               echo "✗ Certbot failed with exit code $CERT_RESULT"
               exit 1
             fi
 
-            echo "SSL setup completed!"
+            echo "SSL setup completed for $ENV_NAME!"
 
             # Reload nginx to pick up new certificate
             echo "Reloading nginx..."
             docker exec chatkeep-nginx nginx -s reload || echo "Nginx reload failed, but continuing..."
 
-            echo "Done! Certificate should now include miniapp.chatmoderatorbot.ru"
+            echo "Done! Certificate for $DOMAIN now includes all subdomains"

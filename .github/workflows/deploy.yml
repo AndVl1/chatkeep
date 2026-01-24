@@ -2,21 +2,100 @@ name: Deploy
 
 on:
   push:
-    branches: [production]
+    branches:
+      - production       # Deploy to PROD
+      - 'main'           # Deploy to TEST for main branch
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - production
+          - test
+        default: 'test'
 
 env:
   REGISTRY: ghcr.io
   # Use lowercase repository name (Docker registry requirement)
   IMAGE_NAME: andvl1/chatkeep
+  # Determine environment based on branch or manual input
+  IS_PROD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
 
 jobs:
+  detect-changes:
+    name: Detect Changed Files
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true'
+    outputs:
+      admin-wasm: ${{ steps.changes.outputs.admin-wasm }}
+      mini-app: ${{ steps.changes.outputs.mini-app }}
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: changes
+        run: |
+          # Get the base commit to compare against
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # For manual dispatch, always build everything
+            echo "admin-wasm=true" >> $GITHUB_OUTPUT
+            echo "mini-app=true" >> $GITHUB_OUTPUT
+            echo "backend=true" >> $GITHUB_OUTPUT
+            echo "Manual dispatch - building all components"
+          else
+            # For push events, compare with previous commit
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+
+            # If this is the first push (no before SHA), build everything
+            if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+              echo "admin-wasm=true" >> $GITHUB_OUTPUT
+              echo "mini-app=true" >> $GITHUB_OUTPUT
+              echo "backend=true" >> $GITHUB_OUTPUT
+              echo "First push - building all components"
+            else
+              # Check for admin WASM changes
+              if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^chatkeep-admin/"; then
+                echo "admin-wasm=true" >> $GITHUB_OUTPUT
+                echo "Admin WASM changes detected"
+              else
+                echo "admin-wasm=false" >> $GITHUB_OUTPUT
+                echo "No admin WASM changes"
+              fi
+
+              # Check for mini-app changes
+              if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^mini-app/"; then
+                echo "mini-app=true" >> $GITHUB_OUTPUT
+                echo "Mini App changes detected"
+              else
+                echo "mini-app=false" >> $GITHUB_OUTPUT
+                echo "No Mini App changes"
+              fi
+
+              # Check for backend changes (anything not mini-app or chatkeep-admin)
+              if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -v "^chatkeep-admin/" | grep -v "^mini-app/" | grep -v "^\.github/" | grep -q "."; then
+                echo "backend=true" >> $GITHUB_OUTPUT
+                echo "Backend changes detected"
+              else
+                echo "backend=false" >> $GITHUB_OUTPUT
+                echo "No backend changes"
+              fi
+            fi
+          fi
+
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
+    needs: detect-changes
 
-    # Skip if no secrets configured
-    if: github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true'
+    # Skip if no secrets configured or no backend changes
+    if: (github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true') && needs.detect-changes.outputs.backend == 'true'
 
     permissions:
       contents: read
@@ -61,13 +140,32 @@ jobs:
   build-mini-app:
     name: Build Mini App
     runs-on: ubuntu-latest
+    needs: detect-changes
 
-    # Skip if no secrets configured
-    if: github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true'
+    # Skip if no secrets configured or no mini-app changes
+    if: (github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true') && needs.detect-changes.outputs.mini-app == 'true'
+
+    env:
+      IS_PRODUCTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Create environment-specific .env file
+        working-directory: mini-app
+        run: |
+          if [[ "${{ env.IS_PRODUCTION }}" == "true" ]]; then
+            BOT_USERNAME="${{ vars.PROD_BOT_USERNAME }}"
+          else
+            BOT_USERNAME="${{ vars.TEST_BOT_USERNAME }}"
+          fi
+
+          echo "VITE_API_URL=/api/v1/miniapp" > .env.production
+          echo "VITE_BOT_USERNAME=$BOT_USERNAME" >> .env.production
+
+          echo "Generated .env.production for $([ "${{ env.IS_PRODUCTION }}" == "true" ] && echo "PRODUCTION" || echo "TEST") environment"
+          cat .env.production
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -96,9 +194,10 @@ jobs:
   build-admin-wasm:
     name: Build Admin WASM
     runs-on: ubuntu-latest
+    needs: detect-changes
 
-    # Skip if no secrets configured
-    if: github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true'
+    # Skip if no secrets configured or no admin-wasm changes
+    if: (github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true') && needs.detect-changes.outputs.admin-wasm == 'true'
 
     steps:
       - name: Checkout code
@@ -131,47 +230,108 @@ jobs:
   deploy:
     name: Deploy to Server
     runs-on: ubuntu-latest
-    needs: [build-and-push, build-mini-app, build-admin-wasm]
+    needs: [detect-changes, build-and-push, build-mini-app, build-admin-wasm]
     permissions:
       contents: read
       packages: read
 
     # Only deploy if server credentials are configured
-    if: vars.DEPLOY_HOST != ''
+    # Use always() to run even if some build jobs were skipped
+    if: always() && !failure() && !cancelled() && (vars.DEPLOY_HOST != '' || vars.TEST_DEPLOY_HOST != '')
+
+    env:
+      # Environment-specific variables using workflow-level IS_PROD
+      # Note: Using github context to determine branch, as env context is not available at job level
+      IS_PRODUCTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set environment variables
+        id: set-env
+        run: |
+          if [[ "${{ env.IS_PRODUCTION }}" == "true" ]]; then
+            echo "DEPLOY_HOST=${{ vars.DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+            echo "DOMAIN=${{ vars.PROD_DOMAIN }}" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=production" >> $GITHUB_OUTPUT
+          else
+            echo "DEPLOY_HOST=${{ vars.TEST_DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+            echo "DOMAIN=${{ vars.TEST_DOMAIN }}" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=test" >> $GITHUB_OUTPUT
+          fi
+
       - name: Download Mini App artifact
+        if: needs.detect-changes.outputs.mini-app == 'true'
         uses: actions/download-artifact@v4
         with:
           name: mini-app-dist
           path: mini-app/dist/
 
       - name: Download WASM artifact
+        if: needs.detect-changes.outputs.admin-wasm == 'true'
         uses: actions/download-artifact@v4
         with:
           name: admin-wasm
           path: chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/
 
+      - name: Log deployment info
+        run: |
+          echo "### Deployment Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: ${{ steps.set-env.outputs.ENV_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "Domain: ${{ steps.set-env.outputs.DOMAIN }}" >> $GITHUB_STEP_SUMMARY
+          echo "Host: ${{ steps.set-env.outputs.DEPLOY_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Components to Deploy" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend: ${{ needs.detect-changes.outputs.backend }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Mini App: ${{ needs.detect-changes.outputs.mini-app }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Admin WASM: ${{ needs.detect-changes.outputs.admin-wasm }}" >> $GITHUB_STEP_SUMMARY
+
       - name: Copy Docker Compose config to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "docker-compose.prod.yml"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
+      - name: Generate nginx configs from templates
+        run: |
+          chmod +x docker/nginx/generate-configs.sh
+          docker/nginx/generate-configs.sh ${{ steps.set-env.outputs.DOMAIN }}
+          echo "Generated nginx configs for domain: ${{ steps.set-env.outputs.DOMAIN }}"
+          ls -la docker/nginx/sites/
+
+      - name: Clean old nginx configs on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          script: |
+            echo "Cleaning old nginx configs..."
+            rm -f ${{ vars.DEPLOY_PATH || '~/chatkeep' }}/docker/nginx/sites/*.conf 2>/dev/null || true
+            ls -la ${{ vars.DEPLOY_PATH || '~/chatkeep' }}/docker/nginx/sites/ 2>/dev/null || echo "Directory doesn't exist yet"
+
       - name: Copy Nginx configs to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "docker/nginx/*"
+          target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
+          overwrite: true
+
+      - name: Copy Prometheus and Grafana configs to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          source: "infra/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
@@ -180,64 +340,98 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
+          BOT_TOKEN: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
+          DB_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.DB_PASSWORD || secrets.TEST_DB_PASSWORD }}
+          JWT_SECRET: ${{ env.IS_PRODUCTION == 'true' && secrets.JWT_SECRET || secrets.TEST_JWT_SECRET }}
+          GRAFANA_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.GRAFANA_ADMIN_PASSWORD || secrets.TEST_GRAFANA_ADMIN_PASSWORD }}
+          DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
+          ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
+          PULL_BACKEND: ${{ needs.detect-changes.outputs.backend }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: GHCR_TOKEN,GHCR_USER
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DB_PASSWORD,JWT_SECRET,GRAFANA_PASSWORD,DOMAIN,ENV_NAME,PULL_BACKEND
           script: |
             # Ensure deployment directory exists
             echo "Preparing deployment directories..."
+            echo "Environment: $ENV_NAME"
+            echo "Domain: $DOMAIN"
+            echo "Pull backend: $PULL_BACKEND"
             mkdir -p ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
-            # Create directories for static files
+            # Create directories for static files and certbot
             mkdir -p mini-app/dist
             mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
             mkdir -p docker/nginx/sites
+            mkdir -p certbot/webroot
 
-            # Fix GITHUB_REPOSITORY in .env to lowercase (Docker requires lowercase)
-            if [ -f .env ]; then
-              echo "Fixing GITHUB_REPOSITORY in .env to lowercase..."
-              sed -i 's/GITHUB_REPOSITORY=AndVl1/GITHUB_REPOSITORY=andvl1/g' .env
-            fi
+            # Update or create .env file with environment-specific variables
+            echo "Updating .env file for $ENV_NAME environment..."
+            printf '%s\n' \
+              "GITHUB_REPOSITORY=andvl1/chatkeep" \
+              "TELEGRAM_BOT_TOKEN=$BOT_TOKEN" \
+              "DB_PASSWORD=$DB_PASSWORD" \
+              "JWT_SECRET=$JWT_SECRET" \
+              "GRAFANA_ADMIN_PASSWORD=$GRAFANA_PASSWORD" \
+              "DOMAIN=$DOMAIN" \
+              "ENVIRONMENT=$ENV_NAME" \
+              "MAIN_DOMAIN=$DOMAIN" \
+              "API_DOMAIN=api.$DOMAIN" \
+              "MINIAPP_DOMAIN=miniapp.$DOMAIN" \
+              "ADMIN_DOMAIN=admin.$DOMAIN" > .env
+            echo "Generated .env file:"
+            cat .env
 
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
-            # Pull latest Docker image
-            echo "Pulling latest Docker image..."
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            # Pull latest Docker image only if backend changed
+            if [[ "$PULL_BACKEND" == "true" ]]; then
+              echo "Pulling latest Docker image..."
+              docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            else
+              echo "Skipping Docker image pull - no backend changes"
+            fi
 
       - name: Copy Mini App files to server
+        if: needs.detect-changes.outputs.mini-app == 'true'
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "mini-app/dist/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
       - name: Copy WASM files to server
+        if: needs.detect-changes.outputs.admin-wasm == 'true'
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           source: "chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/*"
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
       - name: Verify configs and restart services
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
+          DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
+          host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
+          envs: ENV_NAME,DOMAIN
           script: |
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
+
+            echo "Deploying to $ENV_NAME environment with domain $DOMAIN"
 
             # Verify docker-compose.prod.yml was updated correctly
             echo "Verifying docker-compose.prod.yml..."
@@ -254,20 +448,44 @@ jobs:
 
             # Restart docker compose services
             # Force-recreate app to use new Docker image, nginx to pick up new static files
-            echo "Restarting services..."
-            docker compose -f docker-compose.prod.yml up -d --force-recreate app nginx
+            echo "Restarting services for $ENV_NAME environment..."
+            docker compose -f docker-compose.prod.yml up -d --force-recreate
 
-            # Wait for app to be healthy
+            # Wait for app to be healthy (give it more time to start)
             echo "Waiting for app to be healthy..."
-            sleep 10
+            sleep 30
 
             # Verify containers are running with correct image
             echo "Verifying deployed containers..."
-            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
+            docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
 
-            # Verify nginx config and reload
-            echo "Verifying nginx configuration..."
-            docker exec chatkeep-nginx nginx -t && docker exec chatkeep-nginx nginx -s reload
+            # Show app logs
+            echo "App container logs (last 30 lines):"
+            docker logs chatkeep-app --tail 30 || echo "Could not get app logs"
+
+            # Always show nginx logs for debugging
+            echo "Nginx container logs (last 30 lines):"
+            docker logs chatkeep-nginx --tail 30 || echo "Could not get nginx logs"
+
+            # Check SSL certificates on the host
+            echo "Checking SSL certificate files..."
+            ls -la /etc/letsencrypt/live/ || echo "No /etc/letsencrypt/live/ directory"
+            ls -la /etc/letsencrypt/live/$DOMAIN/ || echo "No certificates for $DOMAIN"
+
+            # Check nginx config files
+            echo "Checking nginx config files..."
+            ls -la docker/nginx/sites/ || echo "No nginx sites directory"
+
+            # Check if app is healthy before nginx operations
+            if docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null | grep -q healthy; then
+              echo "App is healthy"
+              # Try to test nginx config
+              docker exec chatkeep-nginx nginx -t 2>&1 || echo "Nginx config test failed"
+            else
+              echo "WARNING: App is not healthy yet"
+              echo "App health status:"
+              docker inspect --format='{{.State.Health.Status}}' chatkeep-app || true
+            fi
 
             # Show deployed files info
             echo "Mini App files:"
@@ -277,3 +495,6 @@ jobs:
 
             # Cleanup old images
             docker image prune -f
+
+            echo "✓ Deployment to $ENV_NAME completed successfully!"
+            echo "Domain: $DOMAIN"

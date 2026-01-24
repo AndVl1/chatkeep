@@ -6,6 +6,7 @@ import { SettingsForm } from '@/components/settings/SettingsForm';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
 import { AdminWarningBanner } from '@/components/common/AdminWarningBanner';
+import { CustomBackButton } from '@/components/common/CustomBackButton';
 import { useSettings } from '@/hooks/api/useSettings';
 import { useNotification } from '@/hooks/ui/useNotification';
 import { useSelectedChat } from '@/stores/chatStore';
@@ -44,9 +45,7 @@ export function SettingsPage() {
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
-        <Button size="s" mode="plain" onClick={() => navigate('/')}>
-          {t('settings.back')}
-        </Button>
+        <CustomBackButton to="/" />
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
           {settings.chatTitle}
         </h1>
@@ -87,6 +86,76 @@ export function SettingsPage() {
           onClick={() => navigate(`/chat/${chatId}/channel-reply`)}
         >
           {t('settings.channelReply')}
+        </Button>
+      </div>
+
+      <div style={{ padding: '16px 0' }}>
+        <Button
+          size="l"
+          stretched
+          onClick={() => navigate(`/chat/${chatId}/statistics`)}
+        >
+          {t('settings.statistics')}
+        </Button>
+      </div>
+
+      <div style={{ padding: '16px 0' }}>
+        <Button
+          size="l"
+          stretched
+          onClick={() => navigate(`/chat/${chatId}/welcome`)}
+        >
+          {t('settings.welcome')}
+        </Button>
+      </div>
+
+      <div style={{ padding: '16px 0' }}>
+        <Button
+          size="l"
+          stretched
+          onClick={() => navigate(`/chat/${chatId}/rules`)}
+        >
+          {t('settings.rules')}
+        </Button>
+      </div>
+
+      <div style={{ padding: '16px 0' }}>
+        <Button
+          size="l"
+          stretched
+          onClick={() => navigate(`/chat/${chatId}/notes`)}
+        >
+          {t('settings.notes')}
+        </Button>
+      </div>
+
+      <div style={{ padding: '16px 0' }}>
+        <Button
+          size="l"
+          stretched
+          onClick={() => navigate(`/chat/${chatId}/antiflood`)}
+        >
+          {t('settings.antiflood')}
+        </Button>
+      </div>
+
+      <div style={{ padding: '16px 0' }}>
+        <Button
+          size="l"
+          stretched
+          onClick={() => navigate(`/chat/${chatId}/admin-logs`)}
+        >
+          {t('settings.adminLogs')}
+        </Button>
+      </div>
+
+      <div style={{ padding: '16px 0' }}>
+        <Button
+          size="l"
+          stretched
+          onClick={() => navigate(`/chat/${chatId}/session`)}
+        >
+          {t('settings.session')}
         </Button>
       </div>
     </div>

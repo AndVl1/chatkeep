@@ -2,19 +2,21 @@ package ru.andvl.chatkeep.bot
 
 import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.extensions.behaviour_builder.buildBehaviourWithLongPolling
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import jakarta.annotation.PostConstruct
+import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import ru.andvl.chatkeep.bot.handlers.Handler
-import jakarta.annotation.PostConstruct
-import jakarta.annotation.PreDestroy
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 
 @Component
 @ConditionalOnProperty(name = ["telegram.bot.enabled"], havingValue = "true", matchIfMissing = true)
@@ -32,7 +34,22 @@ class ChatkeepBot(
 
         botJob = scope.launch {
             try {
-                bot.buildBehaviourWithLongPolling {
+                bot.buildBehaviourWithLongPolling(
+                    defaultExceptionsHandler = { exception ->
+                        when (exception) {
+                            is HttpRequestTimeoutException,
+                            is SocketTimeoutException,
+                            is ConnectException -> {
+                                // Normal long polling timeout - ignore
+                                logger.debug("Telegram long polling timeout (normal - waiting for updates): ${exception.javaClass.simpleName}")
+                            }
+                            else -> {
+                                // Genuine error - log it
+                                logger.error("Bot error: ${exception.message}", exception)
+                            }
+                        }
+                    }
+                ) {
                     handlers.forEach { handler ->
                         with(handler) { register() }
                     }

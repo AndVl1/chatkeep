@@ -1,11 +1,11 @@
-# API subdomain - api.chatmoderatorbot.ru
+# API subdomain - api.{{DOMAIN}}
 
 # Map to whitelist allowed CORS origins
 map $http_origin $cors_origin {
     default "";
-    "https://chatmoderatorbot.ru" $http_origin;
-    "https://miniapp.chatmoderatorbot.ru" $http_origin;
-    "https://admin.chatmoderatorbot.ru" $http_origin;
+    "https://{{DOMAIN}}" $http_origin;
+    "https://miniapp.{{DOMAIN}}" $http_origin;
+    "https://admin.{{DOMAIN}}" $http_origin;
     "http://localhost:5173" $http_origin;  # Development only
 }
 
@@ -13,7 +13,7 @@ map $http_origin $cors_origin {
 server {
     listen 80;
     listen [::]:80;
-    server_name api.chatmoderatorbot.ru;
+    server_name api.{{DOMAIN}};
 
     # ACME challenge for Let's Encrypt
     location /.well-known/acme-challenge/ {
@@ -30,11 +30,11 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name api.chatmoderatorbot.ru;
+    server_name api.{{DOMAIN}};
 
     # SSL certificates from Let's Encrypt (multi-domain cert)
-    ssl_certificate /etc/letsencrypt/live/chatmoderatorbot.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/chatmoderatorbot.ru/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/{{DOMAIN}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{DOMAIN}}/privkey.pem;
 
     # Security headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;

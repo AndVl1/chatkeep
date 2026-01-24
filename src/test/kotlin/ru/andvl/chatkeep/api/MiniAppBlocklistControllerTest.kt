@@ -392,7 +392,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `DELETE blocklist - logs to admin channel when log channel is configured`() = runBlocking {
+    fun `DELETE blocklist - logs to admin channel when log channel is configured`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -435,5 +435,6 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
         assertThat(logEntry?.adminId).isEqualTo(user.id)
         assertThat(logEntry?.actionType).isEqualTo(ActionType.BLOCKLIST_REMOVED)
         assertThat(logEntry?.reason).contains("badword")
+        Unit
     }
 }
