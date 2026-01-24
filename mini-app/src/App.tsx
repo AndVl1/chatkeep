@@ -8,12 +8,20 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { LocksPage } from '@/pages/LocksPage';
 import { BlocklistPage } from '@/pages/BlocklistPage';
 import { ChannelReplyPage } from '@/pages/ChannelReplyPage';
+import { StatisticsPage } from '@/pages/StatisticsPage';
+import { SessionPage } from '@/pages/SessionPage';
+import { AdminLogsPage } from '@/pages/AdminLogsPage';
+import { WelcomePage } from '@/pages/WelcomePage';
+import { RulesPage } from '@/pages/RulesPage';
+import { NotesPage } from '@/pages/NotesPage';
+import { AntiFloodPage } from '@/pages/AntiFloodPage';
+import { CapabilitiesPage } from '@/pages/CapabilitiesPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { useTelegramAuth } from '@/hooks/telegram/useTelegramAuth';
 import { useAuthMode } from '@/hooks/auth/useAuthMode';
 import { useAuthStore } from '@/stores/authStore';
-import { setAuthHeader } from '@/api';
+import { setAuthHeader, setLogoutHandler } from '@/api';
 import { ConfirmDialogProvider } from '@/components/common/ConfirmDialog';
 import { ToastProvider } from '@/components/common/Toast';
 import '@telegram-apps/telegram-ui/dist/styles.css';
@@ -21,7 +29,7 @@ import '@telegram-apps/telegram-ui/dist/styles.css';
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const { isMiniApp, isWeb } = useAuthMode();
   const { isAuthenticated: isMiniAppAuthenticated, getAuthHeader } = useTelegramAuth();
-  const { isAuthenticated: isWebAuthenticated, token, initialize } = useAuthStore();
+  const { isAuthenticated: isWebAuthenticated, token, initialize, logout } = useAuthStore();
 
   // Initialize web auth store on mount
   useEffect(() => {
@@ -29,6 +37,13 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       initialize();
     }
   }, [isWeb, initialize]);
+
+  // Register logout handler for API client
+  useEffect(() => {
+    if (isWeb) {
+      setLogoutHandler(logout);
+    }
+  }, [isWeb, logout]);
 
   // Set auth header based on mode
   useEffect(() => {
@@ -146,11 +161,19 @@ export function App() {
                     <Routes>
                       <Route element={<AppLayout />}>
                         <Route index element={<HomePage />} />
+                        <Route path="capabilities" element={<CapabilitiesPage />} />
                         <Route path="chat/:chatId">
                           <Route path="settings" element={<SettingsPage />} />
                           <Route path="locks" element={<LocksPage />} />
                           <Route path="blocklist" element={<BlocklistPage />} />
                           <Route path="channel-reply" element={<ChannelReplyPage />} />
+                          <Route path="statistics" element={<StatisticsPage />} />
+                          <Route path="session" element={<SessionPage />} />
+                          <Route path="admin-logs" element={<AdminLogsPage />} />
+                          <Route path="welcome" element={<WelcomePage />} />
+                          <Route path="rules" element={<RulesPage />} />
+                          <Route path="notes" element={<NotesPage />} />
+                          <Route path="antiflood" element={<AntiFloodPage />} />
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />
                       </Route>

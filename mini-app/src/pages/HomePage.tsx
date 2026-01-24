@@ -46,6 +46,16 @@ export function HomePage() {
           </Button>
         )}
       </div>
+      <div style={{ marginBottom: '16px' }}>
+        <Button
+          size="l"
+          stretched
+          mode="outline"
+          onClick={() => navigate('/capabilities')}
+        >
+          {t('home.viewCapabilities')}
+        </Button>
+      </div>
       <ChatSelector
         chats={chats}
         selectedChatId={selectedChatId}

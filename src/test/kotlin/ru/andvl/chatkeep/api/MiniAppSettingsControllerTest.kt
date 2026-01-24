@@ -159,7 +159,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT settings - updates moderation config and logs CONFIG_CHANGED`() = runBlocking {
+    fun `PUT settings - updates moderation config and logs changes`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -191,20 +191,27 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             jsonPath("$.maxWarnings") { value(5) }
         }
 
-        // Verify log entry was sent
-        val logEntry = capturingLogChannelPort.waitForEntry(
+        // Verify CLEAN_SERVICE_ON log entry was sent (separate action type for cleanService toggle)
+        val cleanServiceLog = capturingLogChannelPort.waitForEntry(
+            channelId = -1001234567890L,
+            actionType = ActionType.CLEAN_SERVICE_ON,
+            timeoutMs = 2000
+        )
+
+        assertThat(cleanServiceLog).isNotNull
+        assertThat(cleanServiceLog?.chatId).isEqualTo(TestDataFactory.DEFAULT_CHAT_ID)
+        assertThat(cleanServiceLog?.chatTitle).isEqualTo("Test Chat")
+        assertThat(cleanServiceLog?.adminId).isEqualTo(user.id)
+
+        // Verify CONFIG_CHANGED log entry for maxWarnings
+        val configLog = capturingLogChannelPort.waitForEntry(
             channelId = -1001234567890L,
             actionType = ActionType.CONFIG_CHANGED,
             timeoutMs = 2000
         )
 
-        assertThat(logEntry).isNotNull
-        assertThat(logEntry?.chatId).isEqualTo(TestDataFactory.DEFAULT_CHAT_ID)
-        assertThat(logEntry?.chatTitle).isEqualTo("Test Chat")
-        assertThat(logEntry?.adminId).isEqualTo(user.id)
-        assertThat(logEntry?.actionType).isEqualTo(ActionType.CONFIG_CHANGED)
-        assertThat(logEntry?.reason).contains("cleanService: ON")
-        assertThat(logEntry?.reason).contains("maxWarnings: 5")
+        assertThat(configLog).isNotNull
+        assertThat(configLog?.reason).contains("maxWarnings: 5")
     }
 
     @Test
@@ -269,16 +276,19 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT settings - updates multiple settings at once`() = runBlocking {
+    fun `PUT settings - updates multiple settings at once`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
 
         chatSettingsRepository.save(testDataFactory.createChatSettings())
+        // Setup config with different values than what we'll send, so changes are logged
         moderationConfigRepository.save(
             ModerationConfig(
                 chatId = TestDataFactory.DEFAULT_CHAT_ID,
-                logChannelId = -1001234567890L
+                logChannelId = -1001234567890L,
+                thresholdAction = PunishmentType.BAN.name, // Different from MUTE we'll send
+                defaultBlocklistAction = PunishmentType.BAN.name // Different from WARN we'll send
             )
         )
 
@@ -305,23 +315,30 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             jsonPath("$.defaultBlocklistAction") { value("WARN") }
         }
 
-        // Verify all changes logged
-        val logEntry = capturingLogChannelPort.waitForEntry(
+        // cleanServiceEnabled is logged with CLEAN_SERVICE_ON action type
+        val cleanServiceLog = capturingLogChannelPort.waitForEntry(
+            channelId = -1001234567890L,
+            actionType = ActionType.CLEAN_SERVICE_ON,
+            timeoutMs = 2000
+        )
+        assertThat(cleanServiceLog).isNotNull
+
+        // Other config changes are logged with CONFIG_CHANGED action type
+        val configLog = capturingLogChannelPort.waitForEntry(
             channelId = -1001234567890L,
             actionType = ActionType.CONFIG_CHANGED,
             timeoutMs = 2000
         )
 
-        assertThat(logEntry?.reason).contains("cleanService: ON")
-        assertThat(logEntry?.reason).contains("maxWarnings: 4")
-        assertThat(logEntry?.reason).contains("warningTtl: 72h")
-        assertThat(logEntry?.reason).contains("thresholdAction: MUTE")
-        assertThat(logEntry?.reason).contains("thresholdDuration: 120min")
-        assertThat(logEntry?.reason).contains("defaultBlocklistAction: WARN")
+        assertThat(configLog?.reason).contains("maxWarnings: 4")
+        assertThat(configLog?.reason).contains("warningTtl: 72h")
+        assertThat(configLog?.reason).contains("thresholdAction: MUTE")
+        assertThat(configLog?.reason).contains("thresholdDuration: 120min")
+        assertThat(configLog?.reason).contains("defaultBlocklistAction: WARN")
     }
 
     @Test
-    fun `PUT settings - does not log when no changes made`() = runBlocking {
+    fun `PUT settings - does not log when no changes made`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -349,7 +366,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT settings - updates log channel ID`() = runBlocking {
+    fun `PUT settings - updates log channel ID`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -373,9 +390,9 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             jsonPath("$.logChannelId") { value(newLogChannelId) }
         }
 
-        // Verify log sent to OLD channel (before change takes effect)
+        // Verify log sent to NEW channel (config is saved before logging)
         val logEntry = capturingLogChannelPort.waitForEntry(
-            channelId = -1001111111111L,
+            channelId = newLogChannelId,
             actionType = ActionType.CONFIG_CHANGED,
             timeoutMs = 2000
         )

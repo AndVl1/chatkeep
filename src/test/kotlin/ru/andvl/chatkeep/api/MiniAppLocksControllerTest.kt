@@ -225,7 +225,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT locks - enables lock warns and logs change`() = runBlocking {
+    fun `PUT locks - enables lock warns and logs change`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -278,7 +278,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT locks - disables lock warns and logs change`() = runBlocking {
+    fun `PUT locks - disables lock warns and logs change`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -293,7 +293,15 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
             )
         )
 
-        // Initially enabled (default)
+        // First enable lock warns (default is false)
+        lockSettingsRepository.save(
+            LockSettings.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                lockWarns = true
+            )
+        )
+
+        // Now disable lock warns - this should trigger a log
         mockMvc.put("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
@@ -320,7 +328,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT locks - does not log when lock warns unchanged`() = runBlocking {
+    fun `PUT locks - does not log when lock warns unchanged`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -469,7 +477,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT locks - logs LOCK_ENABLED when lock is enabled`() = runBlocking {
+    fun `PUT locks - logs LOCK_ENABLED when lock is enabled`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -526,7 +534,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT locks - logs LOCK_DISABLED when lock is disabled`() = runBlocking {
+    fun `PUT locks - logs LOCK_DISABLED when lock is disabled`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -580,7 +588,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT locks - does not log when lock state unchanged`() = runBlocking {
+    fun `PUT locks - does not log when lock state unchanged`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
@@ -626,7 +634,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
     }
 
     @Test
-    fun `PUT locks - logs multiple lock changes`() = runBlocking {
+    fun `PUT locks - logs multiple lock changes`(): Unit = runBlocking {
         val user = testDataFactory.createTelegramUser()
         val authHeader = authTestHelper.createValidAuthHeader(user)
         mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)

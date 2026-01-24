@@ -107,6 +107,139 @@ export interface MediaUploadResponse {
   mediaType: 'PHOTO' | 'VIDEO' | 'DOCUMENT' | 'ANIMATION';
 }
 
+// === Statistics Types ===
+
+export interface ChatStatistics {
+  chatId: number;
+  totalMessages: number;
+  totalUsers: number;
+  activeWarnings: number;
+  totalBans: number;
+  totalMutes: number;
+  totalKicks: number;
+  messagesLast24h: number;
+  messagesLast7d: number;
+  messagesLast30d: number;
+}
+
+// === Session Types ===
+
+export interface AdminSession {
+  chatId: number;
+  isConnected: boolean;
+  connectedAt?: string;
+  lastActivity?: string;
+}
+
+// === Admin Logs Types ===
+
+export interface AdminLog {
+  id: number;
+  chatId: number;
+  action: string;
+  performedBy: number;
+  performedByUsername?: string;
+  targetUserId?: number;
+  targetUsername?: string;
+  details?: string;
+  timestamp: string;
+}
+
+export interface AdminLogsResponse {
+  logs: AdminLog[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminLogsFilter {
+  action?: string;
+  performedBy?: number;
+  targetUserId?: number;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// === Welcome Message Types ===
+
+export interface WelcomeMessage {
+  enabled: boolean;
+  messageText: string | null;
+  sendToChat: boolean;
+  deleteAfterSeconds: number | null;
+}
+
+export interface UpdateWelcomeMessageRequest {
+  enabled?: boolean;
+  messageText?: string | null;
+  sendToChat?: boolean;
+  deleteAfterSeconds?: number | null;
+}
+
+// === Rules Types ===
+
+export interface ChatRules {
+  chatId: number;
+  rulesText: string | null;
+}
+
+export interface UpdateRulesRequest {
+  rulesText?: string | null;
+}
+
+// === Notes Types ===
+
+export interface Note {
+  id: number;
+  noteName: string;
+  content: string;
+  chatId: number;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AddNoteRequest {
+  noteName: string;
+  content: string;
+}
+
+export interface UpdateNoteRequest {
+  noteName?: string;
+  content?: string;
+}
+
+// === Anti-Flood Types ===
+
+export interface AntiFloodSettings {
+  chatId: number;
+  enabled: boolean;
+  maxMessages: number;
+  timeWindowSeconds: number;
+  action: PunishmentType;
+  actionDurationMinutes: number | null;
+}
+
+export interface UpdateAntiFloodRequest {
+  enabled?: boolean;
+  maxMessages?: number;
+  timeWindowSeconds?: number;
+  action?: PunishmentType;
+  actionDurationMinutes?: number | null;
+}
+
+// === Feature Capability Types ===
+
+export interface FeatureCapability {
+  id: string;
+  category: 'MODERATION' | 'AUTOMATION' | 'SETTINGS' | 'CONTENT';
+  name: string;
+  description: string;
+  commands?: string[];
+}
+
 // === Telegram Types ===
 
 export interface TelegramUser {
