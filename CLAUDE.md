@@ -422,6 +422,57 @@ Create a `PermissionUtils` object with reusable permission checking functions.
 - **DO** commit tech debt updates as separate commits with message: `docs: add tech debt entry - [brief description]`
 - **DO** continue with the main task after documenting
 
+## Known Issues & Bug Tracking
+
+**Location**: `docs/KNOWN_ISSUES.md`
+
+This file tracks significant bugs, their root causes, and fixes. It serves as institutional memory to prevent repeating mistakes.
+
+### When to READ this file
+
+- **Before investigating a bug** - check if similar issues were fixed before
+- **Before implementing a feature** - learn from past mistakes in related areas
+- **When you see a pattern** that seems unusual - it might exist to fix a previous bug
+
+### When to WRITE to this file
+
+After fixing any significant bug, add an entry with:
+- Issue description and symptoms
+- Root cause analysis
+- Fix applied
+- Files changed
+- Lesson learned
+
+### Entry Format
+
+```markdown
+## YYYY-MM-DD: Brief title
+
+**Issue**: One-line description
+
+**Symptoms**:
+- What the user/developer observed
+
+**Root Cause**:
+Why the bug occurred.
+
+**Fix**:
+What was changed.
+
+**Files Changed**:
+- List of files
+
+**Lesson Learned**:
+Key takeaway to prevent similar issues.
+```
+
+### Key Patterns from Past Bugs
+
+| Pattern | Issue | Solution |
+|---------|-------|----------|
+| Spring Data JDBC + non-auto-generated PK | INSERT fails with NULL constraint | Implement `Persistable<T>` interface |
+| Testing config change logging | No log written | Ensure initial state differs from final state |
+
 ## Global Execution Rules (IMPORTANT)
 
 These rules apply to the main agent and ALL sub-agents.
