@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Section, Card } from '@telegram-apps/telegram-ui';
+import { Section, Card } from '@telegram-apps/telegram-ui';
+import { CustomBackButton } from '@/components/common/CustomBackButton';
 
 const CAPABILITIES = [
   {
@@ -99,14 +99,11 @@ const CAPABILITIES = [
 
 export function CapabilitiesPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
-        <Button size="s" mode="plain" onClick={() => navigate('/')}>
-          {t('common.back')}
-        </Button>
+        <CustomBackButton to="/" />
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
           {t('capabilities.title')}
         </h1>

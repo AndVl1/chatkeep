@@ -1,14 +1,14 @@
-import { useParams, Navigate, useNavigate } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Section } from '@telegram-apps/telegram-ui';
+import { Card, Section } from '@telegram-apps/telegram-ui';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
+import { CustomBackButton } from '@/components/common/CustomBackButton';
 import { useStatistics } from '@/hooks/api/useStatistics';
 
 export function StatisticsPage() {
   const { t } = useTranslation();
   const { chatId } = useParams<{ chatId: string }>();
-  const navigate = useNavigate();
   const numericChatId = Number(chatId);
 
   const { data: stats, isLoading, error, refetch } = useStatistics(numericChatId);
@@ -28,9 +28,7 @@ export function StatisticsPage() {
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
-        <Button size="s" mode="plain" onClick={() => navigate(`/chat/${chatId}/settings`)}>
-          {t('common.back')}
-        </Button>
+        <CustomBackButton to={`/chat/${chatId}/settings`} />
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
           {t('statistics.title')}
         </h1>

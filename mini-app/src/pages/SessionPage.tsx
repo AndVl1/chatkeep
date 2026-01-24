@@ -1,4 +1,4 @@
-import { useParams, Navigate, useNavigate } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Section } from '@telegram-apps/telegram-ui';
@@ -6,11 +6,11 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useSession } from '@/hooks/api/useSession';
 import { useNotification } from '@/hooks/ui/useNotification';
+import { CustomBackButton } from '@/components/common/CustomBackButton';
 
 export function SessionPage() {
   const { t } = useTranslation();
   const { chatId } = useParams<{ chatId: string }>();
-  const navigate = useNavigate();
   const numericChatId = Number(chatId);
 
   const { data: session, isLoading, isConnecting, error, connect, disconnect, refetch } = useSession(numericChatId);
@@ -53,9 +53,7 @@ export function SessionPage() {
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
-        <Button size="s" mode="plain" onClick={() => navigate(`/chat/${chatId}/settings`)}>
-          {t('common.back')}
-        </Button>
+        <CustomBackButton to={`/chat/${chatId}/settings`} />
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
           {t('session.title')}
         </h1>

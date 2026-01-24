@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppRoot } from '@telegram-apps/telegram-ui';
 import { useEffect, useState } from 'react';
-import { retrieveLaunchParams, miniApp, themeParams, viewport, initData } from '@telegram-apps/sdk';
+import { init, retrieveLaunchParams, miniApp, themeParams, viewport, initData, backButton } from '@telegram-apps/sdk';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { HomePage } from '@/pages/HomePage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -120,21 +120,27 @@ export function App() {
     // Production: Initialize SDK only if inside Telegram
     if (isTelegramEnv) {
       try {
+        // Initialize SDK first (required for all components)
+        init();
+
         retrieveLaunchParams();
 
         miniApp.mount();
         themeParams.mount();
         viewport.mount();
+
+        // Mount backButton if available (may not be on all platforms)
+        if (backButton.mount.isAvailable()) {
+          backButton.mount();
+        }
+
         initData.restore();
 
         miniApp.ready();
-        console.log('[SDK] Telegram Mini App initialized');
       } catch (error) {
         console.error('[SDK] Initialization failed:', error);
         // Don't throw - allow web mode fallback
       }
-    } else {
-      console.log('[SDK] Web mode - skipping Telegram SDK initialization');
     }
 
     setSdkInitialized(true);
