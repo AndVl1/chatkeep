@@ -21,6 +21,7 @@ import {
   mockLocks,
 } from '@/test/mocks/server';
 import { mockLocksAllUnlocked, mockLocksStrictMode } from '@/test/mocks/data';
+import { simulateWebMode } from '@/test/setup';
 
 describe('Locks Page Flow', () => {
   const chatId = 100;
@@ -59,7 +60,10 @@ describe('Locks Page Flow', () => {
       expect(screen.getByText('Configure Locks')).toBeInTheDocument();
     });
 
-    it('should display back button', async () => {
+    it('should display back button in web mode', async () => {
+      // Back button is only visible in web mode (hidden in Mini App mode where native back is used)
+      const restoreMiniApp = simulateWebMode();
+
       setMockLocks(chatId, mockLocks);
       renderWithProviders(<LocksPage />, {
         initialEntries: [`/chat/${chatId}/locks`],
@@ -70,6 +74,8 @@ describe('Locks Page Flow', () => {
       });
 
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
+
+      restoreMiniApp();
     });
 
     it('should display lock toggles', async () => {
@@ -282,7 +288,10 @@ describe('Locks Page Flow', () => {
   });
 
   describe('Navigation', () => {
-    it('should navigate back to settings when back is clicked', async () => {
+    it('should navigate back to settings when back is clicked in web mode', async () => {
+      // Back button is only visible in web mode (hidden in Mini App mode where native back is used)
+      const restoreMiniApp = simulateWebMode();
+
       setMockLocks(chatId, mockLocks);
       const { user } = renderWithProviders(<LocksPage />, {
         initialEntries: [`/chat/${chatId}/locks`],
@@ -296,6 +305,8 @@ describe('Locks Page Flow', () => {
       await user.click(screen.getByRole('button', { name: /back/i }));
 
       // Navigation should be triggered (we're using MemoryRouter so we can't directly verify URL)
+
+      restoreMiniApp();
     });
   });
 });

@@ -22,6 +22,7 @@ import {
   setMockDelay,
   resetMockState,
 } from '@/test/mocks/server';
+import { simulateWebMode } from '@/test/setup';
 import type { ChannelReply } from '@/types';
 
 describe('Channel Reply Flow', () => {
@@ -300,7 +301,10 @@ describe('Channel Reply Flow', () => {
   });
 
   describe('Navigation', () => {
-    it('should have back button', async () => {
+    it('should have back button in web mode', async () => {
+      // Back button is only visible in web mode (hidden in Mini App mode where native back is used)
+      const restoreMiniApp = simulateWebMode();
+
       setMockChannelReply(chatId, mockChannelReply);
 
       renderWithProviders(<ChannelReplyPage />, {
@@ -312,6 +316,8 @@ describe('Channel Reply Flow', () => {
       }, { timeout: 3000 });
 
       expect(await screen.findByRole('button', { name: /back/i })).toBeInTheDocument();
+
+      restoreMiniApp();
     });
   });
 

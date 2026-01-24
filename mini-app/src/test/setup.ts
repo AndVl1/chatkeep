@@ -105,3 +105,22 @@ const eventListeners: Record<string, Array<(event: any) => void>> = {};
 // Mock environment variables
 // Use full URL for MSW to intercept in Node.js environment
 vi.stubEnv('VITE_API_URL', 'http://localhost:8080/api/v1/miniapp');
+
+/**
+ * Helper to simulate web mode (clear Telegram WebApp mock)
+ * Use this in tests that need to verify web-only UI elements like CustomBackButton
+ */
+export function simulateWebMode() {
+  const originalInitData = (global.window as any).Telegram.WebApp.initData;
+  (global.window as any).Telegram.WebApp.initData = '';
+  return () => {
+    (global.window as any).Telegram.WebApp.initData = originalInitData;
+  };
+}
+
+/**
+ * Helper to simulate Mini App mode (restore Telegram WebApp mock)
+ */
+export function simulateMiniAppMode() {
+  (global.window as any).Telegram.WebApp.initData = 'mock-init-data';
+}

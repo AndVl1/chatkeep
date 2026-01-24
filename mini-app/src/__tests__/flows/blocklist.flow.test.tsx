@@ -22,6 +22,7 @@ import {
   mockBlocklistPatterns,
 } from '@/test/mocks/server';
 import { mockEmptyBlocklist } from '@/test/mocks/data';
+import { simulateWebMode } from '@/test/setup';
 
 describe('Blocklist Page Flow', () => {
   const chatId = 100;
@@ -90,7 +91,10 @@ describe('Blocklist Page Flow', () => {
       expect(screen.getByRole('button', { name: /add pattern/i })).toBeInTheDocument();
     });
 
-    it('should display back button', async () => {
+    it('should display back button in web mode', async () => {
+      // Back button is only visible in web mode (hidden in Mini App mode where native back is used)
+      const restoreMiniApp = simulateWebMode();
+
       setMockBlocklist(chatId, mockBlocklistPatterns);
       renderWithProviders(<BlocklistPage />, {
         initialEntries: [`/chat/${chatId}/blocklist`],
@@ -101,6 +105,8 @@ describe('Blocklist Page Flow', () => {
       });
 
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
+
+      restoreMiniApp();
     });
   });
 
