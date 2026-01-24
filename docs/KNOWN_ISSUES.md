@@ -95,6 +95,62 @@ data class MyEntity(
 
 ---
 
+## 2026-01-24: Telegram Login Widget auth redirects back to login page
+
+**Issue**: On test domain, clicking "Войти как [username]" via Telegram Login Widget redirected back to login page instead of /chats
+
+**Symptoms**:
+- User clicks Telegram Login Widget button
+- Telegram OAuth completes successfully
+- Page redirects back to login page (infinite loop)
+- Mini App mode (via Telegram WebApp) worked correctly
+- Only browser-based Login Widget had the issue
+
+**Root Cause**:
+localStorage key mismatch between two storage mechanisms in `authStore.ts`:
+
+1. **Zustand persist middleware** writes to: `localStorage['chatkeep-auth-storage']`
+2. **Manual `initialize()` function** reads from: `localStorage['chatkeep_auth_token']` and `localStorage['chatkeep_auth_user']`
+
+Flow:
+1. Login succeeds → token saved by Zustand to `chatkeep-auth-storage`
+2. Navigate to /chats → AuthProvider calls `initialize()`
+3. `initialize()` reads from `chatkeep_auth_token` → gets `null` (wrong key!)
+4. `isWebAuthenticated = false` → renders LoginPage instead of content
+
+Mini App worked because it uses different auth mechanism (`initData` from Telegram SDK), not localStorage.
+
+**Fix**:
+1. Removed `TOKEN_STORAGE_KEY` and `USER_STORAGE_KEY` constants
+2. Removed `initialize()` function entirely
+3. Removed storage event listener using wrong keys
+4. Let Zustand persist middleware handle all hydration automatically
+
+**Files Changed**:
+- `mini-app/src/stores/authStore.ts` - Removed manual localStorage handling
+- `mini-app/src/App.tsx` - Removed `initialize()` call from AuthProvider
+
+**Lesson Learned**:
+When using Zustand with `persist` middleware:
+1. Don't create manual localStorage read/write functions
+2. Zustand persist handles hydration automatically on mount
+3. Don't mix Zustand persist with manual localStorage keys
+4. If you need custom storage keys, use Zustand's custom storage option, not parallel manual access
+
+**Pattern to Avoid**:
+```typescript
+// BAD: Mixing Zustand persist with manual localStorage
+const TOKEN_KEY = 'my_token';
+create(persist({...}, { name: 'zustand-storage' })); // Writes here
+localStorage.getItem(TOKEN_KEY); // Reads from wrong place!
+
+// GOOD: Let Zustand handle everything
+create(persist({...}, { name: 'zustand-storage' }));
+// Zustand automatically hydrates on mount
+```
+
+---
+
 ## Template for New Entries
 
 ```markdown
