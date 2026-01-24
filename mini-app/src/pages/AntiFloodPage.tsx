@@ -1,9 +1,10 @@
-import { useParams, Navigate, useNavigate } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Select, Section, Switch } from '@telegram-apps/telegram-ui';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
+import { CustomBackButton } from '@/components/common/CustomBackButton';
 import { useAntiFlood } from '@/hooks/api/useAntiFlood';
 import { useNotification } from '@/hooks/ui/useNotification';
 import type { PunishmentType } from '@/types';
@@ -11,7 +12,6 @@ import type { PunishmentType } from '@/types';
 export function AntiFloodPage() {
   const { t } = useTranslation();
   const { chatId } = useParams<{ chatId: string }>();
-  const navigate = useNavigate();
   const numericChatId = Number(chatId);
 
   const { data: antiflood, isLoading, isSaving, error, mutate, refetch } = useAntiFlood(numericChatId);
@@ -63,9 +63,7 @@ export function AntiFloodPage() {
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
-        <Button size="s" mode="plain" onClick={() => navigate(`/chat/${chatId}/settings`)}>
-          {t('common.back')}
-        </Button>
+        <CustomBackButton to={`/chat/${chatId}/settings`} />
         <h1 style={{ margin: 0, fontSize: '20px', flex: 1 }}>
           {t('antiflood.title')}
         </h1>
