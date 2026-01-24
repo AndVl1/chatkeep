@@ -29,14 +29,8 @@ import '@telegram-apps/telegram-ui/dist/styles.css';
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const { isMiniApp, isWeb } = useAuthMode();
   const { isAuthenticated: isMiniAppAuthenticated, getAuthHeader } = useTelegramAuth();
-  const { isAuthenticated: isWebAuthenticated, token, initialize, logout } = useAuthStore();
-
-  // Initialize web auth store on mount
-  useEffect(() => {
-    if (isWeb) {
-      initialize();
-    }
-  }, [isWeb, initialize]);
+  const { isAuthenticated: isWebAuthenticated, token, logout } = useAuthStore();
+  // Note: Zustand persist middleware automatically hydrates state from localStorage on mount
 
   // Register logout handler for API client
   useEffect(() => {
