@@ -92,7 +92,13 @@ class TelegramLogChannelAdapter(
                 ActionType.LOCK_WARNS_OFF,
                 ActionType.CONFIG_CHANGED,
                 ActionType.LOCK_ENABLED,
-                ActionType.LOCK_DISABLED
+                ActionType.LOCK_DISABLED,
+                // Mini App content actions - handled specially below
+                ActionType.WELCOME_CHANGED,
+                ActionType.RULES_CHANGED,
+                ActionType.TWITCH_CHANNEL_ADDED,
+                ActionType.TWITCH_CHANNEL_REMOVED,
+                ActionType.TWITCH_SETTINGS_CHANGED
             )
             if (entry.actionType !in configActions) {
                 val reason = entry.reason ?: "No reason provided"
@@ -109,6 +115,24 @@ class TelegramLogChannelAdapter(
             // Config change details
             if (entry.actionType == ActionType.CONFIG_CHANGED && entry.reason != null) {
                 appendLine("<b>Changes:</b> ${entry.reason}")
+            }
+
+            // Mini App content change details
+            when (entry.actionType) {
+                ActionType.WELCOME_CHANGED -> {
+                    entry.reason?.let { appendLine("<b>Changes:</b> $it") }
+                }
+                ActionType.RULES_CHANGED -> {
+                    entry.reason?.let { appendLine("<b>Details:</b> $it") }
+                }
+                ActionType.TWITCH_CHANNEL_ADDED,
+                ActionType.TWITCH_CHANNEL_REMOVED -> {
+                    entry.reason?.let { appendLine("<b>Channel:</b> $it") }
+                }
+                ActionType.TWITCH_SETTINGS_CHANGED -> {
+                    entry.reason?.let { appendLine("<b>Changes:</b> $it") }
+                }
+                else -> { /* Handled above */ }
             }
 
             // Source (if not manual)
@@ -149,6 +173,12 @@ class TelegramLogChannelAdapter(
             ActionType.LOCK_DISABLED -> "#LOCK_DISABLED"
             ActionType.CONFIG_CHANGED -> "#CONFIG_CHANGED"
             ActionType.BLOCKLIST_REMOVED -> "#BLOCKLIST_REMOVED"
+            // Mini App content changes
+            ActionType.WELCOME_CHANGED -> "#WELCOME_CHANGED"
+            ActionType.RULES_CHANGED -> "#RULES_CHANGED"
+            ActionType.TWITCH_CHANNEL_ADDED -> "#TWITCH_ADDED"
+            ActionType.TWITCH_CHANNEL_REMOVED -> "#TWITCH_REMOVED"
+            ActionType.TWITCH_SETTINGS_CHANGED -> "#TWITCH_SETTINGS"
         }
     }
 
