@@ -1,0 +1,10 @@
+# Test environment specific configuration
+# Used when deploying to test server (chatmodtest.ru)
+
+spring:
+  flyway:
+    # Skip validation on test environment to allow migration file changes during development
+    # This is safe because test DB can be recreated if needed
+    validate-on-migrate: false
+    # Clean database on validation error (DANGEROUS - only for test!)
+    clean-on-validation-error: true

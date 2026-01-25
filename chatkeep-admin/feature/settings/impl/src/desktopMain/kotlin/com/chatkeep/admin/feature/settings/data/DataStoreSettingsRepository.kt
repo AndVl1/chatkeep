@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.chatkeep.admin.core.common.BuildConfig
 import com.chatkeep.admin.feature.settings.Theme
 import com.chatkeep.admin.feature.settings.UserSettings
 import com.chatkeep.admin.feature.settings.domain.SettingsRepository
@@ -37,7 +38,7 @@ class DataStoreSettingsRepository(
         dataStore.data
             .map { preferences ->
                 val themeString = preferences[themeKey] ?: "SYSTEM"
-                val baseUrl = preferences[baseUrlKey] ?: "https://admin.chatmoderatorbot.ru"
+                val baseUrl = preferences[baseUrlKey] ?: BuildConfig.DEFAULT_BASE_URL
                 UserSettings(
                     theme = Theme.valueOf(themeString),
                     baseUrl = baseUrl

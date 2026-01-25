@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-@EnableConfigurationProperties(AdminLogsProperties::class, AdminProperties::class, BotProperties::class, AdminBotProperties::class)
+@EnableConfigurationProperties(AdminLogsProperties::class, AdminProperties::class, BotProperties::class, AdminBotProperties::class, TwitchProperties::class)
 class TelegramBotConfig {
     @Bean
     @ConditionalOnProperty(name = ["telegram.bot.enabled"], havingValue = "true", matchIfMissing = true)

@@ -13,7 +13,8 @@ import kotlinx.coroutines.launch
 
 internal class DefaultChatsComponent(
     componentContext: ComponentContext,
-    apiService: AdminApiService
+    apiService: AdminApiService,
+    private val onNavigateToDetails: (chatId: Long, chatTitle: String) -> Unit
 ) : ChatsComponent, ComponentContext by componentContext {
 
     // Internal dependencies created within the component
@@ -33,8 +34,8 @@ internal class DefaultChatsComponent(
         loadData()
     }
 
-    override fun onChatClick(chat: Chat) {
-        // Future: navigate to chat details
+    override fun onChatClick(chatId: Long, chatTitle: String) {
+        onNavigateToDetails(chatId, chatTitle)
     }
 
     private fun loadData() {

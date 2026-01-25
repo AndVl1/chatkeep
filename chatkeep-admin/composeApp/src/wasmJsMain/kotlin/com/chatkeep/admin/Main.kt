@@ -9,6 +9,7 @@ import com.chatkeep.admin.di.AppFactory
 import com.chatkeep.admin.di.createPlatformDataStore
 import com.chatkeep.admin.di.createPlatformHttpClient
 import com.chatkeep.admin.di.createPlatformTokenStorage
+import com.chatkeep.admin.core.common.BuildConfig
 
 // External JS functions for window message handling
 @JsFun("(callback) => { window.addEventListener('message', (event) => { callback(event.data); }); }")
@@ -47,8 +48,8 @@ fun main() {
 
     // Create platform dependencies
     val dataStore = createPlatformDataStore(Unit)
-    // WASM doesn't support DataStore, so always use default
-    val baseUrl = "https://admin.chatmoderatorbot.ru"
+    // WASM doesn't support DataStore, so always use default from BuildConfig
+    val baseUrl = BuildConfig.DEFAULT_BASE_URL
     val httpClient = createPlatformHttpClient(baseUrl)
     val tokenStorage = createPlatformTokenStorage(dataStore)
 

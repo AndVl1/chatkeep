@@ -1,5 +1,6 @@
 package ru.andvl.chatkeep.api
 
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
@@ -92,8 +93,26 @@ abstract class MiniAppApiTestBase {
     @Autowired
     protected lateinit var mediaStorageRepository: ru.andvl.chatkeep.infrastructure.repository.media.MediaStorageRepository
 
+    @Autowired
+    protected lateinit var twitchChannelSubscriptionRepository: ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchChannelSubscriptionRepository
+
+    @Autowired
+    protected lateinit var twitchStreamRepository: ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchStreamRepository
+
+    @Autowired
+    protected lateinit var streamTimelineEventRepository: ru.andvl.chatkeep.infrastructure.repository.twitch.StreamTimelineEventRepository
+
+    @Autowired
+    protected lateinit var twitchNotificationSettingsRepository: ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchNotificationSettingsRepository
+
+    @Autowired
+    protected lateinit var chatGatedFeatureRepository: ru.andvl.chatkeep.infrastructure.repository.gated.ChatGatedFeatureRepository
+
     @BeforeEach
     fun baseSetup() {
+        // Clear mock recordings (but preserve relaxed behavior)
+        clearMocks(adminCacheService, answers = false, recordedCalls = true, childMocks = false)
+
         // Clear test auth users
         authTestHelper.clearUsers()
 
@@ -130,6 +149,11 @@ abstract class MiniAppApiTestBase {
      */
     private fun cleanupDatabase() {
         // Clean up in reverse order of dependencies
+        streamTimelineEventRepository.deleteAll()
+        twitchStreamRepository.deleteAll()
+        twitchChannelSubscriptionRepository.deleteAll()
+        twitchNotificationSettingsRepository.deleteAll()
+        chatGatedFeatureRepository.deleteAll()
         blocklistPatternRepository.deleteAll()
         channelReplySettingsRepository.deleteAll()
         mediaStorageRepository.deleteAll()

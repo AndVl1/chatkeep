@@ -1,5 +1,6 @@
 package com.chatkeep.admin.core.network
 
+import com.chatkeep.admin.core.common.BuildConfig
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -72,10 +73,9 @@ fun createHttpClient(baseUrl: String? = null): HttpClient = HttpClient {
         }
     }
 
-    if (baseUrl != null) {
-        install(DefaultRequest) {
-            url(baseUrl)
-        }
+    val finalBaseUrl = baseUrl ?: BuildConfig.DEFAULT_BASE_URL
+    install(DefaultRequest) {
+        url(finalBaseUrl)
     }
 }
 

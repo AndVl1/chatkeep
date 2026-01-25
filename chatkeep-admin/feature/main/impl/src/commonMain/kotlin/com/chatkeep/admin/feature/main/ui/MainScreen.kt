@@ -11,6 +11,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.chatkeep.admin.feature.main.MainComponent
 import com.chatkeep.admin.feature.dashboard.ui.DashboardScreen
 import com.chatkeep.admin.feature.chats.ui.ChatsScreen
+import com.chatkeep.admin.feature.chatdetails.ui.ChatDetailsScreen
 import com.chatkeep.admin.feature.deploy.ui.DeployScreen
 import com.chatkeep.admin.feature.logs.ui.LogsScreen
 import com.chatkeep.admin.feature.settings.ui.SettingsScreen
@@ -35,6 +36,7 @@ fun MainScreen(component: MainComponent, modifier: Modifier = Modifier) {
                     when (val instance = child.instance) {
                         is MainComponent.Child.Dashboard -> DashboardScreen(instance.component)
                         is MainComponent.Child.Chats -> ChatsScreen(instance.component)
+                        is MainComponent.Child.ChatDetails -> ChatDetailsScreen(instance.component)
                         is MainComponent.Child.Deploy -> DeployScreen(instance.component)
                         is MainComponent.Child.Logs -> LogsScreen(instance.component)
                         is MainComponent.Child.Settings -> SettingsScreen(instance.component)

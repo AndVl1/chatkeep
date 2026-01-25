@@ -4,10 +4,13 @@ import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
+import com.arkivanov.decompose.router.stack.pop
+import com.arkivanov.decompose.router.stack.push
 import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.network.AdminApiService
 import com.chatkeep.admin.feature.chats.createChatsComponent
+import com.chatkeep.admin.feature.chatdetails.createChatDetailsComponent
 import com.chatkeep.admin.feature.dashboard.createDashboardComponent
 import com.chatkeep.admin.feature.deploy.createDeployComponent
 import com.chatkeep.admin.feature.logs.createLogsComponent
@@ -45,7 +48,19 @@ internal class DefaultMainComponent(
         MainComponent.Config.Chats -> MainComponent.Child.Chats(
             createChatsComponent(
                 componentContext = context,
-                apiService = apiService
+                apiService = apiService,
+                onNavigateToDetails = { chatId, chatTitle ->
+                    navigation.push(MainComponent.Config.ChatDetails(chatId, chatTitle))
+                }
+            )
+        )
+        is MainComponent.Config.ChatDetails -> MainComponent.Child.ChatDetails(
+            createChatDetailsComponent(
+                componentContext = context,
+                chatId = config.chatId,
+                chatTitle = config.chatTitle,
+                apiService = apiService,
+                onBack = { navigation.pop() }
             )
         )
         MainComponent.Config.Deploy -> MainComponent.Child.Deploy(

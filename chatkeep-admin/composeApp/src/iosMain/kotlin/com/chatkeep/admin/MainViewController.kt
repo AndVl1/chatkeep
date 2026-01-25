@@ -13,6 +13,7 @@ import com.chatkeep.admin.di.createPlatformDataStore
 import com.chatkeep.admin.di.createPlatformHttpClient
 import com.chatkeep.admin.di.createPlatformTokenStorage
 import com.chatkeep.admin.di.getBaseUrlFromDataStore
+import com.chatkeep.admin.core.common.BuildConfig
 import kotlinx.coroutines.runBlocking
 import platform.UIKit.UIViewController
 
@@ -22,7 +23,7 @@ fun MainViewController(): UIViewController {
 
     // Load base URL synchronously for iOS (no async initialization)
     val baseUrl = runBlocking {
-        getBaseUrlFromDataStore(dataStore) ?: "https://admin.chatmoderatorbot.ru"
+        getBaseUrlFromDataStore(dataStore) ?: BuildConfig.DEFAULT_BASE_URL
     }
 
     val httpClient = createPlatformHttpClient(baseUrl)

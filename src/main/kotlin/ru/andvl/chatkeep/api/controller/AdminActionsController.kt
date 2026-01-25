@@ -14,13 +14,16 @@ import org.springframework.web.bind.annotation.RestController
 import ru.andvl.chatkeep.api.auth.AdminAuthFilter
 import ru.andvl.chatkeep.api.auth.JwtService.JwtUser
 import ru.andvl.chatkeep.api.dto.ActionResponse
+import ru.andvl.chatkeep.domain.service.twitch.TwitchChannelService
 import java.time.Instant
 
 @RestController
 @RequestMapping("/api/v1/admin/actions")
 @Tag(name = "Admin - Actions", description = "Quick admin actions")
 @SecurityRequirement(name = "BearerAuth")
-class AdminActionsController {
+class AdminActionsController(
+    private val twitchChannelService: TwitchChannelService
+) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
     private val auditLogger = LoggerFactory.getLogger("ADMIN_AUDIT")
@@ -75,6 +78,57 @@ class AdminActionsController {
                 ActionResponse(
                     success = false,
                     message = "Error restarting bot: ${e.message}"
+                )
+            )
+        }
+    }
+
+    @PostMapping("/twitch/resync")
+    @Operation(summary = "Resync Twitch EventSub", description = "Creates EventSub subscriptions for channels without them")
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Resync completed"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "500", description = "Resync failed")
+    )
+    fun resyncTwitchEventSub(request: HttpServletRequest): ResponseEntity<ActionResponse> {
+        val adminUser = request.getAttribute(AdminAuthFilter.ADMIN_USER_ATTR) as? JwtUser
+        val adminId = adminUser?.id ?: 0L
+        val adminUsername = adminUser?.username ?: "unknown"
+
+        return try {
+            logAudit("twitch_resync", adminId, adminUsername, "initiated")
+            logger.info("Admin $adminId ($adminUsername) initiating Twitch EventSub resync")
+
+            val results = twitchChannelService.resyncEventSubSubscriptions()
+
+            val successCount = results.count { it.second }
+            val failCount = results.count { !it.second }
+
+            val message = if (results.isEmpty()) {
+                "No channels need resyncing - all have EventSub IDs"
+            } else {
+                val details = results.joinToString(", ") { (login, success) ->
+                    "$login: ${if (success) "✓" else "✗"}"
+                }
+                "Resync completed: $successCount success, $failCount failed. Details: $details"
+            }
+
+            logAudit("twitch_resync", adminId, adminUsername, "success", "success=$successCount,failed=$failCount")
+            logger.info("Twitch resync completed: $message")
+
+            ResponseEntity.ok(
+                ActionResponse(
+                    success = failCount == 0,
+                    message = message
+                )
+            )
+        } catch (e: Exception) {
+            logAudit("twitch_resync", adminId, adminUsername, "error", e.message ?: "unknown_error")
+            logger.error("Error during Twitch resync: ${e.message}", e)
+            ResponseEntity.ok(
+                ActionResponse(
+                    success = false,
+                    message = "Error during Twitch resync: ${e.message}"
                 )
             )
         }
