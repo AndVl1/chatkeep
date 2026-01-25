@@ -18,6 +18,7 @@ import { AntiFloodPage } from '@/pages/AntiFloodPage';
 import { CapabilitiesPage } from '@/pages/CapabilitiesPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
+import { TwitchSettingsPage } from '@/pages/TwitchSettingsPage';
 import { useTelegramAuth } from '@/hooks/telegram/useTelegramAuth';
 import { useAuthMode } from '@/hooks/auth/useAuthMode';
 import { useAuthStore } from '@/stores/authStore';
@@ -174,6 +175,7 @@ export function App() {
                           <Route path="rules" element={<RulesPage />} />
                           <Route path="notes" element={<NotesPage />} />
                           <Route path="antiflood" element={<AntiFloodPage />} />
+                          <Route path="twitch" element={<TwitchSettingsPage />} />
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />
                       </Route>

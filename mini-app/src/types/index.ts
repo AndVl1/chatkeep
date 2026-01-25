@@ -240,6 +240,49 @@ export interface FeatureCapability {
   commands?: string[];
 }
 
+// === Gated Features Types ===
+
+export interface GatedFeature {
+  key: string;
+  enabled: boolean;
+  name: string;
+  description: string;
+}
+
+// === Twitch Integration Types ===
+
+export interface TwitchChannel {
+  id: number;
+  twitchLogin: string;
+  displayName: string;
+  avatarUrl: string | null;
+  isLive: boolean;
+}
+
+export interface TwitchSearchResult {
+  id: string;
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+  isLive: boolean;
+}
+
+export interface TwitchSettings {
+  messageTemplate: string;
+  endedMessageTemplate: string;
+  buttonText: string;
+}
+
+export interface AddTwitchChannelRequest {
+  twitchLogin: string;
+}
+
+export interface UpdateTwitchSettingsRequest {
+  messageTemplate: string;
+  endedMessageTemplate: string;
+  buttonText: string;
+}
+
 // === Telegram Types ===
 
 export interface TelegramUser {

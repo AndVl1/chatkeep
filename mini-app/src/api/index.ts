@@ -11,3 +11,5 @@ export * from './welcome';
 export * from './rules';
 export * from './notes';
 export * from './antiflood';
+export * from './features';
+export * from './twitch';
