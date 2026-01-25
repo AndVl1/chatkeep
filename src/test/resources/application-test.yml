@@ -21,6 +21,12 @@ jwt:
   secret: test-secret-key-for-testing-at-least-32-chars-long
   expiration-hours: 24
 
+twitch:
+  client-id: test-client-id
+  client-secret: test-client-secret
+  webhook-url: https://test-webhook.example.com/twitch/eventsub
+  webhook-secret: test-webhook-secret
+
 logging:
   level:
     ru.andvl.chatkeep: DEBUG
