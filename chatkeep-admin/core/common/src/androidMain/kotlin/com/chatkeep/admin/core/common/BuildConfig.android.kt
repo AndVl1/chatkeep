@@ -25,4 +25,8 @@ actual object BuildConfig {
             val ctx = context ?: return false
             return (ctx.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         }
+
+    actual val DEFAULT_BASE_URL: String = BuildConfigGenerated.API_BASE_URL
+
+    actual val AUTH_DOMAIN: String = BuildConfigGenerated.AUTH_DOMAIN
 }

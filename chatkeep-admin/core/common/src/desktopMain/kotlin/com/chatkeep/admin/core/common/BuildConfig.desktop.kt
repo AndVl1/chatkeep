@@ -13,4 +13,8 @@ actual object BuildConfig {
 
             return sysProp.toBoolean() || envVar.toBoolean()
         }
+
+    actual val DEFAULT_BASE_URL: String = BuildConfigGenerated.API_BASE_URL
+
+    actual val AUTH_DOMAIN: String = BuildConfigGenerated.AUTH_DOMAIN
 }

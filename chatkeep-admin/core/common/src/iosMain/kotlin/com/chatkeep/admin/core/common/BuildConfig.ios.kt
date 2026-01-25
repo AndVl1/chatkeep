@@ -15,4 +15,8 @@ actual object BuildConfig {
             val debugFlag = bundle.objectForInfoDictionaryKey("IS_DEBUG") as? String
             return debugFlag == "1" || debugFlag?.lowercase() == "true"
         }
+
+    actual val DEFAULT_BASE_URL: String = BuildConfigGenerated.API_BASE_URL
+
+    actual val AUTH_DOMAIN: String = BuildConfigGenerated.AUTH_DOMAIN
 }

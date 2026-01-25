@@ -6,7 +6,7 @@ import com.chatkeep.admin.feature.chats.Chat
 interface ChatsComponent {
     val state: Value<ChatsState>
     fun onRefresh()
-    fun onChatClick(chat: Chat)
+    fun onChatClick(chatId: Long, chatTitle: String)
 
     sealed class ChatsState {
         data object Loading : ChatsState()
