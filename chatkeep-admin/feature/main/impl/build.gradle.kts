@@ -39,6 +39,8 @@ kotlin {
             implementation(projects.feature.dashboard.impl)
             implementation(projects.feature.chats.api)
             implementation(projects.feature.chats.impl)
+            implementation(projects.feature.chatdetails.api)
+            implementation(projects.feature.chatdetails.impl)
             implementation(projects.feature.deploy.api)
             implementation(projects.feature.deploy.impl)
             implementation(projects.feature.logs.api)

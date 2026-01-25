@@ -38,6 +38,7 @@
     "rules": "Chat Rules",
     "notes": "Admin Notes",
     "antiflood": "Anti-Flood Protection",
+    "twitch": "Twitch Notifications",
     "adminLogs": "Admin Action Logs",
     "session": "Admin Session",
     "general": "General Settings",
@@ -357,5 +358,32 @@
       "cleanService": "Automatically delete service messages (user joined, left, etc.)",
       "logs": "View and export detailed logs of all admin actions in the chat"
     }
+  },
+  "twitch": {
+    "title": "Twitch Notifications",
+    "channels": "Channels ({{count}}/{{max}})",
+    "noChannels": "No channels added yet",
+    "searchPlaceholder": "Search by name or paste URL (twitch.tv/username)",
+    "live": "🔴 LIVE",
+    "offline": "Offline",
+    "addChannelError": "Failed to add channel",
+    "removeChannelError": "Failed to remove channel",
+    "updateSettingsError": "Failed to update settings",
+    "searchError": "Failed to search channels",
+    "channelAdded": "Channel added successfully",
+    "channelRemoved": "Channel removed successfully",
+    "confirmRemoveChannel": "Are you sure you want to remove this channel?",
+    "maxChannelsReached": "Maximum {{max}} channels allowed",
+    "messageTemplate": "Message Template",
+    "startTemplate": "Stream Start Template",
+    "endedTemplate": "Stream End Template",
+    "templatePlaceholder": "🔴 {streamer} is now live!\n\n{title}\n\n🎮 {game}\n👥 {viewers} viewers\n⏱ {duration}",
+    "templateTruncated": "Template truncated to {{maxLength}} characters",
+    "availableVariables": "Available variables:",
+    "preview": "Message Preview",
+    "timelineAutoAdded": "📋 Timeline will be added automatically",
+    "buttonSettings": "Stream Link Button",
+    "buttonTextPlaceholder": "📺 Watch",
+    "buttonTextHint": "Text for the button that links to the stream (max 64 characters)"
   }
 }

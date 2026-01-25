@@ -9,10 +9,12 @@ import com.chatkeep.admin.core.network.AdminApiService
  */
 fun createChatsComponent(
     componentContext: ComponentContext,
-    apiService: AdminApiService
+    apiService: AdminApiService,
+    onNavigateToDetails: (chatId: Long, chatTitle: String) -> Unit
 ): ChatsComponent {
     return DefaultChatsComponent(
         componentContext = componentContext,
-        apiService = apiService
+        apiService = apiService,
+        onNavigateToDetails = onNavigateToDetails
     )
 }

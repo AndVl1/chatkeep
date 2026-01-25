@@ -13,4 +13,6 @@ interface AdminApiService {
         filter: String? = null
     ): LogsResponse
     suspend fun restartBot(): ActionResponse
+    suspend fun getChatFeatures(chatId: Long): List<GatedFeatureDto>
+    suspend fun setChatFeature(chatId: Long, featureKey: String, enabled: Boolean): GatedFeatureDto
 }

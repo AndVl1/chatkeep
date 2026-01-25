@@ -57,4 +57,10 @@ out/
 .claude/changes.log
 .claude/settings.json
 .claude/research/
+.claude/qa-*.md
+.claude/manual-qa-*.md
+.claude/testing-log.md
+.claude/web-auth-fix.md
+**/changes.log
 .mcp.json
+**/qa-reports/

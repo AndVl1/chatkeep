@@ -32,8 +32,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-chatmoderatorbot}
-      TELEGRAM_ADMINBOT_USERNAME: ${TELEGRAM_ADMIN_BOT_USERNAME:-chatautomodadminbot}
-      TELEGRAM_ADMINBOT_TOKEN: ${TELEGRAM_ADMIN_BOT_TOKEN:-}
+      TELEGRAM_ADMINBOT_USERNAME: ${TELEGRAM_ADMINBOT_USERNAME:-chatautomodadminbot}
+      TELEGRAM_ADMINBOT_TOKEN: ${TELEGRAM_ADMINBOT_TOKEN:-}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       MINI_APP_URL: ${MINI_APP_URL:-}
       ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
@@ -43,6 +43,11 @@ services:
       API_DOMAIN: ${API_DOMAIN:-chatmoderatorbot.ru}
       MINIAPP_DOMAIN: ${MINIAPP_DOMAIN:-miniapp.chatmoderatorbot.ru}
       ADMIN_DOMAIN: ${ADMIN_DOMAIN:-admin.chatmoderatorbot.ru}
+      TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID:-}
+      TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET:-}
+      TWITCH_WEBHOOK_URL: ${TWITCH_WEBHOOK_URL:-}
+      TWITCH_WEBHOOK_SECRET: ${TWITCH_WEBHOOK_SECRET:-}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
     restart: always
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]

@@ -116,7 +116,7 @@ private fun EmptyContent() {
 @Composable
 private fun ChatsContent(
     chats: List<Chat>,
-    onChatClick: (Chat) -> Unit
+    onChatClick: (Long, String) -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -125,7 +125,7 @@ private fun ChatsContent(
         items(chats, key = { it.chatId }) { chat ->
             ChatItem(
                 chat = chat,
-                onClick = { onChatClick(chat) }
+                onClick = { onChatClick(chat.chatId, chat.displayTitle) }
             )
         }
     }

@@ -121,3 +121,17 @@ data class TriggerResponse(
     val message: String,
     val workflowId: String
 )
+
+// Gated Features DTOs
+@Serializable
+data class GatedFeatureDto(
+    val key: String,
+    val enabled: Boolean,
+    val name: String,
+    val description: String
+)
+
+@Serializable
+data class SetFeatureRequest(
+    val enabled: Boolean
+)

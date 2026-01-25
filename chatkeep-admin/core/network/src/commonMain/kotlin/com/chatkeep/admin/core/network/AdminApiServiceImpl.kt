@@ -6,6 +6,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -73,6 +74,20 @@ class AdminApiServiceImpl(
     override suspend fun restartBot(): ActionResponse {
         return httpClient.post("/api/v1/admin/actions/restart") {
             addAuthHeader()
+        }.body()
+    }
+
+    override suspend fun getChatFeatures(chatId: Long): List<GatedFeatureDto> {
+        return httpClient.get("/api/v1/admin/chats/$chatId/features") {
+            addAuthHeader()
+        }.body()
+    }
+
+    override suspend fun setChatFeature(chatId: Long, featureKey: String, enabled: Boolean): GatedFeatureDto {
+        return httpClient.put("/api/v1/admin/chats/$chatId/features/$featureKey") {
+            addAuthHeader()
+            contentType(ContentType.Application.Json.withCharset(Charsets.UTF_8))
+            setBody(SetFeatureRequest(enabled))
         }.body()
     }
 

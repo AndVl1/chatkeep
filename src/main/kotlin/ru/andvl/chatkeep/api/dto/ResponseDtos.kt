@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import java.time.Instant
 
 @Schema(description = "Chat summary information")
@@ -47,6 +48,64 @@ data class LocksResponse(
 data class LockDto(
     val locked: Boolean,
     val reason: String?
+)
+
+// Gated Features DTOs
+data class FeatureStatusDto(
+    val key: String,
+    val enabled: Boolean,
+    val name: String,
+    val description: String,
+    val enabledAt: Instant? = null,
+    val enabledBy: Long? = null
+)
+
+data class SetFeatureRequest(
+    val enabled: Boolean
+)
+
+// Twitch Integration DTOs
+data class TwitchChannelDto(
+    val id: Long,
+    val twitchChannelId: String,
+    val twitchLogin: String,
+    val displayName: String?,
+    val avatarUrl: String?,
+    val isLive: Boolean = false
+)
+
+data class TwitchSearchResultDto(
+    val id: String,
+    val login: String,
+    val displayName: String,
+    val avatarUrl: String?,
+    val isLive: Boolean
+)
+
+data class TwitchSettingsDto(
+    val messageTemplate: String,
+    val endedMessageTemplate: String,
+    val buttonText: String
+)
+
+data class AddTwitchChannelRequest(
+    @field:NotBlank(message = "Twitch login is required")
+    @field:Size(min = 3, max = 25, message = "Twitch login must be 3-25 characters")
+    val twitchLogin: String
+)
+
+data class UpdateTwitchSettingsRequest(
+    @field:NotBlank(message = "Message template is required")
+    @field:Size(max = 2048, message = "Message template must not exceed 2048 characters")
+    val messageTemplate: String,
+
+    @field:NotBlank(message = "Ended message template is required")
+    @field:Size(max = 2048, message = "Ended message template must not exceed 2048 characters")
+    val endedMessageTemplate: String,
+
+    @field:NotBlank(message = "Button text is required")
+    @field:Size(max = 64, message = "Button text must not exceed 64 characters")
+    val buttonText: String
 )
 
 data class BlocklistPatternResponse(

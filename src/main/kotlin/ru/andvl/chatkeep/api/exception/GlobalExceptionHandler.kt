@@ -72,6 +72,14 @@ class GlobalExceptionHandler {
             .body(ErrorResponse(ex.code, ex.message, ex.details))
     }
 
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleIllegalArgument(ex: IllegalArgumentException): ResponseEntity<ErrorResponse> {
+        logger.debug("Illegal argument: ${ex.message}")
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse("BAD_REQUEST", ex.message ?: "Invalid argument"))
+    }
+
     @ExceptionHandler(Exception::class)
     fun handleGenericException(ex: Exception): ResponseEntity<ErrorResponse> {
         logger.error("Unexpected error", ex)

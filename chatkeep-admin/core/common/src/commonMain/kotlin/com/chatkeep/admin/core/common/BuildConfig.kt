@@ -10,4 +10,16 @@ expect object BuildConfig {
      * Mock authentication should ONLY work when this is true.
      */
     val isDebug: Boolean
+
+    /**
+     * Default base URL for API calls.
+     * Can be overridden at build time via gradle property: -Papi.base.url=<url>
+     */
+    val DEFAULT_BASE_URL: String
+
+    /**
+     * Auth domain for Telegram Login Widget page.
+     * Derived from API base URL (api.domain -> admin.domain).
+     */
+    val AUTH_DOMAIN: String
 }

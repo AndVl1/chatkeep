@@ -37,4 +37,9 @@ class ApiTestConfiguration {
     @Bean
     @Primary
     fun mediaStorageService(): MediaStorageService = mockk(relaxed = true)
+
+    @Bean
+    @Primary
+    fun twitchApiClient(): ru.andvl.chatkeep.domain.service.twitch.TwitchApiClient = mockk(relaxed = true)
+
 }

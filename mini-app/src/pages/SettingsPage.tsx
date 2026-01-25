@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { AdminWarningBanner } from '@/components/common/AdminWarningBanner';
 import { CustomBackButton } from '@/components/common/CustomBackButton';
 import { useSettings } from '@/hooks/api/useSettings';
+import { useFeatures } from '@/hooks/api/useFeatures';
 import { useNotification } from '@/hooks/ui/useNotification';
 import { useSelectedChat } from '@/stores/chatStore';
 import type { ChatSettings } from '@/types';
@@ -19,6 +20,7 @@ export function SettingsPage() {
   const numericChatId = Number(chatId);
 
   const { data: settings, isLoading, isSaving, error, mutate, refetch } = useSettings(numericChatId);
+  const { hasFeature } = useFeatures(numericChatId);
   const { showError } = useNotification();
   const selectedChat = useSelectedChat();
 
@@ -138,6 +140,18 @@ export function SettingsPage() {
           {t('settings.antiflood')}
         </Button>
       </div>
+
+      {hasFeature('twitch_integration') && (
+        <div style={{ padding: '16px 0' }}>
+          <Button
+            size="l"
+            stretched
+            onClick={() => navigate(`/chat/${chatId}/twitch`)}
+          >
+            {t('settings.twitch')}
+          </Button>
+        </div>
+      )}
 
       <div style={{ padding: '16px 0' }}>
         <Button

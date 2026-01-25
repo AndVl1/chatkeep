@@ -55,6 +55,12 @@ github:
 admin-logs:
   path: ${ADMIN_LOGS_PATH:/tmp/chatkeep/admin-logs}
 
+twitch:
+  client-id: ${TWITCH_CLIENT_ID:}
+  client-secret: ${TWITCH_CLIENT_SECRET:}
+  webhook-url: ${TWITCH_WEBHOOK_URL:https://api.chatmoderatorbot.ru/webhooks/twitch}
+  webhook-secret: ${TWITCH_WEBHOOK_SECRET:}
+
 management:
   endpoints:
     web:

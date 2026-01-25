@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Profile
 import org.springframework.core.annotation.Order
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 @Component
 @Order(1) // Run before auth filters
+@Profile("!test & !apitest") // Disable rate limiting in test profiles
 class RateLimitingFilter(
     private val objectMapper: ObjectMapper
 ) : OncePerRequestFilter() {

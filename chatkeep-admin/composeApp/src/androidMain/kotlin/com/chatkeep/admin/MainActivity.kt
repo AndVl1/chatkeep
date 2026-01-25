@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
 
         // Load base URL asynchronously and initialize app
         lifecycleScope.launch {
-            val baseUrl = getBaseUrlFromDataStore(dataStore) ?: "https://admin.chatmoderatorbot.ru"
+            val baseUrl = getBaseUrlFromDataStore(dataStore) ?: BuildConfig.DEFAULT_BASE_URL
             val httpClient = createPlatformHttpClient(baseUrl)
             val tokenStorage = createPlatformTokenStorage(dataStore)
 

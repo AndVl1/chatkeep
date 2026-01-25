@@ -151,6 +151,57 @@ create(persist({...}, { name: 'zustand-storage' }));
 
 ---
 
+## 2026-01-25: ChatGatedFeature 500 error on toggle
+
+**Issue**: Twitch toggle in mobile admin app returned HTTP 500 Internal Server Error
+
+**Symptoms**:
+- PUT /api/v1/admin/chats/{chatId}/features/twitch_integration returned 500
+- Logs showed: `MappingException: No property isNewEntity found on entity class ChatGatedFeature`
+- Toggle appeared to do nothing (error silently swallowed by mobile app)
+
+**Root Cause**:
+`ChatGatedFeature` entity had `isNewEntity` as a constructor parameter with `@Transient` annotation:
+
+```kotlin
+data class ChatGatedFeature @PersistenceCreator constructor(
+    // ... other params
+    @Transient
+    private val isNewEntity: Boolean = false  // WRONG: in constructor!
+)
+```
+
+When Spring Data JDBC reads from database, it uses the `@PersistenceCreator` constructor and tries to bind ALL constructor parameters from DB columns. `@Transient` only prevents writing to DB, not reading. Since there's no `isNewEntity` column, mapping fails.
+
+**Fix**:
+Moved `_isNew` out of constructor into a regular property (matching pattern in other `Persistable` entities):
+
+```kotlin
+data class ChatGatedFeature @PersistenceCreator constructor(
+    // ... only DB column params
+) : Persistable<Long> {
+    @Transient
+    private var _isNew: Boolean = false  // CORRECT: regular property
+
+    companion object {
+        fun createNew(...) = ChatGatedFeature(...).also { it._isNew = true }
+    }
+}
+```
+
+**Files Changed**:
+- `src/main/kotlin/ru/andvl/chatkeep/domain/model/gated/ChatGatedFeature.kt`
+
+**Lesson Learned**:
+For `Persistable` entities with `@PersistenceCreator`:
+1. NEVER put transient fields in the constructor - Spring will try to bind them
+2. Use regular `var` property with `@Transient` annotation outside constructor
+3. Set the flag via `.also { it._isNew = true }` in factory methods
+
+**Related Issue**: Also fixed mobile app using POST instead of PUT for the same endpoint (HTTP method mismatch).
+
+---
+
 ## Template for New Entries
 
 ```markdown
