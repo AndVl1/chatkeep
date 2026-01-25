@@ -341,17 +341,26 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
           BOT_TOKEN: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_BOT_TOKEN || secrets.TEST_BOT_TOKEN }}
+          BOT_USERNAME: ${{ env.IS_PRODUCTION == 'true' && vars.PROD_BOT_USERNAME || vars.TEST_BOT_USERNAME }}
+          ADMINBOT_TOKEN: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_ADMINBOT_TOKEN || secrets.TEST_ADMINBOT_TOKEN }}
+          ADMINBOT_USERNAME: ${{ env.IS_PRODUCTION == 'true' && vars.PROD_ADMINBOT_USERNAME || vars.TEST_ADMINBOT_USERNAME }}
           DB_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.DB_PASSWORD || secrets.TEST_DB_PASSWORD }}
           JWT_SECRET: ${{ env.IS_PRODUCTION == 'true' && secrets.JWT_SECRET || secrets.TEST_JWT_SECRET }}
           GRAFANA_PASSWORD: ${{ env.IS_PRODUCTION == 'true' && secrets.GRAFANA_ADMIN_PASSWORD || secrets.TEST_GRAFANA_ADMIN_PASSWORD }}
           DOMAIN: ${{ steps.set-env.outputs.DOMAIN }}
           ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
           PULL_BACKEND: ${{ needs.detect-changes.outputs.backend }}
+          ADMIN_USER_IDS: ${{ env.IS_PRODUCTION == 'true' && vars.PROD_ADMIN_USER_IDS || vars.TEST_ADMIN_USER_IDS }}
+          TWITCH_CLIENT_ID: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_TWITCH_CLIENT_ID || secrets.TEST_TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_TWITCH_CLIENT_SECRET || secrets.TEST_TWITCH_CLIENT_SECRET }}
+          TWITCH_WEBHOOK_URL: ${{ env.IS_PRODUCTION == 'true' && vars.PROD_TWITCH_WEBHOOK_URL || vars.TEST_TWITCH_WEBHOOK_URL }}
+          TWITCH_WEBHOOK_SECRET: ${{ env.IS_PRODUCTION == 'true' && secrets.PROD_TWITCH_WEBHOOK_SECRET || secrets.TEST_TWITCH_WEBHOOK_SECRET }}
+          SPRING_PROFILES_ACTIVE: ${{ env.IS_PRODUCTION == 'true' && '' || 'test-env' }}
         with:
           host: ${{ steps.set-env.outputs.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
           key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
-          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,DB_PASSWORD,JWT_SECRET,GRAFANA_PASSWORD,DOMAIN,ENV_NAME,PULL_BACKEND
+          envs: GHCR_TOKEN,GHCR_USER,BOT_TOKEN,BOT_USERNAME,ADMINBOT_TOKEN,ADMINBOT_USERNAME,DB_PASSWORD,JWT_SECRET,GRAFANA_PASSWORD,DOMAIN,ENV_NAME,PULL_BACKEND,ADMIN_USER_IDS,TWITCH_CLIENT_ID,TWITCH_CLIENT_SECRET,TWITCH_WEBHOOK_URL,TWITCH_WEBHOOK_SECRET,SPRING_PROFILES_ACTIVE
           script: |
             # Ensure deployment directory exists
             echo "Preparing deployment directories..."
@@ -372,6 +381,9 @@ jobs:
             printf '%s\n' \
               "GITHUB_REPOSITORY=andvl1/chatkeep" \
               "TELEGRAM_BOT_TOKEN=$BOT_TOKEN" \
+              "TELEGRAM_BOT_USERNAME=$BOT_USERNAME" \
+              "TELEGRAM_ADMINBOT_TOKEN=$ADMINBOT_TOKEN" \
+              "TELEGRAM_ADMINBOT_USERNAME=$ADMINBOT_USERNAME" \
               "DB_PASSWORD=$DB_PASSWORD" \
               "JWT_SECRET=$JWT_SECRET" \
               "GRAFANA_ADMIN_PASSWORD=$GRAFANA_PASSWORD" \
@@ -380,7 +392,13 @@ jobs:
               "MAIN_DOMAIN=$DOMAIN" \
               "API_DOMAIN=api.$DOMAIN" \
               "MINIAPP_DOMAIN=miniapp.$DOMAIN" \
-              "ADMIN_DOMAIN=admin.$DOMAIN" > .env
+              "ADMIN_DOMAIN=admin.$DOMAIN" \
+              "ADMIN_USER_IDS=$ADMIN_USER_IDS" \
+              "TWITCH_CLIENT_ID=$TWITCH_CLIENT_ID" \
+              "TWITCH_CLIENT_SECRET=$TWITCH_CLIENT_SECRET" \
+              "TWITCH_WEBHOOK_URL=$TWITCH_WEBHOOK_URL" \
+              "TWITCH_WEBHOOK_SECRET=$TWITCH_WEBHOOK_SECRET" \
+              "SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE" > .env
             echo "Generated .env file:"
             cat .env
 
