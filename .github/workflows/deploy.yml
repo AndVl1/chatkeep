@@ -469,50 +469,88 @@ jobs:
             echo "Restarting services for $ENV_NAME environment..."
             docker compose -f docker-compose.prod.yml up -d --force-recreate
 
-            # Wait for app to be healthy (give it more time to start)
-            echo "Waiting for app to be healthy..."
-            sleep 30
+            # Wait for app to be healthy with timeout
+            echo "Waiting for app to become healthy (timeout: 120s)..."
+            HEALTH_TIMEOUT=120
+            HEALTH_INTERVAL=5
+            ELAPSED=0
 
-            # Verify containers are running with correct image
-            echo "Verifying deployed containers..."
-            docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
+            while [ $ELAPSED -lt $HEALTH_TIMEOUT ]; do
+              HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null || echo "unknown")
+              echo "[$ELAPSED s] App health status: $HEALTH_STATUS"
 
-            # Show app logs
-            echo "App container logs (last 30 lines):"
-            docker logs chatkeep-app --tail 30 || echo "Could not get app logs"
+              if [ "$HEALTH_STATUS" = "healthy" ]; then
+                echo "✓ App is healthy!"
+                break
+              fi
 
-            # Always show nginx logs for debugging
-            echo "Nginx container logs (last 30 lines):"
-            docker logs chatkeep-nginx --tail 30 || echo "Could not get nginx logs"
+              # Check if container is in unhealthy or exited state (fail fast)
+              CONTAINER_STATE=$(docker inspect --format='{{.State.Status}}' chatkeep-app 2>/dev/null || echo "unknown")
+              if [ "$HEALTH_STATUS" = "unhealthy" ] || [ "$CONTAINER_STATE" = "exited" ]; then
+                echo "✗ App failed to start!"
+                echo ""
+                echo "=== Container State ==="
+                docker inspect --format='State: {{.State.Status}}, Health: {{.State.Health.Status}}' chatkeep-app || true
+                echo ""
+                echo "=== App Logs (last 100 lines) ==="
+                docker logs chatkeep-app --tail 100 2>&1 || echo "Could not get app logs"
+                echo ""
+                echo "=== Database Container Logs ==="
+                docker logs chatkeep-db --tail 30 2>&1 || echo "Could not get db logs"
+                exit 1
+              fi
 
-            # Check SSL certificates on the host
-            echo "Checking SSL certificate files..."
-            ls -la /etc/letsencrypt/live/ || echo "No /etc/letsencrypt/live/ directory"
-            ls -la /etc/letsencrypt/live/$DOMAIN/ || echo "No certificates for $DOMAIN"
+              sleep $HEALTH_INTERVAL
+              ELAPSED=$((ELAPSED + HEALTH_INTERVAL))
+            done
 
-            # Check nginx config files
-            echo "Checking nginx config files..."
-            ls -la docker/nginx/sites/ || echo "No nginx sites directory"
-
-            # Check if app is healthy before nginx operations
-            if docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null | grep -q healthy; then
-              echo "App is healthy"
-              # Try to test nginx config
-              docker exec chatkeep-nginx nginx -t 2>&1 || echo "Nginx config test failed"
-            else
-              echo "WARNING: App is not healthy yet"
-              echo "App health status:"
-              docker inspect --format='{{.State.Health.Status}}' chatkeep-app || true
+            # Final health check after timeout
+            FINAL_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null || echo "unknown")
+            if [ "$FINAL_HEALTH" != "healthy" ]; then
+              echo "✗ DEPLOYMENT FAILED: App did not become healthy within ${HEALTH_TIMEOUT}s"
+              echo ""
+              echo "=== Container Status ==="
+              docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
+              echo ""
+              echo "=== App Logs (last 100 lines) ==="
+              docker logs chatkeep-app --tail 100 2>&1 || echo "Could not get app logs"
+              echo ""
+              echo "=== Database Container Logs ==="
+              docker logs chatkeep-db --tail 30 2>&1 || echo "Could not get db logs"
+              exit 1
             fi
 
+            # Verify containers are running with correct image
+            echo ""
+            echo "=== Deployed Containers ==="
+            docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
+
+            # Show app logs (success case - less verbose)
+            echo ""
+            echo "=== App Logs (last 20 lines) ==="
+            docker logs chatkeep-app --tail 20 || echo "Could not get app logs"
+
+            # Check SSL certificates on the host
+            echo ""
+            echo "=== SSL Certificates ==="
+            ls -la /etc/letsencrypt/live/$DOMAIN/ 2>/dev/null || echo "No certificates for $DOMAIN"
+
+            # Test nginx config
+            echo ""
+            echo "=== Nginx Config Test ==="
+            docker exec chatkeep-nginx nginx -t 2>&1 || echo "Nginx config test failed"
+
             # Show deployed files info
-            echo "Mini App files:"
-            ls -la mini-app/dist/ | head -10
-            echo "Admin WASM files:"
-            ls -la chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/ | head -10
+            echo ""
+            echo "=== Static Files ==="
+            echo "Mini App: $(ls mini-app/dist/ 2>/dev/null | wc -l) files"
+            echo "Admin WASM: $(ls chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/ 2>/dev/null | wc -l) files"
 
             # Cleanup old images
-            docker image prune -f
+            docker image prune -f > /dev/null 2>&1
 
+            echo ""
+            echo "═══════════════════════════════════════════════════════════"
             echo "✓ Deployment to $ENV_NAME completed successfully!"
-            echo "Domain: $DOMAIN"
+            echo "  Domain: $DOMAIN"
+            echo "═══════════════════════════════════════════════════════════"
