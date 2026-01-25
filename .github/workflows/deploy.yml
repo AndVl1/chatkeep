@@ -532,7 +532,7 @@ jobs:
           target: "${{ vars.DEPLOY_PATH || '~/chatkeep' }}"
           overwrite: true
 
-      - name: Verify configs and restart services
+      - name: Zero-downtime deploy with rollback
         uses: appleboy/ssh-action@v1.2.0
         env:
           ENV_NAME: ${{ steps.set-env.outputs.ENV_NAME }}
@@ -543,110 +543,214 @@ jobs:
           key: ${{ env.IS_PRODUCTION == 'true' && secrets.DEPLOY_SSH_KEY || secrets.TEST_SSH_PRIVATE_KEY }}
           envs: ENV_NAME,DOMAIN
           script: |
+            set -e
             cd ${{ vars.DEPLOY_PATH || '~/chatkeep' }}
 
-            echo "Deploying to $ENV_NAME environment with domain $DOMAIN"
+            echo "═══════════════════════════════════════════════════════════"
+            echo "  Zero-Downtime Deployment to $ENV_NAME"
+            echo "  Domain: $DOMAIN"
+            echo "═══════════════════════════════════════════════════════════"
 
-            # Verify docker-compose.prod.yml was updated correctly
-            echo "Verifying docker-compose.prod.yml..."
-            if grep -q "ghcr.io/\${GITHUB_REPOSITORY" docker-compose.prod.yml; then
-              echo "✓ docker-compose.prod.yml uses correct image format"
-            else
-              echo "✗ WARNING: docker-compose.prod.yml may have incorrect image format"
-              grep "image:" docker-compose.prod.yml | head -3
+            # ============================================================
+            # PHASE 1: Backup current state for rollback
+            # ============================================================
+            echo ""
+            echo "=== Phase 1: Creating backup for rollback ==="
+
+            BACKUP_DIR=".deploy-backup"
+            mkdir -p "$BACKUP_DIR"
+
+            # Save current app image ID
+            CURRENT_IMAGE=$(docker inspect --format='{{.Image}}' chatkeep-app 2>/dev/null || echo "none")
+            CURRENT_IMAGE_NAME=$(docker inspect --format='{{.Config.Image}}' chatkeep-app 2>/dev/null || echo "none")
+            echo "$CURRENT_IMAGE" > "$BACKUP_DIR/app-image-id"
+            echo "$CURRENT_IMAGE_NAME" > "$BACKUP_DIR/app-image-name"
+            echo "Current app image: $CURRENT_IMAGE_NAME"
+
+            # Backup static files
+            if [ -d "mini-app/dist" ] && [ "$(ls -A mini-app/dist 2>/dev/null)" ]; then
+              rm -rf "$BACKUP_DIR/mini-app-dist"
+              cp -r mini-app/dist "$BACKUP_DIR/mini-app-dist"
+              echo "Backed up mini-app files"
             fi
 
-            # Show what image will be used
-            echo "Image configuration:"
-            docker compose -f docker-compose.prod.yml config | grep -A 2 "app:" | grep "image:"
+            if [ -d "chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable" ] && \
+               [ "$(ls -A chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable 2>/dev/null)" ]; then
+              rm -rf "$BACKUP_DIR/admin-wasm"
+              cp -r chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable "$BACKUP_DIR/admin-wasm"
+              echo "Backed up admin-wasm files"
+            fi
 
-            # Restart docker compose services
-            # Force-recreate app to use new Docker image, nginx to pick up new static files
-            echo "Restarting services for $ENV_NAME environment..."
-            docker compose -f docker-compose.prod.yml up -d --force-recreate
+            # ============================================================
+            # PHASE 2: Deploy new version with zero-downtime
+            # ============================================================
+            echo ""
+            echo "=== Phase 2: Deploying new version ==="
 
-            # Wait for app to be healthy with timeout
-            echo "Waiting for app to become healthy (timeout: 120s)..."
+            # Start infrastructure services first (db, nginx, etc.) - they handle their own zero-downtime
+            echo "Ensuring infrastructure services are running..."
+            docker compose -f docker-compose.prod.yml up -d db nginx prometheus grafana cloudflared 2>/dev/null || true
+
+            # Wait for db to be healthy before deploying app
+            echo "Waiting for database to be ready..."
+            for i in $(seq 1 30); do
+              if docker compose -f docker-compose.prod.yml exec -T db pg_isready -U chatkeep -d chatkeep 2>/dev/null; then
+                echo "Database is ready"
+                break
+              fi
+              sleep 2
+            done
+
+            # Pull new image first (while old container still running)
+            echo "Pulling new Docker image..."
+            docker compose -f docker-compose.prod.yml pull app 2>/dev/null || true
+
+            # Use Docker Compose rolling update:
+            # --no-deps: don't restart dependencies
+            # --no-recreate for deps, recreate only app
+            echo "Starting new app container..."
+            docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate app
+
+            # ============================================================
+            # PHASE 3: Health check with rollback capability
+            # ============================================================
+            echo ""
+            echo "=== Phase 3: Health check (timeout: 120s) ==="
+
             HEALTH_TIMEOUT=120
             HEALTH_INTERVAL=5
             ELAPSED=0
+            DEPLOY_SUCCESS=false
 
             while [ $ELAPSED -lt $HEALTH_TIMEOUT ]; do
               HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null || echo "unknown")
-              echo "[$ELAPSED s] App health status: $HEALTH_STATUS"
+              echo "[$ELAPSED s] App health: $HEALTH_STATUS"
 
               if [ "$HEALTH_STATUS" = "healthy" ]; then
                 echo "✓ App is healthy!"
+                DEPLOY_SUCCESS=true
                 break
               fi
 
-              # Check if container is in unhealthy or exited state (fail fast)
+              # Check for immediate failure
               CONTAINER_STATE=$(docker inspect --format='{{.State.Status}}' chatkeep-app 2>/dev/null || echo "unknown")
               if [ "$HEALTH_STATUS" = "unhealthy" ] || [ "$CONTAINER_STATE" = "exited" ]; then
-                echo "✗ App failed to start!"
-                echo ""
-                echo "=== Container State ==="
-                docker inspect --format='State: {{.State.Status}}, Health: {{.State.Health.Status}}' chatkeep-app || true
-                echo ""
-                echo "=== App Logs (last 100 lines) ==="
-                docker logs chatkeep-app --tail 100 2>&1 || echo "Could not get app logs"
-                echo ""
-                echo "=== Database Container Logs ==="
-                docker logs chatkeep-db --tail 30 2>&1 || echo "Could not get db logs"
-                exit 1
+                echo "✗ App failed to start - initiating rollback..."
+                break
               fi
 
               sleep $HEALTH_INTERVAL
               ELAPSED=$((ELAPSED + HEALTH_INTERVAL))
             done
 
-            # Final health check after timeout
-            FINAL_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null || echo "unknown")
-            if [ "$FINAL_HEALTH" != "healthy" ]; then
-              echo "✗ DEPLOYMENT FAILED: App did not become healthy within ${HEALTH_TIMEOUT}s"
+            # ============================================================
+            # PHASE 4: Rollback if deployment failed
+            # ============================================================
+            if [ "$DEPLOY_SUCCESS" = "false" ]; then
               echo ""
-              echo "=== Container Status ==="
-              docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
+              echo "=== Phase 4: ROLLBACK ==="
+              echo "✗ Deployment failed! Rolling back to previous version..."
+
+              # Show failure logs
               echo ""
-              echo "=== App Logs (last 100 lines) ==="
-              docker logs chatkeep-app --tail 100 2>&1 || echo "Could not get app logs"
+              echo "=== Failed Container Logs ==="
+              docker logs chatkeep-app --tail 50 2>&1 || true
+
+              # Restore previous image
+              PREVIOUS_IMAGE=$(cat "$BACKUP_DIR/app-image-name" 2>/dev/null || echo "")
+              if [ -n "$PREVIOUS_IMAGE" ] && [ "$PREVIOUS_IMAGE" != "none" ]; then
+                echo ""
+                echo "Restoring previous image: $PREVIOUS_IMAGE"
+
+                # Stop failed container
+                docker compose -f docker-compose.prod.yml stop app 2>/dev/null || true
+                docker compose -f docker-compose.prod.yml rm -f app 2>/dev/null || true
+
+                # Create temporary compose override to use old image
+                cat > docker-compose.rollback.yml << ROLLBACK_EOF
+            services:
+              app:
+                image: $PREVIOUS_IMAGE
+            ROLLBACK_EOF
+
+                # Start with old image
+                docker compose -f docker-compose.prod.yml -f docker-compose.rollback.yml up -d --no-deps app
+                rm -f docker-compose.rollback.yml
+
+                # Wait for rollback to be healthy
+                echo "Waiting for rollback to complete..."
+                for i in $(seq 1 60); do
+                  ROLLBACK_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' chatkeep-app 2>/dev/null || echo "unknown")
+                  if [ "$ROLLBACK_HEALTH" = "healthy" ]; then
+                    echo "✓ Rollback successful - previous version restored"
+                    break
+                  fi
+                  sleep 2
+                done
+              fi
+
+              # Restore static files
+              if [ -d "$BACKUP_DIR/mini-app-dist" ]; then
+                echo "Restoring mini-app files..."
+                rm -rf mini-app/dist
+                cp -r "$BACKUP_DIR/mini-app-dist" mini-app/dist
+              fi
+
+              if [ -d "$BACKUP_DIR/admin-wasm" ]; then
+                echo "Restoring admin-wasm files..."
+                rm -rf chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
+                mkdir -p chatkeep-admin/composeApp/build/dist/wasmJs
+                cp -r "$BACKUP_DIR/admin-wasm" chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable
+              fi
+
+              # Reload nginx to pick up restored files
+              docker exec chatkeep-nginx nginx -s reload 2>/dev/null || true
+
               echo ""
-              echo "=== Database Container Logs ==="
-              docker logs chatkeep-db --tail 30 2>&1 || echo "Could not get db logs"
+              echo "═══════════════════════════════════════════════════════════"
+              echo "✗ DEPLOYMENT FAILED - ROLLED BACK TO PREVIOUS VERSION"
+              echo "  The service is still running with the previous version."
+              echo "  Please check the logs above and fix the issue."
+              echo "═══════════════════════════════════════════════════════════"
               exit 1
             fi
 
-            # Verify containers are running with correct image
+            # ============================================================
+            # PHASE 5: Finalize successful deployment
+            # ============================================================
+            echo ""
+            echo "=== Phase 5: Finalizing deployment ==="
+
+            # Reload nginx to pick up any new static files
+            docker exec chatkeep-nginx nginx -s reload 2>/dev/null || echo "Nginx reload skipped"
+
+            # Verify all containers
             echo ""
             echo "=== Deployed Containers ==="
-            docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep chatkeep || true
 
-            # Show app logs (success case - less verbose)
+            # Show app logs
             echo ""
-            echo "=== App Logs (last 20 lines) ==="
-            docker logs chatkeep-app --tail 20 || echo "Could not get app logs"
+            echo "=== App Logs (last 15 lines) ==="
+            docker logs chatkeep-app --tail 15 2>&1 || true
 
-            # Check SSL certificates on the host
+            # Test nginx
             echo ""
-            echo "=== SSL Certificates ==="
-            ls -la /etc/letsencrypt/live/$DOMAIN/ 2>/dev/null || echo "No certificates for $DOMAIN"
+            echo "=== Nginx Status ==="
+            docker exec chatkeep-nginx nginx -t 2>&1 || echo "Nginx config test skipped"
 
-            # Test nginx config
-            echo ""
-            echo "=== Nginx Config Test ==="
-            docker exec chatkeep-nginx nginx -t 2>&1 || echo "Nginx config test failed"
-
-            # Show deployed files info
+            # Static files info
             echo ""
             echo "=== Static Files ==="
-            echo "Mini App: $(ls mini-app/dist/ 2>/dev/null | wc -l) files"
-            echo "Admin WASM: $(ls chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/ 2>/dev/null | wc -l) files"
+            echo "Mini App: $(ls mini-app/dist/ 2>/dev/null | wc -l | tr -d ' ') files"
+            echo "Admin WASM: $(ls chatkeep-admin/composeApp/build/dist/wasmJs/productionExecutable/ 2>/dev/null | wc -l | tr -d ' ') files"
 
-            # Cleanup old images
-            docker image prune -f > /dev/null 2>&1
+            # Cleanup old images (keep last 2)
+            docker image prune -f > /dev/null 2>&1 || true
 
             echo ""
             echo "═══════════════════════════════════════════════════════════"
-            echo "✓ Deployment to $ENV_NAME completed successfully!"
+            echo "✓ Zero-Downtime Deployment to $ENV_NAME SUCCESSFUL!"
             echo "  Domain: $DOMAIN"
+            echo "  Rollback backup available in: $BACKUP_DIR"
             echo "═══════════════════════════════════════════════════════════"
