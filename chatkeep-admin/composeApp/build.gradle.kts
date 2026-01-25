@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
@@ -9,8 +11,10 @@ plugins {
 kotlin {
     androidTarget {
         compilations.all {
-            kotlinOptions {
-                jvmTarget = "17"
+            compileTaskProvider.configure {
+                compilerOptions {
+                    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+                }
             }
         }
     }
@@ -151,12 +155,53 @@ android {
     namespace = "com.chatkeep.admin"
     compileSdk = 35
 
+    // Generate versionCode from git commit count
+    val gitCommitCount = providers.exec {
+        commandLine("git", "rev-list", "--count", "HEAD")
+    }.standardOutput.asText.get().trim().toIntOrNull() ?: 1
+
     defaultConfig {
         applicationId = "com.chatkeep.admin"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = gitCommitCount
+        versionName = "1.0.0"
+    }
+
+    // Configure keystore from environment variables for release signing
+    signingConfigs {
+        create("release") {
+            val keystoreBase64 = System.getenv("ANDROID_KEYSTORE_BASE_64")
+            val keystorePass = System.getenv("ANDROID_KEYSTORE_PASS")
+            val keyAlias = System.getenv("ANDROID_KEYSTORE_ALIAS")
+            val keyPass = System.getenv("ANDROID_KEYSTORE_KEY_PASS")
+
+            if (keystoreBase64 != null && keystorePass != null && keyAlias != null && keyPass != null) {
+                // Decode base64 keystore to temp file
+                val keystoreFile = File.createTempFile("keystore", ".jks")
+                keystoreFile.deleteOnExit()
+                keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+
+                storeFile = keystoreFile
+                storePassword = keystorePass
+                this.keyAlias = keyAlias
+                keyPassword = keyPass
+            }
+        }
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("production") {
+            dimension = "environment"
+            versionNameSuffix = "-prod.${gitCommitCount}"
+        }
+
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".test"
+            versionNameSuffix = "-test.${gitCommitCount}"
+        }
     }
 
     packaging {
@@ -168,6 +213,10 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            // Debug uses default signing
         }
     }
 
