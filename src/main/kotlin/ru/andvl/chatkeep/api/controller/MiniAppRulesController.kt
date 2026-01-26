@@ -17,7 +17,12 @@ import ru.andvl.chatkeep.api.dto.UpdateRulesRequest
 import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
 import ru.andvl.chatkeep.api.exception.UnauthorizedException
+import ru.andvl.chatkeep.domain.model.moderation.ActionType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
+import ru.andvl.chatkeep.domain.service.ChatService
 import ru.andvl.chatkeep.domain.service.RulesService
+import ru.andvl.chatkeep.domain.service.logchannel.DebouncedLogService
+import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
 @RestController
@@ -26,7 +31,9 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppRulesController(
     private val rulesService: RulesService,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val debouncedLogService: DebouncedLogService,
+    private val chatService: ChatService
 ) {
 
     private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
@@ -83,7 +90,27 @@ class MiniAppRulesController(
             throw AccessDeniedException("You are not an admin in this chat")
         }
 
+        // Get existing rules for comparison
+        val existing = rulesService.getRules(chatId)
         val saved = rulesService.setRules(chatId, updateRequest.rulesText)
+
+        // Log rules change (debounced since rules can be edited in real-time)
+        if (existing?.rulesText != saved.rulesText) {
+            val chatTitle = chatService.getSettings(chatId)?.chatTitle
+            debouncedLogService.logAction(
+                ModerationLogEntry(
+                    chatId = chatId,
+                    chatTitle = chatTitle,
+                    adminId = user.id,
+                    adminFirstName = user.firstName,
+                    adminLastName = user.lastName,
+                    adminUserName = user.username,
+                    actionType = ActionType.RULES_CHANGED,
+                    reason = "rules updated",
+                    source = PunishmentSource.MANUAL
+                )
+            )
+        }
 
         return RulesResponse(
             chatId = saved.chatId,
