@@ -4,7 +4,6 @@ export * from './settings';
 export * from './locks';
 export * from './blocklist';
 export * from './channelReply';
-export * from './statistics';
 export * from './session';
 export * from './adminLogs';
 export * from './welcome';

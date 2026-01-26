@@ -8,7 +8,6 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { LocksPage } from '@/pages/LocksPage';
 import { BlocklistPage } from '@/pages/BlocklistPage';
 import { ChannelReplyPage } from '@/pages/ChannelReplyPage';
-import { StatisticsPage } from '@/pages/StatisticsPage';
 import { SessionPage } from '@/pages/SessionPage';
 import { AdminLogsPage } from '@/pages/AdminLogsPage';
 import { WelcomePage } from '@/pages/WelcomePage';
@@ -168,7 +167,6 @@ export function App() {
                           <Route path="locks" element={<LocksPage />} />
                           <Route path="blocklist" element={<BlocklistPage />} />
                           <Route path="channel-reply" element={<ChannelReplyPage />} />
-                          <Route path="statistics" element={<StatisticsPage />} />
                           <Route path="session" element={<SessionPage />} />
                           <Route path="admin-logs" element={<AdminLogsPage />} />
                           <Route path="welcome" element={<WelcomePage />} />

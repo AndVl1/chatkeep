@@ -95,16 +95,6 @@ export function SettingsPage() {
         <Button
           size="l"
           stretched
-          onClick={() => navigate(`/chat/${chatId}/statistics`)}
-        >
-          {t('settings.statistics')}
-        </Button>
-      </div>
-
-      <div style={{ padding: '16px 0' }}>
-        <Button
-          size="l"
-          stretched
           onClick={() => navigate(`/chat/${chatId}/welcome`)}
         >
           {t('settings.welcome')}
