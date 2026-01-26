@@ -28,7 +28,7 @@ import ru.andvl.chatkeep.domain.service.ChatService
 class AdminCommandHandler(
     private val chatService: ChatService,
     private val adminService: AdminService,
-    @Value("\${telegram.mini-app.url}") private val miniAppUrl: String
+    @Value("\${telegram.mini-app.url:}") private val miniAppUrl: String
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -37,22 +37,10 @@ class AdminCommandHandler(
         onCommand("start", initialFilter = { it.chat is PrivateChat }) { message ->
             logger.info("/start: Handler invoked for chat ${message.chat.id}")
             logger.debug("/start: Chat type is ${message.chat::class.simpleName}")
-            logger.debug("/start: Is PrivateChat: ${message.chat is PrivateChat}")
+            logger.debug("/start: Mini App URL configured: '${miniAppUrl}'")
 
             try {
-                val keyboard = InlineKeyboardMarkup(
-                    keyboard = matrix {
-                        row {
-                            +WebAppInlineKeyboardButton("📱 Open Mini App", WebAppInfo(miniAppUrl))
-                        }
-                    }
-                )
-
-                logger.debug("/start: Keyboard created, sending reply")
-
-                reply(
-                    message,
-                    """
+                val welcomeText = """
                     Chatkeep Bot
 
                     I collect messages from group chats where I'm added.
@@ -77,9 +65,23 @@ class AdminCommandHandler(
                     /unban - Unban a user
                     /kick - Kick a user
                     /cleanservice <on|off> - Auto-delete join/leave messages
-                    """.trimIndent(),
-                    replyMarkup = keyboard
-                )
+                """.trimIndent()
+
+                // Only add Mini App button if URL is configured
+                if (miniAppUrl.isNotBlank() && miniAppUrl.startsWith("https://")) {
+                    logger.debug("/start: Creating keyboard with Mini App button")
+                    val keyboard = InlineKeyboardMarkup(
+                        keyboard = matrix {
+                            row {
+                                +WebAppInlineKeyboardButton("📱 Open Mini App", WebAppInfo(miniAppUrl))
+                            }
+                        }
+                    )
+                    reply(message, welcomeText, replyMarkup = keyboard)
+                } else {
+                    logger.warn("/start: Mini App URL not configured or invalid, sending message without button. URL: '$miniAppUrl'")
+                    reply(message, welcomeText)
+                }
 
                 logger.info("/start: Response sent successfully for chat ${message.chat.id}")
             } catch (e: Exception) {

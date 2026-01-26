@@ -512,6 +512,7 @@ jobs:
               "API_DOMAIN=api.$DOMAIN" \
               "MINIAPP_DOMAIN=miniapp.$DOMAIN" \
               "ADMIN_DOMAIN=admin.$DOMAIN" \
+              "MINI_APP_URL=https://miniapp.$DOMAIN" \
               "ADMIN_USER_IDS=$ADMIN_USER_IDS" \
               "TWITCH_CLIENT_ID=$TWITCH_CLIENT_ID" \
               "TWITCH_CLIENT_SECRET=$TWITCH_CLIENT_SECRET" \
