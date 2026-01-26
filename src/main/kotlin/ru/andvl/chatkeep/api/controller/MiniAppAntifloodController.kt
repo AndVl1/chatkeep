@@ -18,8 +18,13 @@ import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.exception.ValidationException
 import ru.andvl.chatkeep.domain.model.AntifloodSettings
+import ru.andvl.chatkeep.domain.model.moderation.ActionType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 import ru.andvl.chatkeep.domain.service.AntifloodService
+import ru.andvl.chatkeep.domain.service.ChatService
+import ru.andvl.chatkeep.domain.service.logchannel.LogChannelService
+import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
 @RestController
@@ -28,7 +33,9 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppAntifloodController(
     private val antifloodService: AntifloodService,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val logChannelService: LogChannelService,
+    private val chatService: ChatService
 ) {
 
     private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
@@ -111,6 +118,9 @@ class MiniAppAntifloodController(
 
         val saved = antifloodService.updateSettings(chatId, updated)
 
+        // Log changes
+        logAntifloodChanges(chatId, user, existing, saved)
+
         return AntifloodSettingsResponse(
             chatId = saved.chatId,
             enabled = saved.enabled,
@@ -119,5 +129,53 @@ class MiniAppAntifloodController(
             action = saved.action,
             actionDurationMinutes = saved.actionDurationMinutes
         )
+    }
+
+    /**
+     * Log antiflood settings changes to the log channel.
+     * All changes are logged immediately (not debounced).
+     */
+    private fun logAntifloodChanges(
+        chatId: Long,
+        user: TelegramAuthService.TelegramUser,
+        old: AntifloodSettings,
+        new: AntifloodSettings
+    ) {
+        val chatTitle = chatService.getSettings(chatId)?.chatTitle
+
+        val changes = mutableListOf<String>()
+
+        if (old.enabled != new.enabled) {
+            changes.add("enabled: ${if (new.enabled) "ON" else "OFF"}")
+        }
+        if (old.maxMessages != new.maxMessages) {
+            changes.add("max messages: ${new.maxMessages}")
+        }
+        if (old.timeWindowSeconds != new.timeWindowSeconds) {
+            changes.add("time window: ${new.timeWindowSeconds}s")
+        }
+        if (old.action != new.action) {
+            changes.add("action: ${new.action}")
+        }
+        if (old.actionDurationMinutes != new.actionDurationMinutes) {
+            val duration = new.actionDurationMinutes?.let { "${it}m" } ?: "permanent"
+            changes.add("duration: $duration")
+        }
+
+        if (changes.isEmpty()) return
+
+        val entry = ModerationLogEntry(
+            chatId = chatId,
+            chatTitle = chatTitle,
+            adminId = user.id,
+            adminFirstName = user.firstName,
+            adminLastName = user.lastName,
+            adminUserName = user.username,
+            actionType = ActionType.ANTIFLOOD_CHANGED,
+            reason = "antiflood: ${changes.joinToString(", ")}",
+            source = PunishmentSource.MANUAL
+        )
+
+        logChannelService.logModerationAction(entry)
     }
 }

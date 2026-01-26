@@ -152,6 +152,22 @@ class MiniAppBlocklistController(
             createdAt = result.pattern.createdAt
         )
 
+        // Log blocklist addition to admin channel
+        val chatSettings = chatService.getSettings(chatId)
+        logChannelService.logModerationAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatSettings?.chatTitle,
+                adminId = user.id,
+                adminFirstName = user.firstName,
+                adminLastName = user.lastName,
+                adminUserName = user.username,
+                actionType = ActionType.BLOCKLIST_ADDED,
+                reason = "Added pattern: ${result.pattern.pattern} (${result.pattern.matchType}, action: ${result.pattern.action})",
+                source = PunishmentSource.MANUAL
+            )
+        )
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
