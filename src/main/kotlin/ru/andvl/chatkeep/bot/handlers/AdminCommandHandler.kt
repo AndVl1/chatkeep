@@ -35,44 +35,57 @@ class AdminCommandHandler(
 
     override suspend fun BehaviourContext.register() {
         onCommand("start", initialFilter = { it.chat is PrivateChat }) { message ->
-            val keyboard = InlineKeyboardMarkup(
-                keyboard = matrix {
-                    row {
-                        +WebAppInlineKeyboardButton("📱 Open Mini App", WebAppInfo(miniAppUrl))
+            logger.info("/start: Handler invoked for chat ${message.chat.id}")
+            logger.debug("/start: Chat type is ${message.chat::class.simpleName}")
+            logger.debug("/start: Is PrivateChat: ${message.chat is PrivateChat}")
+
+            try {
+                val keyboard = InlineKeyboardMarkup(
+                    keyboard = matrix {
+                        row {
+                            +WebAppInlineKeyboardButton("📱 Open Mini App", WebAppInfo(miniAppUrl))
+                        }
                     }
-                }
-            )
+                )
 
-            reply(
-                message,
-                """
-                Chatkeep Bot
+                logger.debug("/start: Keyboard created, sending reply")
 
-                I collect messages from group chats where I'm added.
+                reply(
+                    message,
+                    """
+                    Chatkeep Bot
 
-                Admin Commands (Private Chat):
-                /mychats - List chats where you're admin
-                /stats <chat_id> - Get statistics for a chat
-                /enable <chat_id> - Enable message collection
-                /disable <chat_id> - Disable message collection
-                /connect <chat_id> - Connect to a chat for management
-                /disconnect - Disconnect from current chat
-                /addblock <pattern> <action> - Add blocklist pattern
-                /delblock <pattern> - Remove blocklist pattern
-                /blocklist - List blocklist patterns
+                    I collect messages from group chats where I'm added.
 
-                Moderation Commands (Group Chat):
-                /warn - Warn a user (reply or user_id)
-                /unwarn - Remove user warnings
-                /mute [duration] - Mute a user (e.g. 1h, 24h)
-                /unmute - Unmute a user
-                /ban [duration] - Ban a user
-                /unban - Unban a user
-                /kick - Kick a user
-                /cleanservice <on|off> - Auto-delete join/leave messages
-                """.trimIndent(),
-                replyMarkup = keyboard
-            )
+                    Admin Commands (Private Chat):
+                    /mychats - List chats where you're admin
+                    /stats <chat_id> - Get statistics for a chat
+                    /enable <chat_id> - Enable message collection
+                    /disable <chat_id> - Disable message collection
+                    /connect <chat_id> - Connect to a chat for management
+                    /disconnect - Disconnect from current chat
+                    /addblock <pattern> <action> - Add blocklist pattern
+                    /delblock <pattern> - Remove blocklist pattern
+                    /blocklist - List blocklist patterns
+
+                    Moderation Commands (Group Chat):
+                    /warn - Warn a user (reply or user_id)
+                    /unwarn - Remove user warnings
+                    /mute [duration] - Mute a user (e.g. 1h, 24h)
+                    /unmute - Unmute a user
+                    /ban [duration] - Ban a user
+                    /unban - Unban a user
+                    /kick - Kick a user
+                    /cleanservice <on|off> - Auto-delete join/leave messages
+                    """.trimIndent(),
+                    replyMarkup = keyboard
+                )
+
+                logger.info("/start: Response sent successfully for chat ${message.chat.id}")
+            } catch (e: Exception) {
+                logger.error("/start: Error handling start command for chat ${message.chat.id}", e)
+                throw e
+            }
         }
 
         onCommand("mychats", initialFilter = { it.chat is PrivateChat }) { message ->
