@@ -9,13 +9,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
+import ru.andvl.chatkeep.bot.service.ErrorContext
 import ru.andvl.chatkeep.domain.service.RulesService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
 @Component
 class RulesCommandHandler(
     private val rulesService: RulesService,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val errorNotificationService: AdminErrorNotificationService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -40,6 +43,11 @@ class RulesCommandHandler(
                     }
                 } catch (e: Exception) {
                     logger.error("Failed to get rules: ${e.message}", e)
+                    errorNotificationService.reportHandlerError(
+                        handler = "RulesCommandHandler",
+                        error = e,
+                        context = ErrorContext(chatId = chatId, command = "/rules")
+                    )
                     reply(message, "❌ Failed to retrieve rules")
                 }
             }
@@ -82,6 +90,11 @@ class RulesCommandHandler(
                     logger.info("Rules set for chatId=$chatId by userId=$userId")
                 } catch (e: Exception) {
                     logger.error("Failed to set rules: ${e.message}", e)
+                    errorNotificationService.reportHandlerError(
+                        handler = "RulesCommandHandler",
+                        error = e,
+                        context = ErrorContext(chatId = chatId, userId = userId, command = "/setrules")
+                    )
                     reply(message, "❌ Failed to set rules")
                 }
             }

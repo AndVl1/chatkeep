@@ -8,11 +8,14 @@ import dev.inmo.tgbotapi.types.UserId
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
+import ru.andvl.chatkeep.bot.service.ErrorContext
 import ru.andvl.chatkeep.domain.service.WelcomeService
 
 @Component
 class WelcomeMessageHandler(
-    private val welcomeService: WelcomeService
+    private val welcomeService: WelcomeService,
+    private val errorNotificationService: AdminErrorNotificationService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -64,6 +67,11 @@ class WelcomeMessageHandler(
                     logger.info("Sent welcome message for chatId=$chatId")
                 } catch (e: Exception) {
                     logger.error("Failed to send welcome message: ${e.message}", e)
+                    errorNotificationService.reportHandlerError(
+                        handler = "WelcomeMessageHandler",
+                        error = e,
+                        context = ErrorContext(chatId = chatId)
+                    )
                 }
             }
         }

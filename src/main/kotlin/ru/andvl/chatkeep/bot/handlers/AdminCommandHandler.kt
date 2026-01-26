@@ -20,6 +20,8 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
+import ru.andvl.chatkeep.bot.service.ErrorContext
 import ru.andvl.chatkeep.domain.model.ChatSettings
 import ru.andvl.chatkeep.domain.service.AdminService
 import ru.andvl.chatkeep.domain.service.ChatService
@@ -28,6 +30,7 @@ import ru.andvl.chatkeep.domain.service.ChatService
 class AdminCommandHandler(
     private val chatService: ChatService,
     private val adminService: AdminService,
+    private val errorNotificationService: AdminErrorNotificationService,
     @Value("\${telegram.mini-app.url:}") private val miniAppUrl: String
 ) : Handler {
 
@@ -86,6 +89,14 @@ class AdminCommandHandler(
                 logger.info("/start: Response sent successfully for chat ${message.chat.id}")
             } catch (e: Exception) {
                 logger.error("/start: Error handling start command for chat ${message.chat.id}", e)
+                errorNotificationService.reportHandlerError(
+                    handler = "AdminCommandHandler",
+                    error = e,
+                    context = ErrorContext(
+                        chatId = message.chat.id.chatId.long,
+                        command = "/start"
+                    )
+                )
                 throw e
             }
         }

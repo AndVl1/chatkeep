@@ -11,11 +11,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
+import ru.andvl.chatkeep.bot.service.ErrorContext
 import ru.andvl.chatkeep.domain.service.ChatService
 
 @Component
 class ChatMemberHandler(
-    private val chatService: ChatService
+    private val chatService: ChatService,
+    private val errorNotificationService: AdminErrorNotificationService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -45,6 +48,11 @@ class ChatMemberHandler(
                                 logger.info("Bot added to chat: ${chat.id.chatId.long} ($chatTitle)")
                             } catch (e: Exception) {
                                 logger.error("Failed to register chat: ${e.message}", e)
+                                errorNotificationService.reportHandlerError(
+                                    handler = "ChatMemberHandler",
+                                    error = e,
+                                    context = ErrorContext(chatId = chat.id.chatId.long)
+                                )
                             }
                         }
                     }

@@ -104,6 +104,29 @@ class BotMetricsService(
             .increment()
     }
 
+    /**
+     * Records detailed error metrics for Grafana dashboards.
+     *
+     * @param source Where the error occurred: "handler", "service", or "bot"
+     * @param name Specific handler/service name
+     * @param errorType Classification of the error (timeout, rate_limit, bad_request, etc.)
+     * @param isExpected Whether this is an expected error (timeouts, rate limits)
+     */
+    fun recordErrorWithDetails(
+        source: String,
+        name: String,
+        errorType: String,
+        isExpected: Boolean
+    ) {
+        Counter.builder("$PREFIX.errors.detailed")
+            .tag("source", source)
+            .tag("name", name)
+            .tag("error_type", errorType)
+            .tag("expected", isExpected.toString())
+            .register(meterRegistry)
+            .increment()
+    }
+
     // Gauge for active chats
     fun setActiveChats(count: Long) {
         activeChatsCount.set(count)
