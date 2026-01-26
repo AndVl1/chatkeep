@@ -20,6 +20,9 @@ This checklist guides you through deploying the Chatkeep application with the ne
 
   # Telegram
   TELEGRAM_BOT_TOKEN=<bot-token>
+  TELEGRAM_BOT_USERNAME=<main-bot-username>
+  TELEGRAM_ADMINBOT_TOKEN=<admin-bot-token>
+  TELEGRAM_ADMINBOT_USERNAME=<admin-bot-username>
 
   # JWT
   JWT_SECRET=<secure-jwt-secret>
@@ -385,6 +388,40 @@ Deployment is successful when:
 - [ ] All health checks passing
 - [ ] SSL auto-renewal configured
 - [ ] Monitoring alerts configured
+
+## GitHub Actions Configuration
+
+For automated deployments via GitHub Actions, configure the following variables and secrets in your repository settings (`Settings > Secrets and variables > Actions`):
+
+### Production Variables (vars.*)
+- `PROD_BOT_USERNAME` - Main Telegram bot username (e.g., `chatmoderatorbot`)
+- `PROD_ADMINBOT_USERNAME` - Admin bot username for admin panel login (e.g., `chatkeep_admin_bot`) **REQUIRED** for admin.chatmoderatorbot.ru OAuth
+- `PROD_ADMIN_USER_IDS` - Comma-separated Telegram user IDS for admin access
+- `PROD_TWITCH_WEBHOOK_URL` - Twitch webhook URL for integration
+- `DEPLOY_USER` - SSH user for deployment (e.g., `root`)
+- `DEPLOY_PATH` - Deployment path on server (e.g., `~/chatkeep`)
+
+### Production Secrets (secrets.*)
+- `PROD_BOT_TOKEN` - Main Telegram bot token from @BotFather
+- `PROD_ADMINBOT_TOKEN` - Admin bot token from @BotFather **REQUIRED** for validating admin panel OAuth
+- `DB_PASSWORD` - PostgreSQL database password
+- `JWT_SECRET` - JWT signing secret (generate with `openssl rand -base64 32`)
+- `GRAFANA_ADMIN_PASSWORD` - Grafana admin password
+- `DEPLOY_SSH_KEY` - Private SSH key for deployment
+- `PROD_TWITCH_CLIENT_ID` - Twitch API client ID
+- `PROD_TWITCH_CLIENT_SECRET` - Twitch API client secret
+- `PROD_TWITCH_WEBHOOK_SECRET` - Twitch webhook secret
+
+### Test Environment
+Configure equivalent `TEST_*` variants for staging environment (chatmodtest.ru)
+
+### Critical Configuration Notes
+⚠️ **IMPORTANT**: `PROD_ADMINBOT_USERNAME` must be set for admin panel OAuth to work correctly on admin.chatmoderatorbot.ru. Without it, the login widget will fall back to the main bot, causing authentication failures.
+
+The admin bot must be configured in @BotFather with OAuth enabled:
+1. Create a new bot with @BotFather
+2. Set domain: `/setdomain` → `admin.chatmoderatorbot.ru`
+3. Copy the bot username and token to GitHub secrets
 
 ## Support Contacts
 
