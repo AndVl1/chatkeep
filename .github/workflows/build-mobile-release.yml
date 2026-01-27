@@ -49,21 +49,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Decode Keystore
-        if: inputs.build_type == 'release'
-        run: |
-          # Check if production keystore exists
-          if [ "${{ inputs.flavor }}" == "production" ] && [ -n "${{ secrets.ANDROID_KEYSTORE_BASE_64 }}" ]; then
-            echo "${{ secrets.ANDROID_KEYSTORE_BASE_64 }}" | base64 -d > /tmp/keystore.jks
-            echo "ANDROID_KEYSTORE_PATH=/tmp/keystore.jks" >> $GITHUB_ENV
-            echo "ANDROID_KEYSTORE_PASS=${{ secrets.ANDROID_KEYSTORE_PASS }}" >> $GITHUB_ENV
-            echo "ANDROID_KEYSTORE_KEY_PASS=${{ secrets.ANDROID_KEYSTORE_KEY_PASS }}" >> $GITHUB_ENV
-            echo "ANDROID_KEYSTORE_ALIAS=${{ secrets.ANDROID_KEYSTORE_ALIAS }}" >> $GITHUB_ENV
-            echo "Keystore configured for production release"
-          else
-            echo "No keystore configured - will use debug signing"
-          fi
-
       - name: Build APK
         working-directory: chatkeep-admin
         run: |
@@ -75,21 +60,44 @@ jobs:
           echo "Building: assemble${FLAVOR_CAPITALIZED}${BUILD_TYPE_CAPITALIZED}"
           ./gradlew :composeApp:assemble${FLAVOR_CAPITALIZED}${BUILD_TYPE_CAPITALIZED}
 
-      - name: Rename APK with version
+      - name: Sign APK
+        if: inputs.build_type == 'release'
+        id: sign
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: chatkeep-admin/composeApp/build/outputs/apk/${{ inputs.flavor }}/release
+          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE_64 }}
+          alias: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          keyPassword: ${{ secrets.ANDROID_KEYSTORE_KEY_PASS }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Prepare APK for upload
+        id: prepare
         run: |
           BUILD_NUMBER=${{ steps.buildnumber.outputs.build_number }}
           FLAVOR="${{ inputs.flavor }}"
           BUILD_TYPE="${{ inputs.build_type }}"
 
-          # Find the APK
-          APK_PATH=$(find chatkeep-admin/composeApp/build/outputs/apk -name "*.apk" -type f | head -1)
+          mkdir -p chatkeep-admin/release
 
-          if [ -n "$APK_PATH" ]; then
-            NEW_NAME="chatkeep-admin-${FLAVOR}-${BUILD_TYPE}-build${BUILD_NUMBER}.apk"
-            mkdir -p chatkeep-admin/release
+          # Use signed APK if available, otherwise use unsigned
+          if [ -n "${{ steps.sign.outputs.signedReleaseFile }}" ]; then
+            APK_PATH="${{ steps.sign.outputs.signedReleaseFile }}"
+            SIGNED_SUFFIX="-signed"
+            echo "Using signed APK: $APK_PATH"
+          else
+            APK_PATH=$(find chatkeep-admin/composeApp/build/outputs/apk -name "*.apk" -type f | head -1)
+            SIGNED_SUFFIX=""
+            echo "Using unsigned APK: $APK_PATH"
+          fi
+
+          if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
+            NEW_NAME="chatkeep-admin-${FLAVOR}-${BUILD_TYPE}${SIGNED_SUFFIX}-build${BUILD_NUMBER}.apk"
             cp "$APK_PATH" "chatkeep-admin/release/$NEW_NAME"
-            echo "APK_NAME=$NEW_NAME" >> $GITHUB_ENV
-            echo "Built APK: $NEW_NAME"
+            echo "apk_name=$NEW_NAME" >> $GITHUB_OUTPUT
+            echo "Prepared APK: $NEW_NAME"
           else
             echo "Error: APK not found"
             exit 1
@@ -109,5 +117,6 @@ jobs:
           echo "- **Flavor**: ${{ inputs.flavor }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Build Type**: ${{ inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Build Number**: ${{ steps.buildnumber.outputs.build_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **APK Name**: ${{ env.APK_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **APK Name**: ${{ steps.prepare.outputs.apk_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Signed**: ${{ steps.sign.outputs.signedReleaseFile != '' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Retention**: 90 days" >> $GITHUB_STEP_SUMMARY
