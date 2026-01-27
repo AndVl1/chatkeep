@@ -204,6 +204,9 @@ jobs:
     # Skip if no secrets configured or no admin-wasm changes
     if: (github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true') && needs.detect-changes.outputs.admin-wasm == 'true'
 
+    env:
+      IS_PRODUCTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' || github.ref == 'refs/heads/production' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -220,8 +223,19 @@ jobs:
           gradle-version: wrapper
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      - name: Determine API URL
+        id: api-url
+        run: |
+          if [[ "${{ env.IS_PRODUCTION }}" == "true" ]]; then
+            echo "url=https://api.chatmoderatorbot.ru" >> $GITHUB_OUTPUT
+            echo "Building WASM for PRODUCTION environment"
+          else
+            echo "url=https://api.chatmodtest.ru" >> $GITHUB_OUTPUT
+            echo "Building WASM for TEST environment"
+          fi
+
       - name: Build WASM
-        run: ./gradlew -p chatkeep-admin :composeApp:wasmJsBrowserDistribution
+        run: ./gradlew -p chatkeep-admin :composeApp:wasmJsBrowserDistribution -Papi.base.url=${{ steps.api-url.outputs.url }}
 
       - name: Upload WASM artifact
         uses: actions/upload-artifact@v4
