@@ -743,8 +743,38 @@ jobs:
             echo ""
             echo "=== Phase 5: Finalizing deployment ==="
 
-            # Reload nginx to pick up any new static files
-            docker exec chatkeep-nginx nginx -s reload 2>/dev/null || echo "Nginx reload skipped"
+            # Restart nginx to pick up config and static file changes
+            echo "Restarting nginx..."
+
+            # Test nginx config first
+            if docker exec chatkeep-nginx nginx -t 2>&1; then
+              echo "Nginx config is valid, restarting container..."
+              docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
+
+              # Wait for nginx to become healthy
+              echo "Waiting for nginx to become healthy..."
+              NGINX_TIMEOUT=60
+              NGINX_ELAPSED=0
+              while [ $NGINX_ELAPSED -lt $NGINX_TIMEOUT ]; do
+                NGINX_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' chatkeep-nginx 2>/dev/null || echo "unknown")
+                if [ "$NGINX_HEALTH" = "healthy" ]; then
+                  echo "✓ Nginx is healthy!"
+                  break
+                fi
+                sleep 5
+                NGINX_ELAPSED=$((NGINX_ELAPSED + 5))
+                echo "[$NGINX_ELAPSED s] Nginx health: $NGINX_HEALTH"
+              done
+
+              if [ "$NGINX_HEALTH" != "healthy" ]; then
+                echo "⚠ Warning: Nginx did not become healthy within ${NGINX_TIMEOUT}s"
+                echo "Nginx logs:"
+                docker logs chatkeep-nginx --tail 20 2>&1 || true
+              fi
+            else
+              echo "⚠ Nginx config test failed, keeping old container"
+              docker exec chatkeep-nginx nginx -s reload 2>/dev/null || echo "Nginx reload also failed"
+            fi
 
             # Verify all containers
             echo ""
