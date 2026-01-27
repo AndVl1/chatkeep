@@ -32,7 +32,6 @@
     "manageBlocklist": "Блокировка слов и фраз",
     "configureLocks": "Настройка блокировок",
     "channelReply": "Автоответ на посты канала",
-    "statistics": "Посмотреть статистику",
     "moderation": "Действия модерации",
     "welcome": "Приветственные сообщения",
     "rules": "Правила чата",
@@ -211,21 +210,6 @@
     "fileTooLarge": "Размер файла должен быть меньше 20МБ",
     "invalidFileType": "Разрешены только изображения (JPEG, PNG, GIF, WebP) и видео (MP4, WebM, MOV)",
     "textTruncated": "Текст обрезан до {{maxLength}} символов"
-  },
-  "statistics": {
-    "title": "Статистика чата",
-    "messages": "Сообщения",
-    "totalMessages": "Всего сообщений",
-    "last24h": "За последние 24 часа",
-    "last7d": "За последние 7 дней",
-    "last30d": "За последние 30 дней",
-    "users": "Пользователи",
-    "totalUsers": "Всего пользователей",
-    "moderation": "Модерация",
-    "activeWarnings": "Активные предупреждения",
-    "totalBans": "Всего банов",
-    "totalMutes": "Всего блокировок",
-    "totalKicks": "Всего киков"
   },
   "moderation": {
     "title": "Действия модерации",

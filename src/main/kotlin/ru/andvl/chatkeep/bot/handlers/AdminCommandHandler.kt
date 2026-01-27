@@ -20,6 +20,8 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
+import ru.andvl.chatkeep.bot.service.ErrorContext
 import ru.andvl.chatkeep.domain.model.ChatSettings
 import ru.andvl.chatkeep.domain.service.AdminService
 import ru.andvl.chatkeep.domain.service.ChatService
@@ -28,51 +30,75 @@ import ru.andvl.chatkeep.domain.service.ChatService
 class AdminCommandHandler(
     private val chatService: ChatService,
     private val adminService: AdminService,
-    @Value("\${telegram.mini-app.url}") private val miniAppUrl: String
+    private val errorNotificationService: AdminErrorNotificationService,
+    @Value("\${telegram.mini-app.url:}") private val miniAppUrl: String
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override suspend fun BehaviourContext.register() {
         onCommand("start", initialFilter = { it.chat is PrivateChat }) { message ->
-            val keyboard = InlineKeyboardMarkup(
-                keyboard = matrix {
-                    row {
-                        +WebAppInlineKeyboardButton("📱 Open Mini App", WebAppInfo(miniAppUrl))
-                    }
+            logger.info("/start: Handler invoked for chat ${message.chat.id}")
+            logger.debug("/start: Chat type is ${message.chat::class.simpleName}")
+            logger.debug("/start: Mini App URL configured: '${miniAppUrl}'")
+
+            try {
+                val welcomeText = """
+                    Chatkeep Bot
+
+                    I collect messages from group chats where I'm added.
+
+                    Admin Commands (Private Chat):
+                    /mychats - List chats where you're admin
+                    /stats <chat_id> - Get statistics for a chat
+                    /enable <chat_id> - Enable message collection
+                    /disable <chat_id> - Disable message collection
+                    /connect <chat_id> - Connect to a chat for management
+                    /disconnect - Disconnect from current chat
+                    /addblock <pattern> <action> - Add blocklist pattern
+                    /delblock <pattern> - Remove blocklist pattern
+                    /blocklist - List blocklist patterns
+
+                    Moderation Commands (Group Chat):
+                    /warn - Warn a user (reply or user_id)
+                    /unwarn - Remove user warnings
+                    /mute [duration] - Mute a user (e.g. 1h, 24h)
+                    /unmute - Unmute a user
+                    /ban [duration] - Ban a user
+                    /unban - Unban a user
+                    /kick - Kick a user
+                    /cleanservice <on|off> - Auto-delete join/leave messages
+                """.trimIndent()
+
+                // Only add Mini App button if URL is configured
+                if (miniAppUrl.isNotBlank() && miniAppUrl.startsWith("https://")) {
+                    logger.debug("/start: Creating keyboard with Mini App button")
+                    val keyboard = InlineKeyboardMarkup(
+                        keyboard = matrix {
+                            row {
+                                +WebAppInlineKeyboardButton("📱 Open Mini App", WebAppInfo(miniAppUrl))
+                            }
+                        }
+                    )
+                    reply(message, welcomeText, replyMarkup = keyboard)
+                } else {
+                    logger.warn("/start: Mini App URL not configured or invalid, sending message without button. URL: '$miniAppUrl'")
+                    reply(message, welcomeText)
                 }
-            )
 
-            reply(
-                message,
-                """
-                Chatkeep Bot
-
-                I collect messages from group chats where I'm added.
-
-                Admin Commands (Private Chat):
-                /mychats - List chats where you're admin
-                /stats <chat_id> - Get statistics for a chat
-                /enable <chat_id> - Enable message collection
-                /disable <chat_id> - Disable message collection
-                /connect <chat_id> - Connect to a chat for management
-                /disconnect - Disconnect from current chat
-                /addblock <pattern> <action> - Add blocklist pattern
-                /delblock <pattern> - Remove blocklist pattern
-                /blocklist - List blocklist patterns
-
-                Moderation Commands (Group Chat):
-                /warn - Warn a user (reply or user_id)
-                /unwarn - Remove user warnings
-                /mute [duration] - Mute a user (e.g. 1h, 24h)
-                /unmute - Unmute a user
-                /ban [duration] - Ban a user
-                /unban - Unban a user
-                /kick - Kick a user
-                /cleanservice <on|off> - Auto-delete join/leave messages
-                """.trimIndent(),
-                replyMarkup = keyboard
-            )
+                logger.info("/start: Response sent successfully for chat ${message.chat.id}")
+            } catch (e: Exception) {
+                logger.error("/start: Error handling start command for chat ${message.chat.id}", e)
+                errorNotificationService.reportHandlerError(
+                    handler = "AdminCommandHandler",
+                    error = e,
+                    context = ErrorContext(
+                        chatId = message.chat.id.chatId.long,
+                        command = "/start"
+                    )
+                )
+                throw e
+            }
         }
 
         onCommand("mychats", initialFilter = { it.chat is PrivateChat }) { message ->

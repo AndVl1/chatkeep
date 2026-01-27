@@ -11,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
+import ru.andvl.chatkeep.bot.service.ErrorContext
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentType
 import ru.andvl.chatkeep.domain.service.AntifloodService
@@ -24,7 +26,8 @@ class AntifloodHandler(
     private val antifloodService: AntifloodService,
     private val punishmentService: PunishmentService,
     private val adminCacheService: AdminCacheService,
-    private val chatService: ChatService
+    private val chatService: ChatService,
+    private val errorNotificationService: AdminErrorNotificationService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -90,6 +93,14 @@ class AntifloodHandler(
                     }
                 } catch (e: Exception) {
                     logger.error("Anti-flood handler error: ${e.message}", e)
+                    errorNotificationService.reportHandlerError(
+                        handler = "AntifloodHandler",
+                        error = e,
+                        context = ErrorContext(
+                            chatId = chatId,
+                            userId = userId
+                        )
+                    )
                 }
             }
         }

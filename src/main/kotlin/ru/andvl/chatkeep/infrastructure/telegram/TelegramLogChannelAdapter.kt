@@ -98,7 +98,10 @@ class TelegramLogChannelAdapter(
                 ActionType.RULES_CHANGED,
                 ActionType.TWITCH_CHANNEL_ADDED,
                 ActionType.TWITCH_CHANNEL_REMOVED,
-                ActionType.TWITCH_SETTINGS_CHANGED
+                ActionType.TWITCH_SETTINGS_CHANGED,
+                ActionType.CHANNEL_REPLY_CHANGED,
+                ActionType.ANTIFLOOD_CHANGED,
+                ActionType.BLOCKLIST_ADDED
             )
             if (entry.actionType !in configActions) {
                 val reason = entry.reason ?: "No reason provided"
@@ -131,6 +134,15 @@ class TelegramLogChannelAdapter(
                 }
                 ActionType.TWITCH_SETTINGS_CHANGED -> {
                     entry.reason?.let { appendLine("<b>Changes:</b> $it") }
+                }
+                ActionType.CHANNEL_REPLY_CHANGED -> {
+                    entry.reason?.let { appendLine("<b>Details:</b> $it") }
+                }
+                ActionType.ANTIFLOOD_CHANGED -> {
+                    entry.reason?.let { appendLine("<b>Details:</b> $it") }
+                }
+                ActionType.BLOCKLIST_ADDED -> {
+                    entry.reason?.let { appendLine("<b>Details:</b> $it") }
                 }
                 else -> { /* Handled above */ }
             }
@@ -179,6 +191,9 @@ class TelegramLogChannelAdapter(
             ActionType.TWITCH_CHANNEL_ADDED -> "#TWITCH_ADDED"
             ActionType.TWITCH_CHANNEL_REMOVED -> "#TWITCH_REMOVED"
             ActionType.TWITCH_SETTINGS_CHANGED -> "#TWITCH_SETTINGS"
+            ActionType.CHANNEL_REPLY_CHANGED -> "#CHANNEL_REPLY_CHANGED"
+            ActionType.ANTIFLOOD_CHANGED -> "#ANTIFLOOD_CHANGED"
+            ActionType.BLOCKLIST_ADDED -> "#BLOCKLIST_ADDED"
         }
     }
 

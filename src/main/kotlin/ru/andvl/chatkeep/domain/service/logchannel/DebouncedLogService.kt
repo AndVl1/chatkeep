@@ -49,7 +49,8 @@ class DebouncedLogService(
     private val debouncedActionTypes = setOf(
         ActionType.WELCOME_CHANGED,
         ActionType.RULES_CHANGED,
-        ActionType.TWITCH_SETTINGS_CHANGED
+        ActionType.TWITCH_SETTINGS_CHANGED,
+        ActionType.CHANNEL_REPLY_CHANGED
     )
 
     /**

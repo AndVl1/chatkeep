@@ -107,21 +107,6 @@ export interface MediaUploadResponse {
   mediaType: 'PHOTO' | 'VIDEO' | 'DOCUMENT' | 'ANIMATION';
 }
 
-// === Statistics Types ===
-
-export interface ChatStatistics {
-  chatId: number;
-  totalMessages: number;
-  totalUsers: number;
-  activeWarnings: number;
-  totalBans: number;
-  totalMutes: number;
-  totalKicks: number;
-  messagesLast24h: number;
-  messagesLast7d: number;
-  messagesLast30d: number;
-}
-
 // === Session Types ===
 
 export interface AdminSession {

@@ -11,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
+import ru.andvl.chatkeep.bot.service.ErrorContext
 import ru.andvl.chatkeep.domain.service.MessageService
 import ru.andvl.chatkeep.domain.service.moderation.UsernameCacheService
 import java.time.Instant
@@ -19,7 +21,8 @@ import java.time.Instant
 class GroupMessageHandler(
     private val messageService: MessageService,
     private val usernameCacheService: UsernameCacheService,
-    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService
+    private val metricsService: ru.andvl.chatkeep.metrics.BotMetricsService,
+    private val errorNotificationService: AdminErrorNotificationService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -76,7 +79,14 @@ class GroupMessageHandler(
                     metricsService.recordMessageProcessingTime("GroupMessageHandler", duration)
                 } catch (e: Exception) {
                     logger.error("Failed to save message: ${e.message}", e)
-                    metricsService.recordHandlerError("GroupMessageHandler")
+                    errorNotificationService.reportHandlerError(
+                        handler = "GroupMessageHandler",
+                        error = e,
+                        context = ErrorContext(
+                            chatId = message.chat.id.chatId.long,
+                            userId = user.id.chatId.long
+                        )
+                    )
                 }
             }
         }
