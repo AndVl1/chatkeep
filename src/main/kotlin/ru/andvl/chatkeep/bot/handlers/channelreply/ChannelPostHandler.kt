@@ -13,7 +13,7 @@ import dev.inmo.tgbotapi.types.buttons.InlineKeyboardButtons.URLInlineKeyboardBu
 import dev.inmo.tgbotapi.types.buttons.InlineKeyboardMarkup
 import dev.inmo.tgbotapi.types.chat.ChannelChat
 import dev.inmo.tgbotapi.types.message.abstracts.AccessibleMessage
-import dev.inmo.tgbotapi.types.message.abstracts.ConnectedFromChannelGroupContentMessage
+import dev.inmo.tgbotapi.types.message.abstracts.FromChannelGroupContentMessage
 import dev.inmo.tgbotapi.types.message.content.AnimationContent
 import dev.inmo.tgbotapi.types.message.content.DocumentContent
 import dev.inmo.tgbotapi.types.message.content.PhotoContent
@@ -42,10 +42,8 @@ class ChannelPostHandler(
     override suspend fun BehaviourContext.register() {
         onContentMessage(
             initialFilter = { message ->
-                // Filter: only messages from LINKED channel (automatic forwards)
-                // ConnectedFromChannelGroupContentMessage = posts from the channel that is linked to this discussion group
-                // This excludes: messages from unlinked channels, anonymous admin messages, etc.
-                message is ConnectedFromChannelGroupContentMessage<*> && message.chat !is ChannelChat
+                // Filter: messages from channels in discussion chats
+                message is FromChannelGroupContentMessage<*> && message.chat !is ChannelChat
             },
             markerFactory = null
         ) { message ->
