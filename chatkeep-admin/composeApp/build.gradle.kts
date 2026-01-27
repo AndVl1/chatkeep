@@ -169,23 +169,39 @@ android {
     }
 
     // Configure keystore from environment variables for release signing
+    // Supports both ANDROID_KEYSTORE_PATH (file path) and ANDROID_KEYSTORE_BASE_64 (base64 encoded)
+    val releaseKeystoreConfigured = run {
+        val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+        val keystoreBase64 = System.getenv("ANDROID_KEYSTORE_BASE_64")
+        val keystorePass = System.getenv("ANDROID_KEYSTORE_PASS")
+        val keyAlias = System.getenv("ANDROID_KEYSTORE_ALIAS")
+        val keyPass = System.getenv("ANDROID_KEYSTORE_KEY_PASS")
+
+        keystorePass != null && keyAlias != null && keyPass != null &&
+            (keystorePath != null || keystoreBase64 != null)
+    }
+
     signingConfigs {
-        create("release") {
-            val keystoreBase64 = System.getenv("ANDROID_KEYSTORE_BASE_64")
-            val keystorePass = System.getenv("ANDROID_KEYSTORE_PASS")
-            val keyAlias = System.getenv("ANDROID_KEYSTORE_ALIAS")
-            val keyPass = System.getenv("ANDROID_KEYSTORE_KEY_PASS")
+        if (releaseKeystoreConfigured) {
+            create("release") {
+                val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+                val keystoreBase64 = System.getenv("ANDROID_KEYSTORE_BASE_64")
+                val keystorePass = System.getenv("ANDROID_KEYSTORE_PASS")!!
+                val keyAliasEnv = System.getenv("ANDROID_KEYSTORE_ALIAS")!!
+                val keyPassEnv = System.getenv("ANDROID_KEYSTORE_KEY_PASS")!!
 
-            if (keystoreBase64 != null && keystorePass != null && keyAlias != null && keyPass != null) {
-                // Decode base64 keystore to temp file
-                val keystoreFile = File.createTempFile("keystore", ".jks")
-                keystoreFile.deleteOnExit()
-                keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
-
-                storeFile = keystoreFile
+                // Prefer file path, fallback to base64 decoding
+                storeFile = if (keystorePath != null) {
+                    File(keystorePath)
+                } else {
+                    val keystoreFile = File.createTempFile("keystore", ".jks")
+                    keystoreFile.deleteOnExit()
+                    keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+                    keystoreFile
+                }
                 storePassword = keystorePass
-                this.keyAlias = keyAlias
-                keyPassword = keyPass
+                this.keyAlias = keyAliasEnv
+                keyPassword = keyPassEnv
             }
         }
     }
@@ -213,7 +229,12 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            // Use release signing if configured, otherwise fall back to debug signing
+            signingConfig = if (releaseKeystoreConfigured) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             // Debug uses default signing
