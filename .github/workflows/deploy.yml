@@ -51,7 +51,10 @@ jobs:
             echo "backend=true" >> $GITHUB_OUTPUT
             echo "Manual dispatch - building web components (Android skipped by default)"
           else
-            # For push events, compare with previous commit
+            # For push events to main/production, always build mobile to ensure artifacts exist
+            # This prevents the case where a failed deploy skips mobile, and subsequent
+            # deploys without mobile changes never build it
+            BRANCH="${{ github.ref_name }}"
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
 
@@ -63,21 +66,32 @@ jobs:
               echo "backend=true" >> $GITHUB_OUTPUT
               echo "First push - building all components including Android"
             else
-              # Check for admin changes (WASM and Android share the same source)
-              if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^chatkeep-admin/"; then
+              # On main/production: ALWAYS build mobile (WASM + Android) to ensure artifacts exist
+              # On other branches: use change detection
+              if [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
                 echo "admin-wasm=true" >> $GITHUB_OUTPUT
                 echo "admin-android=true" >> $GITHUB_OUTPUT
-                echo "Admin changes detected (WASM + Android)"
+                echo "Push to $BRANCH - ALWAYS building mobile (WASM + Android)"
               else
-                echo "admin-wasm=false" >> $GITHUB_OUTPUT
-                echo "admin-android=false" >> $GITHUB_OUTPUT
-                echo "No admin changes"
+                # Check for admin changes (WASM and Android share the same source)
+                if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^chatkeep-admin/"; then
+                  echo "admin-wasm=true" >> $GITHUB_OUTPUT
+                  echo "admin-android=true" >> $GITHUB_OUTPUT
+                  echo "Admin changes detected (WASM + Android)"
+                else
+                  echo "admin-wasm=false" >> $GITHUB_OUTPUT
+                  echo "admin-android=false" >> $GITHUB_OUTPUT
+                  echo "No admin changes"
+                fi
               fi
 
-              # Check for mini-app changes
+              # Check for mini-app changes (fast to build, use change detection)
               if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^mini-app/"; then
                 echo "mini-app=true" >> $GITHUB_OUTPUT
                 echo "Mini App changes detected"
+              elif [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
+                echo "mini-app=true" >> $GITHUB_OUTPUT
+                echo "Push to $BRANCH - building mini-app"
               else
                 echo "mini-app=false" >> $GITHUB_OUTPUT
                 echo "No Mini App changes"
@@ -87,6 +101,9 @@ jobs:
               if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -v "^chatkeep-admin/" | grep -v "^mini-app/" | grep -v "^\.github/" | grep -q "."; then
                 echo "backend=true" >> $GITHUB_OUTPUT
                 echo "Backend changes detected"
+              elif [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
+                echo "backend=true" >> $GITHUB_OUTPUT
+                echo "Push to $BRANCH - building backend"
               else
                 echo "backend=false" >> $GITHUB_OUTPUT
                 echo "No backend changes"
