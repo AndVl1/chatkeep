@@ -17,6 +17,12 @@ import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.*
 import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.UnauthorizedException
+import ru.andvl.chatkeep.domain.model.moderation.ActionType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
+import ru.andvl.chatkeep.domain.service.ChatService
+import ru.andvl.chatkeep.domain.service.logchannel.DebouncedLogService
+import ru.andvl.chatkeep.domain.service.logchannel.LogChannelService
+import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.twitch.TwitchChannelService
 import ru.andvl.chatkeep.domain.service.twitch.TwitchNotificationService
@@ -33,7 +39,10 @@ class MiniAppTwitchController(
     private val channelService: TwitchChannelService,
     private val notificationService: TwitchNotificationService,
     private val streamRepo: TwitchStreamRepository,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val logChannelService: LogChannelService,
+    private val debouncedLogService: DebouncedLogService,
+    private val chatService: ChatService
 ) {
 
     private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
@@ -105,6 +114,22 @@ class MiniAppTwitchController(
         val subscription = channelService.subscribeToChannel(chatId, addRequest.twitchLogin, user.id)
             ?: throw IllegalArgumentException("Failed to subscribe: limit reached or channel already added")
 
+        // Log the channel addition (immediate, not debounced)
+        val chatTitle = chatService.getSettings(chatId)?.chatTitle
+        logChannelService.logModerationAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatTitle,
+                adminId = user.id,
+                adminFirstName = user.firstName,
+                adminLastName = user.lastName,
+                adminUserName = user.username,
+                actionType = ActionType.TWITCH_CHANNEL_ADDED,
+                reason = "Twitch: ${subscription.displayName} (@${subscription.twitchLogin})",
+                source = PunishmentSource.MANUAL
+            )
+        )
+
         // Check if the channel is currently live
         val isLive = streamRepo.findAllActive()
             .any { it.subscriptionId == subscription.id }
@@ -140,7 +165,29 @@ class MiniAppTwitchController(
             throw AccessDeniedException("You are not an admin in this chat")
         }
 
+        // Get subscription info before deleting for logging
+        val subscription = channelService.getChannelSubscriptions(chatId)
+            .find { it.id == subscriptionId }
+
         channelService.unsubscribeFromChannel(subscriptionId)
+
+        // Log the channel removal (immediate, not debounced)
+        if (subscription != null) {
+            val chatTitle = chatService.getSettings(chatId)?.chatTitle
+            logChannelService.logModerationAction(
+                ModerationLogEntry(
+                    chatId = chatId,
+                    chatTitle = chatTitle,
+                    adminId = user.id,
+                    adminFirstName = user.firstName,
+                    adminLastName = user.lastName,
+                    adminUserName = user.username,
+                    actionType = ActionType.TWITCH_CHANNEL_REMOVED,
+                    reason = "Twitch: ${subscription.displayName} (@${subscription.twitchLogin})",
+                    source = PunishmentSource.MANUAL
+                )
+            )
+        }
     }
 
     @GetMapping("/settings")
@@ -190,16 +237,63 @@ class MiniAppTwitchController(
             throw AccessDeniedException("You are not an admin in this chat")
         }
 
+        // Get existing settings for comparison
+        val existing = notificationService.getNotificationSettings(chatId)
+
         val settings = notificationService.updateNotificationSettings(
             chatId,
             updateRequest.messageTemplate,
             updateRequest.endedMessageTemplate,
             updateRequest.buttonText
         )
+
+        // Log template changes (debounced since templates are text fields)
+        logTwitchSettingsChanges(chatId, user, existing, settings)
+
         return TwitchSettingsDto(
             messageTemplate = settings.messageTemplate,
             endedMessageTemplate = settings.endedMessageTemplate,
             buttonText = settings.buttonText
+        )
+    }
+
+    /**
+     * Log Twitch notification settings changes.
+     * All template changes are debounced since they are text fields that can sync in real-time.
+     */
+    private fun logTwitchSettingsChanges(
+        chatId: Long,
+        user: TelegramAuthService.TelegramUser,
+        old: ru.andvl.chatkeep.domain.model.twitch.TwitchNotificationSettings,
+        new: ru.andvl.chatkeep.domain.model.twitch.TwitchNotificationSettings
+    ) {
+        val changes = mutableListOf<String>()
+
+        if (old.messageTemplate != new.messageTemplate) {
+            changes.add("stream start template")
+        }
+        if (old.endedMessageTemplate != new.endedMessageTemplate) {
+            changes.add("stream end template")
+        }
+        if (old.buttonText != new.buttonText) {
+            changes.add("button text")
+        }
+
+        if (changes.isEmpty()) return
+
+        val chatTitle = chatService.getSettings(chatId)?.chatTitle
+        debouncedLogService.logAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatTitle,
+                adminId = user.id,
+                adminFirstName = user.firstName,
+                adminLastName = user.lastName,
+                adminUserName = user.username,
+                actionType = ActionType.TWITCH_SETTINGS_CHANGED,
+                reason = "updated: ${changes.joinToString(", ")}",
+                source = PunishmentSource.MANUAL
+            )
         )
     }
 }

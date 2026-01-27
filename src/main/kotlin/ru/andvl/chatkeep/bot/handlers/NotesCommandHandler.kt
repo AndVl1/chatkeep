@@ -10,13 +10,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
+import ru.andvl.chatkeep.bot.service.ErrorContext
 import ru.andvl.chatkeep.domain.service.NotesService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
 @Component
 class NotesCommandHandler(
     private val notesService: NotesService,
-    private val adminCacheService: AdminCacheService
+    private val adminCacheService: AdminCacheService,
+    private val errorNotificationService: AdminErrorNotificationService
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -48,6 +51,11 @@ class NotesCommandHandler(
                     }
                 } catch (e: Exception) {
                     logger.error("Failed to get note: ${e.message}", e)
+                    errorNotificationService.reportHandlerError(
+                        handler = "NotesCommandHandler",
+                        error = e,
+                        context = ErrorContext(chatId = chatId, command = "/note")
+                    )
                     reply(message, "❌ Failed to retrieve note")
                 }
             }
@@ -94,6 +102,11 @@ class NotesCommandHandler(
                     reply(message, "❌ Note '$noteName' already exists")
                 } catch (e: Exception) {
                     logger.error("Failed to save note: ${e.message}", e)
+                    errorNotificationService.reportHandlerError(
+                        handler = "NotesCommandHandler",
+                        error = e,
+                        context = ErrorContext(chatId = chatId, userId = userId, command = "/save")
+                    )
                     reply(message, "❌ Failed to save note")
                 }
             }
@@ -119,6 +132,11 @@ class NotesCommandHandler(
                     }
                 } catch (e: Exception) {
                     logger.error("Failed to list notes: ${e.message}", e)
+                    errorNotificationService.reportHandlerError(
+                        handler = "NotesCommandHandler",
+                        error = e,
+                        context = ErrorContext(chatId = chatId, command = "/notes")
+                    )
                     reply(message, "❌ Failed to list notes")
                 }
             }
@@ -164,6 +182,11 @@ class NotesCommandHandler(
                     }
                 } catch (e: Exception) {
                     logger.error("Failed to delete note: ${e.message}", e)
+                    errorNotificationService.reportHandlerError(
+                        handler = "NotesCommandHandler",
+                        error = e,
+                        context = ErrorContext(chatId = chatId, userId = userId, command = "/delnote")
+                    )
                     reply(message, "❌ Failed to delete note")
                 }
             }

@@ -26,7 +26,12 @@ import ru.andvl.chatkeep.api.service.MediaUploadService
 import ru.andvl.chatkeep.domain.model.channelreply.ChannelReplySettings
 import ru.andvl.chatkeep.domain.model.channelreply.MediaType
 import ru.andvl.chatkeep.domain.model.channelreply.ReplyButton
+import ru.andvl.chatkeep.domain.model.moderation.ActionType
+import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
+import ru.andvl.chatkeep.domain.service.ChatService
 import ru.andvl.chatkeep.domain.service.channelreply.ChannelReplyService
+import ru.andvl.chatkeep.domain.service.logchannel.DebouncedLogService
+import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
 @RestController
@@ -38,7 +43,9 @@ class MiniAppChannelReplyController(
     private val adminCacheService: AdminCacheService,
     private val mediaUploadService: MediaUploadService,
     private val mediaStorageService: ru.andvl.chatkeep.domain.service.media.MediaStorageService,
-    private val linkedChannelService: ru.andvl.chatkeep.domain.service.channelreply.LinkedChannelService
+    private val linkedChannelService: ru.andvl.chatkeep.domain.service.channelreply.LinkedChannelService,
+    private val debouncedLogService: DebouncedLogService,
+    private val chatService: ChatService
 ) {
 
     private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
@@ -115,6 +122,9 @@ class MiniAppChannelReplyController(
             throw AccessDeniedException("You are not an admin in this chat")
         }
 
+        val existing = channelReplyService.getSettings(chatId)
+            ?: ChannelReplySettings(chatId = chatId)
+
         // Update enabled status
         updateRequest.enabled?.let {
             channelReplyService.setEnabled(chatId, it)
@@ -130,6 +140,12 @@ class MiniAppChannelReplyController(
             val buttons = buttonDtos.map { ReplyButton(it.text, it.url) }
             channelReplyService.setButtons(chatId, buttons)
         }
+
+        val updated = channelReplyService.getSettings(chatId)
+            ?: ChannelReplySettings(chatId = chatId)
+
+        // Log changes
+        logChannelReplyChanges(chatId, user, existing, updated)
 
         return getChannelReply(chatId, request)
     }
@@ -198,5 +214,54 @@ class MiniAppChannelReplyController(
         channelReplyService.clearMedia(chatId)
 
         return ResponseEntity.noContent().build()
+    }
+
+    /**
+     * Log channel reply settings changes to the log channel.
+     * Text changes are debounced, toggle and media changes are logged immediately.
+     */
+    private fun logChannelReplyChanges(
+        chatId: Long,
+        user: TelegramAuthService.TelegramUser,
+        old: ChannelReplySettings,
+        new: ChannelReplySettings
+    ) {
+        val chatTitle = chatService.getSettings(chatId)?.chatTitle
+
+        val changes = mutableListOf<String>()
+
+        if (old.enabled != new.enabled) {
+            changes.add("enabled: ${if (new.enabled) "ON" else "OFF"}")
+        }
+        if (old.replyText != new.replyText) {
+            changes.add("reply text updated")
+        }
+        if (old.buttonsJson != new.buttonsJson) {
+            changes.add("buttons updated")
+        }
+        if (old.mediaFileId != new.mediaFileId || old.mediaHash != new.mediaHash) {
+            val mediaChange = if (new.mediaFileId.isNullOrBlank() && new.mediaHash.isNullOrBlank()) {
+                "media removed"
+            } else {
+                "media updated"
+            }
+            changes.add(mediaChange)
+        }
+
+        if (changes.isEmpty()) return
+
+        val entry = ModerationLogEntry(
+            chatId = chatId,
+            chatTitle = chatTitle,
+            adminId = user.id,
+            adminFirstName = user.firstName,
+            adminLastName = user.lastName,
+            adminUserName = user.username,
+            actionType = ActionType.CHANNEL_REPLY_CHANGED,
+            reason = "channel reply: ${changes.joinToString(", ")}",
+            source = PunishmentSource.MANUAL
+        )
+
+        debouncedLogService.logAction(entry)
     }
 }

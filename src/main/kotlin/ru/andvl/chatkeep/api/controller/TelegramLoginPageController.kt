@@ -40,15 +40,29 @@ class TelegramLoginPageController(
     ): String {
         // Determine which bot to use based on the host
         val host = request.getHeader("Host") ?: ""
-        logger.info("Telegram Login page requested. Host: '$host', AdminBot username: '${adminBotProperties.username}'")
+        logger.info("Telegram Login page requested. Host: '$host', State: '$state'")
+        logger.info("Bot configuration - Main: '${botProperties.username}', Admin: '${adminBotProperties.username}'")
 
-        val botUsername = if (host.startsWith("admin.") && adminBotProperties.username.isNotEmpty()) {
-            adminBotProperties.username
+        val botUsername = if (host.startsWith("admin.")) {
+            // For admin subdomain, use admin bot if configured, otherwise log warning and fall back
+            if (adminBotProperties.username.isNotEmpty()) {
+                logger.info("Using admin bot for admin subdomain")
+                adminBotProperties.username
+            } else {
+                logger.warn("Admin subdomain requested but TELEGRAM_ADMINBOT_USERNAME not configured! Falling back to main bot. Please set TELEGRAM_ADMINBOT_USERNAME environment variable.")
+                botProperties.username
+            }
         } else {
+            logger.info("Using main bot for regular domain")
             botProperties.username
         }
 
-        logger.info("Using bot username: '$botUsername'")
+        logger.info("Selected bot username: '$botUsername'")
+
+        if (botUsername.isEmpty()) {
+            logger.error("Bot username is empty! Check TELEGRAM_BOT_USERNAME or TELEGRAM_ADMINBOT_USERNAME configuration.")
+        }
+
         model.addAttribute("botUsername", botUsername)
         model.addAttribute("state", state)
         return "telegram-login"

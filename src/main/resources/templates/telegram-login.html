@@ -192,17 +192,41 @@
                         type: 'chatkeep-auth',
                         data: authData
                     }, '*');
+
+                    // Try to close the window
                     window.close();
+
+                    // If window.close() didn't work (window is still open after 100ms),
+                    // show a message to the user
+                    setTimeout(() => {
+                        if (!window.closed) {
+                            const btn = document.getElementById('open-app-btn');
+                            btn.textContent = 'You can close this tab now';
+                            btn.style.background = '#48bb78';
+                            btn.style.cursor = 'default';
+                        }
+                    }, 100);
                 };
                 document.getElementById('open-app-btn').href = '#';
 
-                // Also try auto-posting after a short delay
+                // Also try auto-posting and auto-closing after a short delay
                 setTimeout(() => {
                     if (window.opener) {
                         window.opener.postMessage({
                             type: 'chatkeep-auth',
                             data: authData
                         }, '*');
+
+                        // Try auto-close
+                        window.close();
+
+                        // If auto-close didn't work, update the message
+                        setTimeout(() => {
+                            if (!window.closed) {
+                                document.querySelector('.redirect-section p:last-child').textContent =
+                                    'You can safely close this tab or click the button above to return to the app';
+                            }
+                        }, 100);
                     }
                 }, 500);
             } else {

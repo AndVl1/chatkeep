@@ -16,6 +16,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import ru.andvl.chatkeep.domain.model.ChatSettings
+import ru.andvl.chatkeep.bot.service.AdminErrorNotificationService
 import ru.andvl.chatkeep.domain.service.AdminService
 import ru.andvl.chatkeep.domain.service.ChatService
 import java.time.Instant
@@ -26,13 +27,15 @@ class AdminCommandHandlerTest {
 
     private lateinit var chatService: ChatService
     private lateinit var adminService: AdminService
+    private lateinit var errorNotificationService: AdminErrorNotificationService
     private lateinit var handler: AdminCommandHandler
 
     @BeforeEach
     fun setUp() {
         chatService = mockk()
         adminService = mockk()
-        handler = AdminCommandHandler(chatService, adminService, "https://test-mini-app.example.com")
+        errorNotificationService = mockk(relaxed = true)
+        handler = AdminCommandHandler(chatService, adminService, errorNotificationService, "https://test-mini-app.example.com")
     }
 
     @AfterEach
