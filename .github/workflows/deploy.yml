@@ -15,6 +15,16 @@ on:
           - production
           - test
         default: 'test'
+      force_rebuild:
+        description: 'Force rebuild all components (ignores change detection)'
+        required: false
+        type: boolean
+        default: false
+      build_android:
+        description: 'Build Android APK (normally skipped for manual deploys)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -44,12 +54,21 @@ jobs:
         run: |
           # Get the base commit to compare against
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # For manual dispatch, build based on input (default: skip Android to speed up)
-            echo "admin-wasm=true" >> $GITHUB_OUTPUT
-            echo "admin-android=false" >> $GITHUB_OUTPUT
-            echo "mini-app=true" >> $GITHUB_OUTPUT
-            echo "backend=true" >> $GITHUB_OUTPUT
-            echo "Manual dispatch - building web components (Android skipped by default)"
+            # For manual dispatch, check force_rebuild flag
+            if [[ "${{ inputs.force_rebuild }}" == "true" ]]; then
+              echo "admin-wasm=true" >> $GITHUB_OUTPUT
+              echo "admin-android=true" >> $GITHUB_OUTPUT
+              echo "mini-app=true" >> $GITHUB_OUTPUT
+              echo "backend=true" >> $GITHUB_OUTPUT
+              echo "Force rebuild - building ALL components including Android"
+            else
+              # Default: build web components, optionally Android
+              echo "admin-wasm=true" >> $GITHUB_OUTPUT
+              echo "admin-android=${{ inputs.build_android }}" >> $GITHUB_OUTPUT
+              echo "mini-app=true" >> $GITHUB_OUTPUT
+              echo "backend=true" >> $GITHUB_OUTPUT
+              echo "Manual dispatch - building web components (Android: ${{ inputs.build_android }})"
+            fi
           else
             # For push events, compare with previous commit
             BASE_SHA="${{ github.event.before }}"
