@@ -51,7 +51,10 @@ jobs:
             echo "backend=true" >> $GITHUB_OUTPUT
             echo "Manual dispatch - building web components (Android skipped by default)"
           else
-            # For push events, compare with previous commit
+            # For push events to main/production, always build mobile to ensure artifacts exist
+            # This prevents the case where a failed deploy skips mobile, and subsequent
+            # deploys without mobile changes never build it
+            BRANCH="${{ github.ref_name }}"
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
 
@@ -63,21 +66,32 @@ jobs:
               echo "backend=true" >> $GITHUB_OUTPUT
               echo "First push - building all components including Android"
             else
-              # Check for admin changes (WASM and Android share the same source)
-              if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^chatkeep-admin/"; then
+              # On main/production: ALWAYS build mobile (WASM + Android) to ensure artifacts exist
+              # On other branches: use change detection
+              if [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
                 echo "admin-wasm=true" >> $GITHUB_OUTPUT
                 echo "admin-android=true" >> $GITHUB_OUTPUT
-                echo "Admin changes detected (WASM + Android)"
+                echo "Push to $BRANCH - ALWAYS building mobile (WASM + Android)"
               else
-                echo "admin-wasm=false" >> $GITHUB_OUTPUT
-                echo "admin-android=false" >> $GITHUB_OUTPUT
-                echo "No admin changes"
+                # Check for admin changes (WASM and Android share the same source)
+                if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^chatkeep-admin/"; then
+                  echo "admin-wasm=true" >> $GITHUB_OUTPUT
+                  echo "admin-android=true" >> $GITHUB_OUTPUT
+                  echo "Admin changes detected (WASM + Android)"
+                else
+                  echo "admin-wasm=false" >> $GITHUB_OUTPUT
+                  echo "admin-android=false" >> $GITHUB_OUTPUT
+                  echo "No admin changes"
+                fi
               fi
 
-              # Check for mini-app changes
+              # Check for mini-app changes (fast to build, use change detection)
               if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^mini-app/"; then
                 echo "mini-app=true" >> $GITHUB_OUTPUT
                 echo "Mini App changes detected"
+              elif [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
+                echo "mini-app=true" >> $GITHUB_OUTPUT
+                echo "Push to $BRANCH - building mini-app"
               else
                 echo "mini-app=false" >> $GITHUB_OUTPUT
                 echo "No Mini App changes"
@@ -87,6 +101,9 @@ jobs:
               if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -v "^chatkeep-admin/" | grep -v "^mini-app/" | grep -v "^\.github/" | grep -q "."; then
                 echo "backend=true" >> $GITHUB_OUTPUT
                 echo "Backend changes detected"
+              elif [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
+                echo "backend=true" >> $GITHUB_OUTPUT
+                echo "Push to $BRANCH - building backend"
               else
                 echo "backend=false" >> $GITHUB_OUTPUT
                 echo "No backend changes"
@@ -258,6 +275,9 @@ jobs:
       needs.deploy.result == 'success' &&
       needs.detect-changes.outputs.admin-android == 'true'
 
+    permissions:
+      contents: write
+
     env:
       IS_PRODUCTION: ${{ github.ref == 'refs/heads/production' }}
 
@@ -266,6 +286,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Generate build number
+        id: buildnumber
+        uses: onyxmueller/build-tag-number@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -312,26 +338,27 @@ jobs:
       - name: Prepare APK for upload
         id: prepare
         run: |
-          VERSION_CODE=$(git rev-list --count HEAD)
+          BUILD_NUMBER=${{ steps.buildnumber.outputs.build_number }}
           FLAVOR="${{ steps.build.outputs.flavor }}"
 
           if [[ "$FLAVOR" == "production" ]]; then
-            VERSION_NAME="1.0.0-prod.${VERSION_CODE}"
+            VERSION_NAME="1.0.0-prod-build${BUILD_NUMBER}"
             APK_NAME="chatkeep-admin-${VERSION_NAME}-signed.apk"
           else
-            VERSION_NAME="1.0.0-test.${VERSION_CODE}"
-            APK_NAME="chatkeep-admin-test-${VERSION_NAME}-signed.apk"
+            VERSION_NAME="1.0.0-test-build${BUILD_NUMBER}"
+            APK_NAME="chatkeep-admin-${VERSION_NAME}-signed.apk"
           fi
 
           mkdir -p android-apk
           cp "${{ steps.sign.outputs.signedReleaseFile }}" "android-apk/$APK_NAME"
           echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
-          echo "Prepared signed APK: $APK_NAME"
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "Prepared signed APK: $APK_NAME (build #$BUILD_NUMBER)"
 
       - name: Upload Android APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk-${{ steps.build.outputs.flavor }}
+          name: android-apk-${{ steps.build.outputs.flavor }}-build${{ steps.buildnumber.outputs.build_number }}
           path: android-apk/
           retention-days: 30
           if-no-files-found: error
@@ -340,6 +367,7 @@ jobs:
         run: |
           echo "### Android APK Built & Signed" >> $GITHUB_STEP_SUMMARY
           echo "- **Flavor**: ${{ steps.build.outputs.flavor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Number**: ${{ steps.buildnumber.outputs.build_number }}" >> $GITHUB_STEP_SUMMARY
           echo "- **APK**: ${{ steps.prepare.outputs.apk_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Signed**: Yes ✓" >> $GITHUB_STEP_SUMMARY
           echo "- **Download**: Available in workflow artifacts for 30 days" >> $GITHUB_STEP_SUMMARY
