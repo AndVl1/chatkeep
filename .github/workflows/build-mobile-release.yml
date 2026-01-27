@@ -20,6 +20,9 @@ on:
           - release
         default: 'release'
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     name: Build Android APK
