@@ -51,7 +51,10 @@ jobs:
             echo "backend=true" >> $GITHUB_OUTPUT
             echo "Manual dispatch - building web components (Android skipped by default)"
           else
-            # For push events, compare with previous commit
+            # For push events to main/production, always build mobile to ensure artifacts exist
+            # This prevents the case where a failed deploy skips mobile, and subsequent
+            # deploys without mobile changes never build it
+            BRANCH="${{ github.ref_name }}"
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
 
@@ -63,21 +66,32 @@ jobs:
               echo "backend=true" >> $GITHUB_OUTPUT
               echo "First push - building all components including Android"
             else
-              # Check for admin changes (WASM and Android share the same source)
-              if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^chatkeep-admin/"; then
+              # On main/production: ALWAYS build mobile (WASM + Android) to ensure artifacts exist
+              # On other branches: use change detection
+              if [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
                 echo "admin-wasm=true" >> $GITHUB_OUTPUT
                 echo "admin-android=true" >> $GITHUB_OUTPUT
-                echo "Admin changes detected (WASM + Android)"
+                echo "Push to $BRANCH - ALWAYS building mobile (WASM + Android)"
               else
-                echo "admin-wasm=false" >> $GITHUB_OUTPUT
-                echo "admin-android=false" >> $GITHUB_OUTPUT
-                echo "No admin changes"
+                # Check for admin changes (WASM and Android share the same source)
+                if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^chatkeep-admin/"; then
+                  echo "admin-wasm=true" >> $GITHUB_OUTPUT
+                  echo "admin-android=true" >> $GITHUB_OUTPUT
+                  echo "Admin changes detected (WASM + Android)"
+                else
+                  echo "admin-wasm=false" >> $GITHUB_OUTPUT
+                  echo "admin-android=false" >> $GITHUB_OUTPUT
+                  echo "No admin changes"
+                fi
               fi
 
-              # Check for mini-app changes
+              # Check for mini-app changes (fast to build, use change detection)
               if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q "^mini-app/"; then
                 echo "mini-app=true" >> $GITHUB_OUTPUT
                 echo "Mini App changes detected"
+              elif [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
+                echo "mini-app=true" >> $GITHUB_OUTPUT
+                echo "Push to $BRANCH - building mini-app"
               else
                 echo "mini-app=false" >> $GITHUB_OUTPUT
                 echo "No Mini App changes"
@@ -87,6 +101,9 @@ jobs:
               if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -v "^chatkeep-admin/" | grep -v "^mini-app/" | grep -v "^\.github/" | grep -q "."; then
                 echo "backend=true" >> $GITHUB_OUTPUT
                 echo "Backend changes detected"
+              elif [[ "$BRANCH" == "main" || "$BRANCH" == "production" ]]; then
+                echo "backend=true" >> $GITHUB_OUTPUT
+                echo "Push to $BRANCH - building backend"
               else
                 echo "backend=false" >> $GITHUB_OUTPUT
                 echo "No backend changes"
@@ -258,6 +275,9 @@ jobs:
       needs.deploy.result == 'success' &&
       needs.detect-changes.outputs.admin-android == 'true'
 
+    permissions:
+      contents: write
+
     env:
       IS_PRODUCTION: ${{ github.ref == 'refs/heads/production' }}
 
@@ -266,6 +286,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Generate build number
+        id: buildnumber
+        uses: onyxmueller/build-tag-number@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -279,31 +305,8 @@ jobs:
           gradle-version: wrapper
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      - name: Decode keystore
-        id: keystore
-        run: |
-          # Check if keystore secret is set
-          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE_64 }}" ]; then
-            echo "⚠️ ANDROID_KEYSTORE_BASE_64 secret not set - building debug APK instead"
-            echo "use_debug=true" >> $GITHUB_OUTPUT
-          else
-            echo "${{ secrets.ANDROID_KEYSTORE_BASE_64 }}" | base64 -d > /tmp/keystore.jks
-            if [ -s /tmp/keystore.jks ]; then
-              echo "✓ Keystore decoded to /tmp/keystore.jks"
-              echo "use_debug=false" >> $GITHUB_OUTPUT
-            else
-              echo "⚠️ Keystore file is empty - building debug APK instead"
-              echo "use_debug=true" >> $GITHUB_OUTPUT
-            fi
-          fi
-
       - name: Determine flavor and build APK
         id: build
-        env:
-          ANDROID_KEYSTORE_PATH: /tmp/keystore.jks
-          ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-          ANDROID_KEYSTORE_KEY_PASS: ${{ secrets.ANDROID_KEYSTORE_KEY_PASS }}
-          ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
         run: |
           cd chatkeep-admin
 
@@ -313,51 +316,60 @@ jobs:
             FLAVOR="staging"
           fi
 
-          # Use debug build if keystore not available
-          if [[ "${{ steps.keystore.outputs.use_debug }}" == "true" ]]; then
-            BUILD_TYPE="Debug"
-          else
-            BUILD_TYPE="Release"
-          fi
-
-          TASK="assemble${FLAVOR^}${BUILD_TYPE}"
-          echo "Building $FLAVOR $BUILD_TYPE..."
+          # Always build release - signing handled by separate action
+          TASK="assemble${FLAVOR^}Release"
+          echo "Building $FLAVOR Release..."
           echo "flavor=$FLAVOR" >> $GITHUB_OUTPUT
-          echo "build_type=$BUILD_TYPE" >> $GITHUB_OUTPUT
 
           ./gradlew :composeApp:$TASK
 
-          # Find APK
-          APK_PATH=$(find composeApp/build/outputs/apk -name "*.apk" -type f | head -1)
+      - name: Sign APK
+        id: sign
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: chatkeep-admin/composeApp/build/outputs/apk/${{ steps.build.outputs.flavor }}/release
+          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE_64 }}
+          alias: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          keyPassword: ${{ secrets.ANDROID_KEYSTORE_KEY_PASS }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
 
-          # Get version from APK or fallback
-          VERSION_CODE=$(git rev-list --count HEAD)
+      - name: Prepare APK for upload
+        id: prepare
+        run: |
+          BUILD_NUMBER=${{ steps.buildnumber.outputs.build_number }}
+          FLAVOR="${{ steps.build.outputs.flavor }}"
+
           if [[ "$FLAVOR" == "production" ]]; then
-            VERSION_NAME="1.0.0-prod.${VERSION_CODE}"
-            APK_NAME="chatkeep-admin-${VERSION_NAME}.apk"
+            VERSION_NAME="1.0.0-prod-build${BUILD_NUMBER}"
+            APK_NAME="chatkeep-admin-${VERSION_NAME}-signed.apk"
           else
-            VERSION_NAME="1.0.0-test.${VERSION_CODE}"
-            APK_NAME="chatkeep-admin-test-${VERSION_NAME}.apk"
+            VERSION_NAME="1.0.0-test-build${BUILD_NUMBER}"
+            APK_NAME="chatkeep-admin-${VERSION_NAME}-signed.apk"
           fi
 
-          mkdir -p ../android-apk
-          cp "$APK_PATH" "../android-apk/$APK_NAME"
+          mkdir -p android-apk
+          cp "${{ steps.sign.outputs.signedReleaseFile }}" "android-apk/$APK_NAME"
           echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
-          echo "Built APK: $APK_NAME"
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "Prepared signed APK: $APK_NAME (build #$BUILD_NUMBER)"
 
       - name: Upload Android APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk-${{ steps.build.outputs.flavor }}
+          name: android-apk-${{ steps.build.outputs.flavor }}-build${{ steps.buildnumber.outputs.build_number }}
           path: android-apk/
           retention-days: 30
           if-no-files-found: error
 
       - name: Add APK to job summary
         run: |
-          echo "### Android APK Built" >> $GITHUB_STEP_SUMMARY
+          echo "### Android APK Built & Signed" >> $GITHUB_STEP_SUMMARY
           echo "- **Flavor**: ${{ steps.build.outputs.flavor }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **APK**: ${{ steps.build.outputs.apk_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Number**: ${{ steps.buildnumber.outputs.build_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **APK**: ${{ steps.prepare.outputs.apk_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Signed**: Yes ✓" >> $GITHUB_STEP_SUMMARY
           echo "- **Download**: Available in workflow artifacts for 30 days" >> $GITHUB_STEP_SUMMARY
 
   deploy:
@@ -759,8 +771,38 @@ jobs:
             echo ""
             echo "=== Phase 5: Finalizing deployment ==="
 
-            # Reload nginx to pick up any new static files
-            docker exec chatkeep-nginx nginx -s reload 2>/dev/null || echo "Nginx reload skipped"
+            # Restart nginx to pick up config and static file changes
+            echo "Restarting nginx..."
+
+            # Test nginx config first
+            if docker exec chatkeep-nginx nginx -t 2>&1; then
+              echo "Nginx config is valid, restarting container..."
+              docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
+
+              # Wait for nginx to become healthy
+              echo "Waiting for nginx to become healthy..."
+              NGINX_TIMEOUT=60
+              NGINX_ELAPSED=0
+              while [ $NGINX_ELAPSED -lt $NGINX_TIMEOUT ]; do
+                NGINX_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' chatkeep-nginx 2>/dev/null || echo "unknown")
+                if [ "$NGINX_HEALTH" = "healthy" ]; then
+                  echo "✓ Nginx is healthy!"
+                  break
+                fi
+                sleep 5
+                NGINX_ELAPSED=$((NGINX_ELAPSED + 5))
+                echo "[$NGINX_ELAPSED s] Nginx health: $NGINX_HEALTH"
+              done
+
+              if [ "$NGINX_HEALTH" != "healthy" ]; then
+                echo "⚠ Warning: Nginx did not become healthy within ${NGINX_TIMEOUT}s"
+                echo "Nginx logs:"
+                docker logs chatkeep-nginx --tail 20 2>&1 || true
+              fi
+            else
+              echo "⚠ Nginx config test failed, keeping old container"
+              docker exec chatkeep-nginx nginx -s reload 2>/dev/null || echo "Nginx reload also failed"
+            fi
 
             # Verify all containers
             echo ""

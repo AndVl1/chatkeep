@@ -63,8 +63,13 @@ class TelegramLoginPageController(
             logger.error("Bot username is empty! Check TELEGRAM_BOT_USERNAME or TELEGRAM_ADMINBOT_USERNAME configuration.")
         }
 
+        // Determine if this is test environment for deep link routing
+        val isTestEnv = host.contains("chatmodtest")
+        logger.info("Environment: ${if (isTestEnv) "TEST" else "PRODUCTION"}")
+
         model.addAttribute("botUsername", botUsername)
         model.addAttribute("state", state)
+        model.addAttribute("isTestEnv", isTestEnv)
         return "telegram-login"
     }
 }

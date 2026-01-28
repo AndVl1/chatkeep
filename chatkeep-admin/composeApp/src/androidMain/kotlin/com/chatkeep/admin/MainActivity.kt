@@ -82,7 +82,8 @@ class MainActivity : ComponentActivity() {
         Log.d(TAG, "Handling deeplink: $uri")
 
         // Check if this is our auth callback deeplink
-        if (uri.scheme == "chatkeep" && uri.host == "auth" && uri.path == "/callback") {
+        // Scheme can be "chatkeep" (production) or "chatkeep-test" (staging)
+        if (uri.scheme?.startsWith("chatkeep") == true && uri.host == "auth" && uri.path == "/callback") {
             try {
                 val deepLinkData = DeepLinkData.fromUrl(uri.toString())
                 if (deepLinkData != null) {
