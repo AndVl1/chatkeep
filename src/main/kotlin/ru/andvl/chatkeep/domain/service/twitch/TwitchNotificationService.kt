@@ -26,7 +26,8 @@ import java.time.Instant
 class TwitchNotificationService(
     private val bot: TelegramBot,
     private val settingsRepository: TwitchNotificationSettingsRepository,
-    private val timelineRepository: StreamTimelineEventRepository
+    private val timelineRepository: StreamTimelineEventRepository,
+    private val telegraphService: TelegraphService
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -105,25 +106,41 @@ class TwitchNotificationService(
         streamerName: String,
         streamerLogin: String,
         timeline: List<StreamTimelineEvent>
-    ) {
+    ): String? {
         try {
             val settings = settingsRepository.findByChatId(chatId)
                 ?: TwitchNotificationSettings.createNew(chatId)
 
-            val caption = formatStreamCaption(
+            // Format caption first WITHOUT Telegraph URL to check length
+            val captionWithoutTelegraph = formatStreamCaption(
                 settings = settings,
                 stream = stream,
                 streamerName = streamerName,
-                timeline = timeline
+                timeline = timeline,
+                telegraphUrl = null
             )
 
-            // Build keyboard with stream link button
-            val keyboard = InlineKeyboardMarkup(
-                keyboard = listOf(
-                    row {
-                        add(URLInlineKeyboardButton(settings.buttonText, "https://twitch.tv/$streamerLogin"))
-                    }
+            // Create Telegraph page ONLY if caption > 600 characters
+            val telegraphUrl = if (captionWithoutTelegraph.length > 600) {
+                logger.info("Caption length ${captionWithoutTelegraph.length} > 600, creating Telegraph page for stream ${stream.id}")
+                telegraphService.createOrUpdateTimelinePage(
+                    streamerId = streamerLogin,
+                    streamerName = streamerName,
+                    timeline = timeline
                 )
+            } else {
+                logger.info("Caption length ${captionWithoutTelegraph.length} <= 600, skipping Telegraph page for stream ${stream.id}")
+                null
+            }
+
+            // Use caption without Telegraph URL (we don't add link to caption, only button)
+            val caption = captionWithoutTelegraph
+
+            // Build keyboard with stream link button and optional Telegraph button
+            val keyboard = buildKeyboard(
+                streamLink = "https://twitch.tv/$streamerLogin",
+                buttonText = settings.buttonText,
+                telegraphUrl = telegraphUrl
             )
 
             // Try to edit as caption first (for photo messages)
@@ -149,20 +166,23 @@ class TwitchNotificationService(
                 )
             }
 
-            logger.info("Updated stream notification: chatId=$chatId, messageId=$messageId")
+            logger.info("Updated stream notification: chatId=$chatId, messageId=$messageId, telegraphUrl=$telegraphUrl")
+            return telegraphUrl
         } catch (e: Exception) {
             logger.error("Failed to update stream notification: chatId=$chatId, messageId=$messageId", e)
+            return null
         }
     }
 
     /**
-     * Format stream caption using template
+     * Format stream caption using template with smart timeline compression
      */
     private fun formatStreamCaption(
         settings: TwitchNotificationSettings,
         stream: TwitchStream,
         streamerName: String,
-        timeline: List<StreamTimelineEvent>
+        timeline: List<StreamTimelineEvent>,
+        telegraphUrl: String? = null
     ): String {
         val isEnded = stream.status == "ended"
 
@@ -177,7 +197,7 @@ class TwitchNotificationService(
             settings.messageTemplate
         }
 
-        logger.info("formatStreamCaption: isEnded=$isEnded, timelineSize=${timeline.size}, template=${template.take(50)}...")
+        logger.info("formatStreamCaption: isEnded=$isEnded, timelineSize=${timeline.size}, telegraphUrl=$telegraphUrl")
 
         var caption = template
             .replace("{streamer}", streamerName)
@@ -186,18 +206,93 @@ class TwitchNotificationService(
             .replace("{viewers}", stream.viewerCount.toString())
             .replace("{duration}", duration)
 
-        // Add timeline for ended streams or if there are multiple events
+        // Smart timeline compression: show first, last, and game changes
         if (timeline.isNotEmpty() && (isEnded || timeline.size > 1)) {
-            val timelineStr = timeline.joinToString("\n") { event ->
-                val time = formatSeconds(event.streamOffsetSeconds)
-                val game = event.gameName ?: "Just Chatting"
-                val title = event.streamTitle ?: ""
-                "$time - $game | $title"
+            val compressedTimeline = compressTimeline(timeline, maxLength = 800)
+            if (compressedTimeline.isNotEmpty()) {
+                caption += "\n\n📋 Таймлайн:\n$compressedTimeline"
             }
-            caption += "\n\n📋 Таймлайн:\n$timelineStr"
+            // Note: Telegraph link is NOT added to caption, only as button
         }
 
         return caption
+    }
+
+    /**
+     * Compress timeline to fit within character limit
+     * Shows: first event, all game changes, last event
+     */
+    private fun compressTimeline(timeline: List<StreamTimelineEvent>, maxLength: Int): String {
+        if (timeline.isEmpty()) return ""
+
+        val first = timeline.first()
+        val last = timeline.last()
+
+        // Find all game change events
+        val gameChanges = timeline.filterIndexed { index, event ->
+            val prevEvent = timeline.getOrNull(index - 1)
+            prevEvent == null || prevEvent.gameName != event.gameName
+        }
+
+        // Build entry list: first + game changes + last
+        val entries = mutableListOf<StreamTimelineEvent>()
+        entries.add(first)
+        gameChanges.forEach { event ->
+            if (event != first && event != last) {
+                entries.add(event)
+            }
+        }
+        if (last != first) {
+            entries.add(last)
+        }
+
+        // Format entries
+        var result = entries.joinToString("\n") { event ->
+            val time = formatSeconds(event.streamOffsetSeconds)
+            val game = event.gameName ?: "Just Chatting"
+            val title = event.streamTitle?.take(50) ?: ""
+            val titlePart = if (title.isNotEmpty()) " | $title" else ""
+            "$time - $game$titlePart"
+        }
+
+        // If still too long, show only first and last with count
+        if (result.length > maxLength && entries.size > 3) {
+            val kept = listOf(entries.first(), entries.last())
+            val removed = timeline.size - 2
+            result = kept.joinToString("\n") { event ->
+                val time = formatSeconds(event.streamOffsetSeconds)
+                val game = event.gameName ?: "Just Chatting"
+                val title = event.streamTitle?.take(50) ?: ""
+                val titlePart = if (title.isNotEmpty()) " | $title" else ""
+                "$time - $game$titlePart"
+            }
+            if (removed > 0) {
+                result += "\n... (+$removed записей в полном таймлайне)"
+            }
+        }
+
+        return result
+    }
+
+    /**
+     * Build inline keyboard with stream link and optional Telegraph button
+     */
+    private fun buildKeyboard(
+        streamLink: String,
+        buttonText: String,
+        telegraphUrl: String?
+    ): InlineKeyboardMarkup {
+        val rows = mutableListOf<List<URLInlineKeyboardButton>>()
+
+        // Stream link button
+        rows.add(listOf(URLInlineKeyboardButton(buttonText, streamLink)))
+
+        // Telegraph button (if URL provided)
+        if (telegraphUrl != null) {
+            rows.add(listOf(URLInlineKeyboardButton("📋 Полный таймлайн", telegraphUrl)))
+        }
+
+        return InlineKeyboardMarkup(keyboard = rows)
     }
 
     /**

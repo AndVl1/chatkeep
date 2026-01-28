@@ -39,6 +39,8 @@ telegram:
     token: ${TELEGRAM_ADMINBOT_TOKEN:}
   mini-app:
     url: ${MINI_APP_URL:}
+  telegraph:
+    token: ${TELEGRAPH_TOKEN:}
 
 jwt:
   secret: ${JWT_SECRET:}
