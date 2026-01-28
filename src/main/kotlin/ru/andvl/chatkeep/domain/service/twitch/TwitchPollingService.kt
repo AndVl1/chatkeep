@@ -228,7 +228,7 @@ class TwitchPollingService(
                         timelineRepo.findByStreamId(stream.id!!)
                     } ?: emptyList()
 
-                    notificationService.updateStreamNotification(
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
@@ -236,6 +236,13 @@ class TwitchPollingService(
                         streamerLogin = streamerLogin,
                         timeline = timeline
                     )
+
+                    // Store Telegraph URL if created
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
 
                     logger.debug("Updated viewer count/duration for stream ${stream.id}: viewers=${streamData.viewerCount}")
                 } catch (e: Exception) {
@@ -277,7 +284,7 @@ class TwitchPollingService(
                         timelineRepo.findByStreamId(stream.id!!)
                     } ?: emptyList()
 
-                    notificationService.updateStreamNotification(
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
@@ -285,6 +292,13 @@ class TwitchPollingService(
                         streamerLogin = streamerLogin,
                         timeline = timeline
                     )
+
+                    // Store Telegraph URL if created
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
                 } catch (e: Exception) {
                     logger.error("Failed to update stream notification for stream ${stream.id}", e)
                 }
@@ -304,7 +318,7 @@ class TwitchPollingService(
             streamRepo.save(updatedStream)
         }!!
 
-        // Update Telegram message asynchronously
+        // Update Telegram message asynchronously with Telegraph button if URL was stored
         if (stream.telegramMessageId != null && stream.telegramChatId != null) {
             scope.launch {
                 try {
@@ -312,7 +326,7 @@ class TwitchPollingService(
                         timelineRepo.findByStreamId(stream.id!!)
                     } ?: emptyList()
 
-                    notificationService.updateStreamNotification(
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
@@ -320,6 +334,13 @@ class TwitchPollingService(
                         streamerLogin = streamerLogin,
                         timeline = timeline
                     )
+
+                    // Store Telegraph URL if created (for ended stream)
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
                 } catch (e: Exception) {
                     logger.error("Failed to update stream ended notification for stream ${stream.id}", e)
                 }

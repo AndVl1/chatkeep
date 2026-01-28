@@ -106,27 +106,35 @@ class TwitchNotificationService(
         streamerName: String,
         streamerLogin: String,
         timeline: List<StreamTimelineEvent>
-    ) {
+    ): String? {
         try {
             val settings = settingsRepository.findByChatId(chatId)
                 ?: TwitchNotificationSettings.createNew(chatId)
 
-            // Create/update Telegraph page with full timeline
-            val telegraphUrl = if (timeline.size > 5) {
+            // Format caption first WITHOUT Telegraph URL to check length
+            val captionWithoutTelegraph = formatStreamCaption(
+                settings = settings,
+                stream = stream,
+                streamerName = streamerName,
+                timeline = timeline,
+                telegraphUrl = null
+            )
+
+            // Create Telegraph page ONLY if caption > 600 characters
+            val telegraphUrl = if (captionWithoutTelegraph.length > 600) {
+                logger.info("Caption length ${captionWithoutTelegraph.length} > 600, creating Telegraph page for stream ${stream.id}")
                 telegraphService.createOrUpdateTimelinePage(
                     streamerId = streamerLogin,
                     streamerName = streamerName,
                     timeline = timeline
                 )
-            } else null
+            } else {
+                logger.info("Caption length ${captionWithoutTelegraph.length} <= 600, skipping Telegraph page for stream ${stream.id}")
+                null
+            }
 
-            val caption = formatStreamCaption(
-                settings = settings,
-                stream = stream,
-                streamerName = streamerName,
-                timeline = timeline,
-                telegraphUrl = telegraphUrl
-            )
+            // Use caption without Telegraph URL (we don't add link to caption, only button)
+            val caption = captionWithoutTelegraph
 
             // Build keyboard with stream link button and optional Telegraph button
             val keyboard = buildKeyboard(
@@ -158,9 +166,11 @@ class TwitchNotificationService(
                 )
             }
 
-            logger.info("Updated stream notification: chatId=$chatId, messageId=$messageId")
+            logger.info("Updated stream notification: chatId=$chatId, messageId=$messageId, telegraphUrl=$telegraphUrl")
+            return telegraphUrl
         } catch (e: Exception) {
             logger.error("Failed to update stream notification: chatId=$chatId, messageId=$messageId", e)
+            return null
         }
     }
 
@@ -202,11 +212,7 @@ class TwitchNotificationService(
             if (compressedTimeline.isNotEmpty()) {
                 caption += "\n\n📋 Таймлайн:\n$compressedTimeline"
             }
-
-            // Add Telegraph link if available
-            if (telegraphUrl != null) {
-                caption += "\n\n📋 Полный таймлайн: $telegraphUrl"
-            }
+            // Note: Telegraph link is NOT added to caption, only as button
         }
 
         return caption
