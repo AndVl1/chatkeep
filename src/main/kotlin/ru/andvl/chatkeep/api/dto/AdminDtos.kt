@@ -87,6 +87,7 @@ data class ChatStatisticsResponse(
     val totalMessages: Long,
     val uniqueUsers: Long,
     val collectionEnabled: Boolean,
+    val chatType: String? = null,
     // Optional time-based statistics (not all endpoints populate these)
     val messagesToday: Int? = null,
     val messagesYesterday: Int? = null
