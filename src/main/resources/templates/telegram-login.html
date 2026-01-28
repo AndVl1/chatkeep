@@ -146,6 +146,11 @@
     <script th:inline="javascript">
         const botUsername = [[${botUsername}]];
         const state = [[${state}]];
+        const isTestEnv = [[${isTestEnv}]];
+
+        // Deep link configuration based on environment
+        const deeplinkScheme = isTestEnv ? 'chatkeep-test' : 'chatkeep';
+        const appPackage = isTestEnv ? 'com.chatkeep.admin.test' : 'com.chatkeep.admin';
 
         function onTelegramAuth(user) {
             // Hide login widget
@@ -231,11 +236,11 @@
                 }, 500);
             } else {
                 // Mobile environment: use deeplinks
-                const deeplinkUrl = `chatkeep://auth/callback?${params.toString()}`;
+                const deeplinkUrl = `${deeplinkScheme}://auth/callback?${params.toString()}`;
 
                 // Use Android Intent URL format for better compatibility with Chrome
                 const isAndroid = /Android/i.test(navigator.userAgent);
-                const intentUrl = `intent://auth/callback?${params.toString()}#Intent;scheme=chatkeep;package=com.chatkeep.admin;end`;
+                const intentUrl = `intent://auth/callback?${params.toString()}#Intent;scheme=${deeplinkScheme};package=${appPackage};end`;
 
                 // Set the href on the button - user tap will trigger intent
                 const redirectUrl = isAndroid ? intentUrl : deeplinkUrl;
