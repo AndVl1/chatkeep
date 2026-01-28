@@ -5,6 +5,13 @@ import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table
 import java.time.Instant
 
+enum class ChatType {
+    PRIVATE,
+    GROUP,
+    SUPERGROUP,
+    CHANNEL
+}
+
 @Table("chat_settings")
 data class ChatSettings(
     @Id
@@ -18,6 +25,9 @@ data class ChatSettings(
 
     @Column("collection_enabled")
     val collectionEnabled: Boolean = true,
+
+    @Column("chat_type")
+    val chatType: ChatType = ChatType.GROUP,
 
     @Column("locale")
     val locale: String = "en",
