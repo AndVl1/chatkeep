@@ -200,7 +200,7 @@ class TwitchEventSubServiceTest {
         every { streamRepo.findActiveBySubscriptionId(1L) } returns stream
         every { streamRepo.save(any()) } answers { firstArg() }
         every { timelineRepo.findByStreamId(100L) } returns timelineEvents
-        coEvery { notificationService.updateStreamNotification(any(), any(), any(), any(), any(), any()) } just Runs
+        coEvery { notificationService.updateStreamNotification(any(), any(), any(), any(), any(), any()) } returns null
 
         eventSubService.handleStreamOffline(broadcasterId = "12345")
 
