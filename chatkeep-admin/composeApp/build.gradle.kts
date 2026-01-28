@@ -211,12 +211,14 @@ android {
         create("production") {
             dimension = "environment"
             versionNameSuffix = "-prod.${gitCommitCount}"
+            manifestPlaceholders["deeplinkScheme"] = "chatkeep"
         }
 
         create("staging") {
             dimension = "environment"
             applicationIdSuffix = ".test"
             versionNameSuffix = "-test.${gitCommitCount}"
+            manifestPlaceholders["deeplinkScheme"] = "chatkeep-test"
         }
     }
 
