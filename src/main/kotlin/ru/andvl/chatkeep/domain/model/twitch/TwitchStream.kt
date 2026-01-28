@@ -40,7 +40,10 @@ data class TwitchStream @PersistenceCreator constructor(
     val currentTitle: String? = null,
 
     @Column("viewer_count")
-    val viewerCount: Int = 0
+    val viewerCount: Int = 0,
+
+    @Column("telegraph_url")
+    val telegraphUrl: String? = null
 ) {
 
     companion object {

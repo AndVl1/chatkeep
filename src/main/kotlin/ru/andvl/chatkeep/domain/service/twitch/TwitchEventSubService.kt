@@ -155,13 +155,13 @@ class TwitchEventSubService(
                 streamRepo.save(updated)
                 logger.info("EventSub: Marked stream ${updated.id} as ended")
 
-                // Update Telegram message asynchronously
+                // Update Telegram message asynchronously with Telegraph button if caption > 600 chars
                 if (updated.telegramMessageId != null && updated.telegramChatId != null) {
                     logger.info("EventSub: Updating Telegram notification for stream ${updated.id} in chat ${updated.telegramChatId}")
                     scope.launch {
                         try {
                             val timeline = timelineRepo.findByStreamId(updated.id!!)
-                            notificationService.updateStreamNotification(
+                            val telegraphUrl = notificationService.updateStreamNotification(
                                 chatId = updated.telegramChatId,
                                 messageId = updated.telegramMessageId,
                                 stream = updated,
@@ -169,6 +169,13 @@ class TwitchEventSubService(
                                 streamerLogin = subscription.twitchLogin,
                                 timeline = timeline
                             )
+
+                            // Store Telegraph URL if created (for ended stream)
+                            if (telegraphUrl != null && updated.telegraphUrl != telegraphUrl) {
+                                streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                                logger.info("EventSub: Stored Telegraph URL for stream ${updated.id}")
+                            }
+
                             logger.info("EventSub: Successfully updated offline notification for stream ${updated.id}")
                         } catch (e: Exception) {
                             logger.error("EventSub: Failed to update stream offline notification for subscription ${subscription.id}", e)
