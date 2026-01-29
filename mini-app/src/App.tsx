@@ -22,6 +22,7 @@ import { useTelegramAuth } from '@/hooks/telegram/useTelegramAuth';
 import { useAuthMode } from '@/hooks/auth/useAuthMode';
 import { useAuthStore } from '@/stores/authStore';
 import { setAuthHeader, setLogoutHandler } from '@/api';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ConfirmDialogProvider } from '@/components/common/ConfirmDialog';
 import { ToastProvider } from '@/components/common/Toast';
 import '@telegram-apps/telegram-ui/dist/styles.css';
@@ -145,46 +146,48 @@ export function App() {
   }
 
   return (
-    <AppRoot>
-      <ToastProvider>
-        <ConfirmDialogProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Auth callback route - outside AuthProvider */}
-              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+    <ErrorBoundary>
+      <AppRoot>
+        <ToastProvider>
+          <ConfirmDialogProvider>
+            <BrowserRouter>
+              <Routes>
+                {/* Auth callback route - outside AuthProvider */}
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-              {/* Protected routes - inside AuthProvider */}
-              <Route
-                path="/*"
-                element={
-                  <AuthProvider>
-                    <Routes>
-                      <Route element={<AppLayout />}>
-                        <Route index element={<HomePage />} />
-                        <Route path="capabilities" element={<CapabilitiesPage />} />
-                        <Route path="chat/:chatId">
-                          <Route path="settings" element={<SettingsPage />} />
-                          <Route path="locks" element={<LocksPage />} />
-                          <Route path="blocklist" element={<BlocklistPage />} />
-                          <Route path="channel-reply" element={<ChannelReplyPage />} />
-                          <Route path="session" element={<SessionPage />} />
-                          <Route path="admin-logs" element={<AdminLogsPage />} />
-                          <Route path="welcome" element={<WelcomePage />} />
-                          <Route path="rules" element={<RulesPage />} />
-                          <Route path="notes" element={<NotesPage />} />
-                          <Route path="antiflood" element={<AntiFloodPage />} />
-                          <Route path="twitch" element={<TwitchSettingsPage />} />
+                {/* Protected routes - inside AuthProvider */}
+                <Route
+                  path="/*"
+                  element={
+                    <AuthProvider>
+                      <Routes>
+                        <Route element={<AppLayout />}>
+                          <Route index element={<HomePage />} />
+                          <Route path="capabilities" element={<CapabilitiesPage />} />
+                          <Route path="chat/:chatId">
+                            <Route path="settings" element={<SettingsPage />} />
+                            <Route path="locks" element={<LocksPage />} />
+                            <Route path="blocklist" element={<BlocklistPage />} />
+                            <Route path="channel-reply" element={<ChannelReplyPage />} />
+                            <Route path="session" element={<SessionPage />} />
+                            <Route path="admin-logs" element={<AdminLogsPage />} />
+                            <Route path="welcome" element={<WelcomePage />} />
+                            <Route path="rules" element={<RulesPage />} />
+                            <Route path="notes" element={<NotesPage />} />
+                            <Route path="antiflood" element={<AntiFloodPage />} />
+                            <Route path="twitch" element={<TwitchSettingsPage />} />
+                          </Route>
+                          <Route path="*" element={<Navigate to="/" replace />} />
                         </Route>
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </Route>
-                    </Routes>
-                  </AuthProvider>
-                }
-              />
-            </Routes>
-          </BrowserRouter>
-        </ConfirmDialogProvider>
-      </ToastProvider>
-    </AppRoot>
+                      </Routes>
+                    </AuthProvider>
+                  }
+                />
+              </Routes>
+            </BrowserRouter>
+          </ConfirmDialogProvider>
+        </ToastProvider>
+      </AppRoot>
+    </ErrorBoundary>
   );
 }
