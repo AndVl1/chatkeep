@@ -69,7 +69,7 @@ class MiniAppChatsControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$") { isArray() }
             jsonPath("$.length()") { value(1) }
@@ -102,7 +102,7 @@ class MiniAppChatsControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(2) }
         }
@@ -132,7 +132,7 @@ class MiniAppChatsControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$") { isArray() }
             jsonPath("$.length()") { value(0) } // Both chats should be filtered out
@@ -143,7 +143,7 @@ class MiniAppChatsControllerTest : MiniAppApiTestBase() {
     fun `GET chats - returns 401 with invalid token`() {
         mockMvc.get("/api/v1/miniapp/chats") {
             header("Authorization", authTestHelper.createInvalidAuthHeader())
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isUnauthorized() }
         }
     }

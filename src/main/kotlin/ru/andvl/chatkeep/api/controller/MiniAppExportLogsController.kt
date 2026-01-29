@@ -13,10 +13,6 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
-import ru.andvl.chatkeep.api.auth.TelegramAuthService
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.domain.service.adminlogs.AdminLogExportService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
@@ -26,13 +22,8 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppExportLogsController(
     private val adminLogExportService: AdminLogExportService,
-    private val adminCacheService: AdminCacheService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+    adminCacheService: AdminCacheService
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Export admin logs as JSON file")
@@ -40,19 +31,11 @@ class MiniAppExportLogsController(
         ApiResponse(responseCode = "200", description = "Success - returns JSON file"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun exportLogs(
+    suspend fun exportLogs(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ResponseEntity<FileSystemResource> {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val file = adminLogExportService.exportLogs(chatId)
 

@@ -11,6 +11,7 @@ import com.arkivanov.decompose.extensions.compose.stack.animation.fade
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.chatkeep.admin.feature.settings.Theme
+import com.chatkeep.admin.feature.settings.UserSettings
 import com.chatkeep.admin.feature.settings.domain.SettingsRepository
 import com.chatkeep.admin.core.ui.theme.AppTheme
 import com.chatkeep.admin.feature.auth.ui.AuthScreen
@@ -22,7 +23,9 @@ fun App(
     settingsRepository: SettingsRepository,
     onThemeChanged: (Boolean) -> Unit = {}
 ) {
-    val settings by settingsRepository.settings.collectAsState()
+    val settings by settingsRepository.settings.collectAsState(
+        initial = UserSettings(theme = Theme.SYSTEM)
+    )
 
     val darkTheme = when (settings.theme) {
         Theme.LIGHT -> false

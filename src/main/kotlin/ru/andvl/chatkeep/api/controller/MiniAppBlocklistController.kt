@@ -14,13 +14,10 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.AddBlocklistPatternRequest
 import ru.andvl.chatkeep.api.dto.BlocklistPatternResponse
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.exception.ValidationException
 import ru.andvl.chatkeep.domain.model.moderation.ActionType
 import ru.andvl.chatkeep.domain.model.moderation.MatchType
@@ -38,15 +35,10 @@ import ru.andvl.chatkeep.domain.service.moderation.BlocklistService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppBlocklistController(
     private val blocklistService: BlocklistService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val chatService: ChatService,
     private val logChannelService: LogChannelService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get blocklist patterns")
@@ -54,19 +46,11 @@ class MiniAppBlocklistController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getPatterns(
+    suspend fun getPatterns(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): List<BlocklistPatternResponse> {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (use IO dispatcher to avoid blocking main thread pool)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val patterns = blocklistService.listPatterns(chatId)
 
@@ -91,20 +75,12 @@ class MiniAppBlocklistController(
         ApiResponse(responseCode = "400", description = "Validation error"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun addPattern(
+    suspend fun addPattern(
         @PathVariable chatId: Long,
         @Valid @RequestBody addRequest: AddBlocklistPatternRequest,
         request: HttpServletRequest
     ): ResponseEntity<BlocklistPatternResponse> {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         // Detect match type from pattern if not provided
         val matchType = if (addRequest.matchType != null) {
@@ -179,20 +155,12 @@ class MiniAppBlocklistController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Pattern not found")
     )
-    fun deletePattern(
+    suspend fun deletePattern(
         @PathVariable chatId: Long,
         @PathVariable patternId: Long,
         request: HttpServletRequest
     ): ResponseEntity<Void> {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         // Find pattern by ID to verify it belongs to this chat (authorization check)
         val patterns = blocklistService.listPatterns(chatId)

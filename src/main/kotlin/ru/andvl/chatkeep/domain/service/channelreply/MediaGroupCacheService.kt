@@ -26,8 +26,11 @@ class MediaGroupCacheService {
         val now = Instant.now()
         val expirationThreshold = now.minusSeconds(TTL_MINUTES * 60)
 
-        cache.entries.removeIf { entry ->
-            entry.value.isBefore(expirationThreshold)
+        // Thread-safe removal using computeIfPresent
+        cache.keys.forEach { key ->
+            cache.computeIfPresent(key) { _, value ->
+                if (value.isBefore(expirationThreshold)) null else value
+            }
         }
     }
 }

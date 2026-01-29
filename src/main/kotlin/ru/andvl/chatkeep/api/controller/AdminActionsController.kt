@@ -52,6 +52,9 @@ class AdminActionsController(
             val output = process.inputStream.bufferedReader().readText()
             val exitCode = process.waitFor()
 
+            // Log output server-side only (do not expose to client)
+            logger.info("Docker restart output: $output")
+
             if (exitCode == 0) {
                 logAudit("restart_bot", adminId, adminUsername, "success")
                 logger.info("Bot container restarted successfully by admin $adminId ($adminUsername)")
@@ -63,11 +66,11 @@ class AdminActionsController(
                 )
             } else {
                 logAudit("restart_bot", adminId, adminUsername, "failed", "exit_code=$exitCode")
-                logger.error("Failed to restart bot container. Exit code: $exitCode, Output: $output")
+                logger.error("Docker restart failed with exit code $exitCode: $output")
                 ResponseEntity.ok(
                     ActionResponse(
                         success = false,
-                        message = "Failed to restart bot: $output"
+                        message = "Failed to restart bot. Please check server logs."
                     )
                 )
             }

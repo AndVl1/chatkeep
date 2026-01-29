@@ -11,13 +11,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.SettingsResponse
 import ru.andvl.chatkeep.api.dto.UpdateSettingsRequest
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.exception.ValidationException
 import ru.andvl.chatkeep.domain.model.moderation.ActionType
 import ru.andvl.chatkeep.domain.model.moderation.ModerationConfig
@@ -39,14 +36,9 @@ class MiniAppSettingsController(
     private val chatService: ChatService,
     private val moderationConfigRepository: ModerationConfigRepository,
     private val lockSettingsService: LockSettingsService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val logChannelService: LogChannelService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get chat settings")
@@ -55,19 +47,11 @@ class MiniAppSettingsController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Chat not found")
     )
-    fun getSettings(
+    suspend fun getSettings(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): SettingsResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (use IO dispatcher to avoid blocking main thread pool)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         // Get chat settings
         val chatSettings = chatService.getSettings(chatId)
@@ -105,20 +89,12 @@ class MiniAppSettingsController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Chat not found")
     )
-    fun updateSettings(
+    suspend fun updateSettings(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateSettingsRequest,
         request: HttpServletRequest
     ): SettingsResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         // Validate chat exists
         val chatSettings = chatService.getSettings(chatId)

@@ -48,7 +48,8 @@ export function useWelcomeMessage(chatId: number): UseWelcomeMessageResult {
   const mutate = useCallback(async (updates: UpdateWelcomeMessageRequest) => {
     if (!data) return;
 
-    // Optimistic update
+    // Capture original before optimistic update to avoid stale closure
+    const originalData = data;
     const optimisticData = { ...data, ...updates };
     setData(optimisticData);
 
@@ -57,8 +58,8 @@ export function useWelcomeMessage(chatId: number): UseWelcomeMessageResult {
       const updated = await updateWelcomeMessage(chatId, updates);
       setData(updated);
     } catch (err) {
-      // Rollback on error
-      setData(data);
+      // Rollback to captured original
+      setData(originalData);
       throw err;
     } finally {
       setIsSaving(false);

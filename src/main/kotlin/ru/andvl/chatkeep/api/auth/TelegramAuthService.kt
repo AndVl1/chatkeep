@@ -312,10 +312,12 @@ open class TelegramAuthService(
         val expectedHash = hmacSha256(dataCheckString.toByteArray(StandardCharsets.UTF_8), secretKey)
         val expectedHashHex = expectedHash.joinToString("") { "%02x".format(it) }
 
-        // Log bytes for debugging encoding issues
-        val dataBytes = dataCheckString.toByteArray(StandardCharsets.UTF_8)
-        logger.warn("Hash validation - dataBytes hex (first 100): {}", dataBytes.take(100).joinToString("") { "%02x".format(it) })
-        logger.warn("Hash validation - expected: {}, received: {}", expectedHashHex, receivedHash)
+        // Log bytes for debugging encoding issues (debug only)
+        if (logger.isDebugEnabled) {
+            val dataBytes = dataCheckString.toByteArray(StandardCharsets.UTF_8)
+            logger.debug("Hash validation - dataBytes hex (first 100): {}", dataBytes.take(100).joinToString("") { "%02x".format(it) })
+            logger.debug("Hash validation - expected: {}, received: {}", expectedHashHex.take(8) + "...", receivedHash.take(8) + "...")
+        }
 
         // Use constant-time comparison to prevent timing attacks
         val isValid = MessageDigest.isEqual(
