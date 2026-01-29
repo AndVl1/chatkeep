@@ -9,7 +9,6 @@ import ru.andvl.chatkeep.domain.model.AntifloodSettings
 import ru.andvl.chatkeep.infrastructure.repository.AntifloodSettingsRepository
 import java.time.Duration
 import java.time.Instant
-import java.util.Collections
 
 @Service
 class AntifloodService(
@@ -29,7 +28,7 @@ class AntifloodService(
                 Caffeine.newBuilder()
                     .expireAfterAccess(Duration.ofMinutes(5))
                     .maximumSize(1000)
-                    .build<Long, MutableList<Instant>> { Collections.synchronizedList(mutableListOf()) }
+                    .build<Long, MutableList<Instant>> { mutableListOf() }
             }
 
     fun getSettings(chatId: Long): AntifloodSettings? {

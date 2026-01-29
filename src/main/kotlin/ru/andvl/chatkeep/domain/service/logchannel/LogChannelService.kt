@@ -1,5 +1,6 @@
 package ru.andvl.chatkeep.domain.service.logchannel
 
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,8 +26,12 @@ class LogChannelService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+        logger.error("Uncaught exception in log channel coroutine", exception)
+    }
+
     // Use a separate scope for async log sending to avoid blocking moderation actions
-    private val logScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val logScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + exceptionHandler)
 
     /**
      * Log a moderation action to the configured log channel.
