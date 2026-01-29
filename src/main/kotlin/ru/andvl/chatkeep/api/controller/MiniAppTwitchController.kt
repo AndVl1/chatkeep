@@ -15,7 +15,6 @@ import org.springframework.web.server.ResponseStatusException
 import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.*
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.domain.model.moderation.ActionType
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
@@ -39,16 +38,11 @@ class MiniAppTwitchController(
     private val channelService: TwitchChannelService,
     private val notificationService: TwitchNotificationService,
     private val streamRepo: TwitchStreamRepository,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val logChannelService: LogChannelService,
     private val debouncedLogService: DebouncedLogService,
     private val chatService: ChatService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping("/channels")
     @Operation(summary = "Get subscribed Twitch channels for a chat")
@@ -60,14 +54,7 @@ class MiniAppTwitchController(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): List<TwitchChannelDto> {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val subscriptions = channelService.getChannelSubscriptions(chatId)
         val subscriptionIds = subscriptions.mapNotNull { it.id }
@@ -102,14 +89,7 @@ class MiniAppTwitchController(
         @Valid @RequestBody addRequest: AddTwitchChannelRequest,
         request: HttpServletRequest
     ): TwitchChannelDto {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val subscription = channelService.subscribeToChannel(chatId, addRequest.twitchLogin, user.id)
             ?: throw IllegalArgumentException("Failed to subscribe: limit reached or channel already added")
@@ -156,14 +136,7 @@ class MiniAppTwitchController(
         @PathVariable subscriptionId: Long,
         request: HttpServletRequest
     ) {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         // Get subscription info before deleting for logging
         val subscription = channelService.getChannelSubscriptions(chatId)
@@ -200,14 +173,7 @@ class MiniAppTwitchController(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): TwitchSettingsDto {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val settings = notificationService.getNotificationSettings(chatId)
         return TwitchSettingsDto(
@@ -228,14 +194,7 @@ class MiniAppTwitchController(
         @Valid @RequestBody updateRequest: UpdateTwitchSettingsRequest,
         request: HttpServletRequest
     ): TwitchSettingsDto {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         // Get existing settings for comparison
         val existing = notificationService.getNotificationSettings(chatId)

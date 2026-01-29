@@ -11,13 +11,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.LockDto
 import ru.andvl.chatkeep.api.dto.LocksResponse
 import ru.andvl.chatkeep.api.dto.UpdateLocksRequest
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.exception.ValidationException
 import ru.andvl.chatkeep.domain.model.locks.LockType
 import ru.andvl.chatkeep.domain.model.moderation.ActionType
@@ -34,15 +31,10 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppLocksController(
     private val lockSettingsService: LockSettingsService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val logChannelService: LogChannelService,
     private val chatService: ChatService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get lock settings")
@@ -54,15 +46,7 @@ class MiniAppLocksController(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): LocksResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (use IO dispatcher to avoid blocking main thread pool)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val locks = lockSettingsService.getAllLocks(chatId)
         val lockWarnsEnabled = lockSettingsService.isLockWarnsEnabled(chatId)
@@ -94,15 +78,7 @@ class MiniAppLocksController(
         @Valid @RequestBody updateRequest: UpdateLocksRequest,
         request: HttpServletRequest
     ): LocksResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         // Fetch current state once before updates (avoid N+1 queries)
         val currentLocks = lockSettingsService.getAllLocks(chatId)

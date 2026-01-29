@@ -10,12 +10,9 @@ import jakarta.validation.Valid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.FeatureStatusDto
 import ru.andvl.chatkeep.api.dto.SetFeatureRequest
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.domain.service.gated.GatedFeatureService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
@@ -25,13 +22,8 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppGatedFeaturesController(
     private val gatedFeatureService: GatedFeatureService,
-    private val adminCacheService: AdminCacheService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+    adminCacheService: AdminCacheService
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get all features and their statuses for a chat")
@@ -43,14 +35,7 @@ class MiniAppGatedFeaturesController(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): List<FeatureStatusDto> {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         return gatedFeatureService.getFeatures(chatId).map { feature ->
             FeatureStatusDto(
@@ -77,14 +62,7 @@ class MiniAppGatedFeaturesController(
         @Valid @RequestBody request: SetFeatureRequest,
         httpRequest: HttpServletRequest
     ): FeatureStatusDto {
-        val user = getUserFromRequest(httpRequest)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(httpRequest, chatId, forceRefresh = true)
 
         val feature = gatedFeatureService.setFeature(chatId, featureKey, request.enabled, user.id)
 

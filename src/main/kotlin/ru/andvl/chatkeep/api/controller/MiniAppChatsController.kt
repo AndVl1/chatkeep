@@ -17,10 +17,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
-import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.ChatSummaryResponse
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.domain.service.ChatService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
@@ -30,9 +27,9 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppChatsController(
     private val chatService: ChatService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val bot: TelegramBot
-) {
+) : BaseMiniAppController(adminCacheService) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
     private var cachedBotId: Long? = null
@@ -47,11 +44,6 @@ class MiniAppChatsController(
                 logger.error("Failed to cache bot ID on startup", e)
             }
         }
-    }
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
     }
 
     @GetMapping
