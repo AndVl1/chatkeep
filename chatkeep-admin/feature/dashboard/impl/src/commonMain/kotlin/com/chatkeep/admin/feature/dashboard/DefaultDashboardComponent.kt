@@ -5,23 +5,15 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.chatkeep.admin.core.common.AppResult
 import com.chatkeep.admin.core.common.componentScope
-import com.chatkeep.admin.core.network.AdminApiService
-import com.chatkeep.admin.feature.dashboard.data.repository.ActionsRepositoryImpl
-import com.chatkeep.admin.feature.dashboard.data.repository.DashboardRepositoryImpl
 import com.chatkeep.admin.feature.dashboard.domain.usecase.GetDashboardUseCase
 import com.chatkeep.admin.feature.dashboard.domain.usecase.RestartBotUseCase
 import kotlinx.coroutines.launch
 
 internal class DefaultDashboardComponent(
     componentContext: ComponentContext,
-    apiService: AdminApiService
+    private val getDashboardUseCase: GetDashboardUseCase,
+    private val restartBotUseCase: RestartBotUseCase
 ) : DashboardComponent, ComponentContext by componentContext {
-
-    // Internal dependencies created within the component
-    private val dashboardRepository = DashboardRepositoryImpl(apiService)
-    private val actionsRepository = ActionsRepositoryImpl(apiService)
-    private val getDashboardUseCase = GetDashboardUseCase(dashboardRepository)
-    private val restartBotUseCase = RestartBotUseCase(actionsRepository)
 
     private val _state = MutableValue<DashboardComponent.DashboardState>(DashboardComponent.DashboardState.Loading)
     override val state: Value<DashboardComponent.DashboardState> = _state
