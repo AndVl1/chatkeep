@@ -30,7 +30,7 @@ class MiniAppStatisticsController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Chat not found")
     )
-    fun getStatistics(
+    suspend fun getStatistics(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ChatStatisticsResponse {

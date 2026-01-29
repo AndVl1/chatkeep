@@ -40,7 +40,7 @@ class MiniAppRulesController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Rules not set")
     )
-    fun getRules(
+    suspend fun getRules(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): RulesResponse {
@@ -61,7 +61,7 @@ class MiniAppRulesController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun updateRules(
+    suspend fun updateRules(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateRulesRequest,
         request: HttpServletRequest

@@ -34,7 +34,7 @@ class MiniAppAdminSessionController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "No active session")
     )
-    fun getSession(
+    suspend fun getSession(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): AdminSessionResponse {
@@ -56,7 +56,7 @@ class MiniAppAdminSessionController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun connectSession(
+    suspend fun connectSession(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): AdminSessionResponse {

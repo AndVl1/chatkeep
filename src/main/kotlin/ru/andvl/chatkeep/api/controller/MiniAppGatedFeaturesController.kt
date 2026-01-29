@@ -31,7 +31,7 @@ class MiniAppGatedFeaturesController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getFeatures(
+    suspend fun getFeatures(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): List<FeatureStatusDto> {
@@ -56,7 +56,7 @@ class MiniAppGatedFeaturesController(
         ApiResponse(responseCode = "400", description = "Invalid feature key"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun setFeature(
+    suspend fun setFeature(
         @PathVariable chatId: Long,
         @PathVariable featureKey: String,
         @Valid @RequestBody request: SetFeatureRequest,

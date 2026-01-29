@@ -41,7 +41,7 @@ class MiniAppAntifloodController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getAntifloodSettings(
+    suspend fun getAntifloodSettings(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): AntifloodSettingsResponse {
@@ -67,7 +67,7 @@ class MiniAppAntifloodController(
         ApiResponse(responseCode = "400", description = "Validation error"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun updateAntifloodSettings(
+    suspend fun updateAntifloodSettings(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateAntifloodRequest,
         request: HttpServletRequest

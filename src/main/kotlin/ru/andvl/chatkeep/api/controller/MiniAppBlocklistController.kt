@@ -46,7 +46,7 @@ class MiniAppBlocklistController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getPatterns(
+    suspend fun getPatterns(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): List<BlocklistPatternResponse> {
@@ -75,7 +75,7 @@ class MiniAppBlocklistController(
         ApiResponse(responseCode = "400", description = "Validation error"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun addPattern(
+    suspend fun addPattern(
         @PathVariable chatId: Long,
         @Valid @RequestBody addRequest: AddBlocklistPatternRequest,
         request: HttpServletRequest
@@ -155,7 +155,7 @@ class MiniAppBlocklistController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Pattern not found")
     )
-    fun deletePattern(
+    suspend fun deletePattern(
         @PathVariable chatId: Long,
         @PathVariable patternId: Long,
         request: HttpServletRequest

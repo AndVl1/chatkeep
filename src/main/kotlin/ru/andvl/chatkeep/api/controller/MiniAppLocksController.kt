@@ -42,7 +42,7 @@ class MiniAppLocksController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getLocks(
+    suspend fun getLocks(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): LocksResponse {
@@ -73,7 +73,7 @@ class MiniAppLocksController(
         ApiResponse(responseCode = "400", description = "Validation error"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun updateLocks(
+    suspend fun updateLocks(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateLocksRequest,
         request: HttpServletRequest

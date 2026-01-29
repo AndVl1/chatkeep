@@ -31,7 +31,7 @@ class MiniAppExportLogsController(
         ApiResponse(responseCode = "200", description = "Success - returns JSON file"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun exportLogs(
+    suspend fun exportLogs(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ResponseEntity<FileSystemResource> {

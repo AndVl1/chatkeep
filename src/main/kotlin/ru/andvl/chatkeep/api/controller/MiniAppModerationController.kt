@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.springframework.web.bind.annotation.*
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.*
@@ -37,11 +37,11 @@ class MiniAppModerationController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun warnUser(
+    suspend fun warnUser(
         @PathVariable chatId: Long,
         @Valid @RequestBody warnRequest: WarnRequest,
         request: HttpServletRequest
-    ): ModerationActionResponse = runBlocking(Dispatchers.IO) {
+    ): ModerationActionResponse = withContext(Dispatchers.IO) {
         val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val chatTitle = chatService.getSettings(chatId)?.chatTitle
@@ -81,11 +81,11 @@ class MiniAppModerationController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun muteUser(
+    suspend fun muteUser(
         @PathVariable chatId: Long,
         @Valid @RequestBody muteRequest: MuteRequest,
         request: HttpServletRequest
-    ): ModerationActionResponse = runBlocking(Dispatchers.IO) {
+    ): ModerationActionResponse = withContext(Dispatchers.IO) {
         val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val chatTitle = chatService.getSettings(chatId)?.chatTitle
@@ -114,11 +114,11 @@ class MiniAppModerationController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun banUser(
+    suspend fun banUser(
         @PathVariable chatId: Long,
         @Valid @RequestBody banRequest: BanRequest,
         request: HttpServletRequest
-    ): ModerationActionResponse = runBlocking(Dispatchers.IO) {
+    ): ModerationActionResponse = withContext(Dispatchers.IO) {
         val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val chatTitle = chatService.getSettings(chatId)?.chatTitle
@@ -147,11 +147,11 @@ class MiniAppModerationController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun kickUser(
+    suspend fun kickUser(
         @PathVariable chatId: Long,
         @Valid @RequestBody kickRequest: KickRequest,
         request: HttpServletRequest
-    ): ModerationActionResponse = runBlocking(Dispatchers.IO) {
+    ): ModerationActionResponse = withContext(Dispatchers.IO) {
         val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val chatTitle = chatService.getSettings(chatId)?.chatTitle
@@ -179,11 +179,11 @@ class MiniAppModerationController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun removeWarnings(
+    suspend fun removeWarnings(
         @PathVariable chatId: Long,
         @PathVariable userId: Long,
         request: HttpServletRequest
-    ): ModerationActionResponse = runBlocking(Dispatchers.IO) {
+    ): ModerationActionResponse = withContext(Dispatchers.IO) {
         val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val chatTitle = chatService.getSettings(chatId)?.chatTitle
@@ -202,11 +202,11 @@ class MiniAppModerationController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun unmuteUser(
+    suspend fun unmuteUser(
         @PathVariable chatId: Long,
         @PathVariable userId: Long,
         request: HttpServletRequest
-    ): ModerationActionResponse = runBlocking(Dispatchers.IO) {
+    ): ModerationActionResponse = withContext(Dispatchers.IO) {
         val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val success = punishmentService.unmute(chatId, userId, user.id)
@@ -223,11 +223,11 @@ class MiniAppModerationController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun unbanUser(
+    suspend fun unbanUser(
         @PathVariable chatId: Long,
         @PathVariable userId: Long,
         request: HttpServletRequest
-    ): ModerationActionResponse = runBlocking(Dispatchers.IO) {
+    ): ModerationActionResponse = withContext(Dispatchers.IO) {
         val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val success = punishmentService.unban(chatId, userId, user.id)

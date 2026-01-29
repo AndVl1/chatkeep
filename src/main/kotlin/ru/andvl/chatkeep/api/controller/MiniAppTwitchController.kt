@@ -50,7 +50,7 @@ class MiniAppTwitchController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getChannels(
+    suspend fun getChannels(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): List<TwitchChannelDto> {
@@ -84,7 +84,7 @@ class MiniAppTwitchController(
         ApiResponse(responseCode = "400", description = "Limit reached or invalid channel"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun addChannel(
+    suspend fun addChannel(
         @PathVariable chatId: Long,
         @Valid @RequestBody addRequest: AddTwitchChannelRequest,
         request: HttpServletRequest
@@ -131,7 +131,7 @@ class MiniAppTwitchController(
         ApiResponse(responseCode = "204", description = "Deleted"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun removeChannel(
+    suspend fun removeChannel(
         @PathVariable chatId: Long,
         @PathVariable subscriptionId: Long,
         request: HttpServletRequest
@@ -169,7 +169,7 @@ class MiniAppTwitchController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getSettings(
+    suspend fun getSettings(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): TwitchSettingsDto {
@@ -189,7 +189,7 @@ class MiniAppTwitchController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun updateSettings(
+    suspend fun updateSettings(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateTwitchSettingsRequest,
         request: HttpServletRequest

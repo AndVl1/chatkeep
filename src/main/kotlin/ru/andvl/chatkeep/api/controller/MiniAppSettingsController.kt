@@ -47,7 +47,7 @@ class MiniAppSettingsController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Chat not found")
     )
-    fun getSettings(
+    suspend fun getSettings(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): SettingsResponse {
@@ -89,7 +89,7 @@ class MiniAppSettingsController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Chat not found")
     )
-    fun updateSettings(
+    suspend fun updateSettings(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateSettingsRequest,
         request: HttpServletRequest

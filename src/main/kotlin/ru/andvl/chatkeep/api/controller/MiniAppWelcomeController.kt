@@ -39,7 +39,7 @@ class MiniAppWelcomeController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getWelcomeSettings(
+    suspend fun getWelcomeSettings(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): WelcomeSettingsResponse {
@@ -63,7 +63,7 @@ class MiniAppWelcomeController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun updateWelcomeSettings(
+    suspend fun updateWelcomeSettings(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateWelcomeRequest,
         request: HttpServletRequest

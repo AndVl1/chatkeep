@@ -37,7 +37,7 @@ class MiniAppNotesController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getNotes(
+    suspend fun getNotes(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): List<NoteResponse> {
@@ -64,7 +64,7 @@ class MiniAppNotesController(
         ApiResponse(responseCode = "400", description = "Note already exists"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun createNote(
+    suspend fun createNote(
         @PathVariable chatId: Long,
         @Valid @RequestBody createRequest: CreateNoteRequest,
         request: HttpServletRequest
@@ -101,7 +101,7 @@ class MiniAppNotesController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Note not found")
     )
-    fun updateNote(
+    suspend fun updateNote(
         @PathVariable chatId: Long,
         @PathVariable noteId: Long,
         @Valid @RequestBody updateRequest: UpdateNoteRequest,
@@ -132,7 +132,7 @@ class MiniAppNotesController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Note not found")
     )
-    fun deleteNote(
+    suspend fun deleteNote(
         @PathVariable chatId: Long,
         @PathVariable noteId: Long,
         request: HttpServletRequest

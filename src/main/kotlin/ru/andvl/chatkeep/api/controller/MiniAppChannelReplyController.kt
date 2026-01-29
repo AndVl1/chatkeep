@@ -51,7 +51,7 @@ class MiniAppChannelReplyController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getChannelReply(
+    suspend fun getChannelReply(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ChannelReplyResponse {
@@ -91,7 +91,7 @@ class MiniAppChannelReplyController(
         ApiResponse(responseCode = "400", description = "Validation error"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun updateChannelReply(
+    suspend fun updateChannelReply(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateChannelReplyRequest,
         request: HttpServletRequest
@@ -134,7 +134,7 @@ class MiniAppChannelReplyController(
         ApiResponse(responseCode = "400", description = "Validation error (file too large, invalid type, etc.)"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun uploadMedia(
+    suspend fun uploadMedia(
         @PathVariable chatId: Long,
         @RequestParam("file") file: MultipartFile,
         request: HttpServletRequest
@@ -164,7 +164,7 @@ class MiniAppChannelReplyController(
         ApiResponse(responseCode = "204", description = "Media deleted successfully"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun deleteMedia(
+    suspend fun deleteMedia(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ResponseEntity<Void> {
