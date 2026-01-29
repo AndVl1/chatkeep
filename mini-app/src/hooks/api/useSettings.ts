@@ -43,7 +43,7 @@ export function useSettings(chatId: number): UseSettingsResult {
       setData(cachedSettings);
       setIsLoading(false);
     }
-  }, [chatId, fetchSettings]);
+  }, [chatId, fetchSettings, cachedSettings]);
 
   const mutate = useCallback(async (updates: Partial<ChatSettings>) => {
     if (!data) return;
