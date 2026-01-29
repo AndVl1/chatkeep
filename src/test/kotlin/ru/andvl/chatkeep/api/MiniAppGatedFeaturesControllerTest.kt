@@ -33,7 +33,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/features") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -48,7 +48,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/features") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$") { isArray() }
             jsonPath("$.length()") { value(1) } // Only TWITCH_INTEGRATION exists
@@ -82,7 +82,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/features") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$[0].key") { value("twitch_integration") }
             jsonPath("$[0].enabled") { value(true) }
@@ -103,7 +103,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": true}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -120,7 +120,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": true}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.key") { value("twitch_integration") }
             jsonPath("$.enabled") { value(true) }
@@ -162,7 +162,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": false}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.key") { value("twitch_integration") }
             jsonPath("$.enabled") { value(false) }
@@ -190,7 +190,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": true}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -209,7 +209,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": true}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -240,7 +240,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader1)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": true}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -257,7 +257,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader2)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": false}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -266,7 +266,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader2)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": true}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -304,7 +304,7 @@ class MiniAppGatedFeaturesControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": false}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 

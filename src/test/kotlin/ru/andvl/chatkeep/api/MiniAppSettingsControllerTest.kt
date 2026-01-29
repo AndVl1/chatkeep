@@ -36,7 +36,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/settings") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -49,7 +49,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/99999/settings") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isNotFound() }
         }
     }
@@ -64,7 +64,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/settings") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.chatId") { value(TestDataFactory.DEFAULT_CHAT_ID) }
             jsonPath("$.collectionEnabled") { value(true) }
@@ -99,7 +99,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/settings") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.cleanServiceEnabled") { value(true) }
             jsonPath("$.maxWarnings") { value(5) }
@@ -123,7 +123,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"collectionEnabled": false}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -148,7 +148,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"collectionEnabled": false}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.collectionEnabled") { value(false) }
         }
@@ -185,7 +185,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
                     "maxWarnings": 5
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.cleanServiceEnabled") { value(true) }
             jsonPath("$.maxWarnings") { value(5) }
@@ -226,7 +226,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"thresholdAction": "INVALID_ACTION"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -243,7 +243,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"defaultBlocklistAction": "INVALID"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -261,7 +261,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"maxWarnings": 0}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
 
@@ -270,7 +270,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"maxWarnings": 25}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -305,7 +305,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
                     "defaultBlocklistAction": "WARN"
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.cleanServiceEnabled") { value(true) }
             jsonPath("$.maxWarnings") { value(4) }
@@ -357,7 +357,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"cleanServiceEnabled": false}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -385,7 +385,7 @@ class MiniAppSettingsControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"logChannelId": $newLogChannelId}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.logChannelId") { value(newLogChannelId) }
         }

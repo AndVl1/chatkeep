@@ -37,7 +37,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -52,7 +52,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$") { isArray() }
             jsonPath("$.length()") { value(0) }
@@ -84,7 +84,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(2) }
             jsonPath("$[0].pattern") { exists() }
@@ -106,7 +106,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "spam"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -123,7 +123,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": ""}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -143,7 +143,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "$longPattern"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -160,7 +160,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "spam", "matchType": "INVALID"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -177,7 +177,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "spam", "action": "INVALID"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -195,7 +195,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "spam", "severity": 0}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
 
@@ -204,7 +204,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "spam", "severity": 11}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -221,7 +221,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "spam"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isCreated() }
             jsonPath("$.pattern") { value("spam") }
             jsonPath("$.matchType") { value(MatchType.EXACT.name) }
@@ -247,7 +247,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "spam*"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isCreated() }
             jsonPath("$.pattern") { value("spam*") }
             jsonPath("$.matchType") { value(MatchType.WILDCARD.name) }
@@ -273,7 +273,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
                     "severity": 7
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isCreated() }
             jsonPath("$.pattern") { value("badword") }
             jsonPath("$.matchType") { value("EXACT") }
@@ -300,7 +300,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"pattern": "test"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isCreated() }
             jsonPath("$.action") { value(PunishmentType.MUTE.name) }
         }
@@ -316,7 +316,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
 
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist/1") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -331,7 +331,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
 
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist/99999") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isNotFound() }
         }
     }
@@ -353,7 +353,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
 
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist/${saved.id}") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isNoContent() }
         }
 
@@ -382,7 +382,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
 
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist/${saved.id}") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isNotFound() }
         }
 
@@ -418,7 +418,7 @@ class MiniAppBlocklistControllerTest : MiniAppApiTestBase() {
 
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/blocklist/${saved.id}") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isNoContent() }
         }
 

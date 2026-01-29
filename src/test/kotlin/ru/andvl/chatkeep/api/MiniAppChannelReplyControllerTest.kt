@@ -49,7 +49,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -64,7 +64,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.enabled") { value(false) }
             jsonPath("$.replyText") { doesNotExist() }
@@ -94,7 +94,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.enabled") { value(true) }
             jsonPath("$.replyText") { value("Welcome to our channel!") }
@@ -125,7 +125,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.buttons") { isArray() }
             jsonPath("$.buttons.length()") { value(0) }
@@ -144,7 +144,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": true}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -164,7 +164,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"replyText": "$longText"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -188,7 +188,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
                     ]
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -205,7 +205,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": true}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.enabled") { value(true) }
         }
@@ -236,7 +236,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": false}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.enabled") { value(false) }
         }
@@ -258,7 +258,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"replyText": "Welcome to our channel!"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.replyText") { value("Welcome to our channel!") }
         }
@@ -287,7 +287,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
                     ]
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.buttons.length()") { value(2) }
             jsonPath("$.buttons[0].text") { value("Website") }
@@ -315,7 +315,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
                     ]
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.buttons[0].url") { value("tg://resolve?domain=botusername") }
         }
@@ -341,7 +341,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
                     ]
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.enabled") { value(true) }
             jsonPath("$.replyText") { value("Welcome!") }
@@ -376,7 +376,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"buttons": []}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.buttons.length()") { value(0) }
         }
@@ -405,7 +405,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"enabled": false}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.enabled") { value(false) }
             jsonPath("$.replyText") { value("Original text") }
@@ -428,7 +428,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"replyText": "$maxText"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.replyText") { value(maxText) }
         }
@@ -452,7 +452,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
                     ]
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.buttons[0].url") { value("http://example.com") }
         }
@@ -478,7 +478,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"replyText": ${com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(textWithSpecialChars)}}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.replyText") { value(textWithSpecialChars) }
         }
@@ -520,7 +520,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
         mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
             file(mockFile)
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.fileId") { value(testHash) }
             jsonPath("$.mediaType") { value("PHOTO") }
@@ -556,7 +556,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
         mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
             file(mockFile)
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -585,7 +585,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
         mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
             file(mockFile)
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -602,7 +602,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
 
         mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
             file(mockFile)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isUnauthorized() }
         }
     }
@@ -626,7 +626,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
         mockMvc.multipart("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
             file(mockFile)
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -649,7 +649,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
 
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isNoContent() }
         }
 
@@ -677,7 +677,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
 
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -693,7 +693,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
         // No media in database - delete should still succeed
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply/media") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isNoContent() }
         }
     }
@@ -718,7 +718,7 @@ class MiniAppChannelReplyControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/channel-reply") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.mediaFileId") { value("AgACAgIAAxUAAWZn...") }
             jsonPath("$.mediaType") { value("VIDEO") }

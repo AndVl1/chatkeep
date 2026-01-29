@@ -46,7 +46,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/channels") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -61,7 +61,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/channels") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$") { isArray() }
             jsonPath("$") { isEmpty() }
@@ -112,7 +112,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/channels") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$") { isArray() }
             jsonPath("$.length()") { value(2) }
@@ -136,7 +136,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"twitchLogin": "teststreamer"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -172,7 +172,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"twitchLogin": "teststreamer"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.twitchLogin") { value("teststreamer") }
             jsonPath("$.displayName") { value("Test Streamer") }
@@ -220,7 +220,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"twitchLogin": "newstreamer"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -258,7 +258,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"twitchLogin": "existingstreamer"}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
 
@@ -290,7 +290,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
 
         mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/channels/${subscription.id}") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isNoContent() }
         }
 
@@ -325,7 +325,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/twitch/search?query=test") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$") { isArray() }
             jsonPath("$.length()") { value(2) }
@@ -355,7 +355,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/settings") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.messageTemplate") { value("Custom template: {streamer} is live!") }
         }
@@ -377,7 +377,7 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
                 "endedMessageTemplate": "Stream ended: {streamer}",
                 "buttonText": "📺 Watch Now"
             }"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.messageTemplate") { value("Updated: {streamer} started streaming!") }
             jsonPath("$.endedMessageTemplate") { value("Stream ended: {streamer}") }

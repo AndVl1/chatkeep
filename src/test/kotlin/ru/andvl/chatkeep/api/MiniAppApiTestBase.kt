@@ -10,7 +10,12 @@ import org.springframework.context.annotation.Import
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
-import org.springframework.test.web.servlet.MockMvc
+import org.springframework.http.HttpMethod
+import org.springframework.test.web.servlet.*
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.testcontainers.containers.PostgreSQLContainer
 import ru.andvl.chatkeep.api.config.ApiTestConfiguration
 import ru.andvl.chatkeep.api.support.AuthTestHelper
@@ -39,6 +44,7 @@ import ru.andvl.chatkeep.infrastructure.repository.moderation.ModerationConfigRe
 @ActiveProfiles("test", "apitest")
 @Import(TestConfiguration::class, ApiTestConfiguration::class)
 abstract class MiniAppApiTestBase {
+
 
     companion object {
         // Try to start PostgreSQL testcontainer, fallback to H2 if Docker is unavailable
@@ -177,5 +183,19 @@ abstract class MiniAppApiTestBase {
         lockSettingsRepository.deleteAll()
         moderationConfigRepository.deleteAll()
         chatSettingsRepository.deleteAll()
+    }
+
+    /**
+     * Conditionally dispatch async if request started async processing.
+     * Use this instead of .asyncDispatch() for suspend controllers that might fail before async starts
+     * (e.g., validation errors, auth failures).
+     */
+    protected fun ResultActionsDsl.asyncDispatchIfNeeded(): ResultActionsDsl {
+        val result = this.andReturn()
+        return if (result.request.isAsyncStarted) {
+            this.asyncDispatch()
+        } else {
+            this
+        }
     }
 }
