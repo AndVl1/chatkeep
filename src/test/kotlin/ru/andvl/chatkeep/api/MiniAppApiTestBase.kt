@@ -41,21 +41,38 @@ import ru.andvl.chatkeep.infrastructure.repository.moderation.ModerationConfigRe
 abstract class MiniAppApiTestBase {
 
     companion object {
-        // Singleton container - started once and shared across all test classes
+        // Try to start PostgreSQL testcontainer, fallback to H2 if Docker is unavailable
         @JvmStatic
-        private val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:16-alpine")
-            .withDatabaseName("chatkeep_apitest")
-            .withUsername("test")
-            .withPassword("test")
-            .apply { start() }
+        private val postgres: PostgreSQLContainer<*>? = try {
+            PostgreSQLContainer("postgres:16-alpine")
+                .withDatabaseName("chatkeep_apitest")
+                .withUsername("test")
+                .withPassword("test")
+                .apply { start() }
+        } catch (e: Exception) {
+            // Docker not available - will use H2
+            println("⚠️  Docker not available, using H2 in-memory database for tests: ${e.message}")
+            null
+        }
 
         @JvmStatic
         @DynamicPropertySource
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.datasource.url", postgres::getJdbcUrl)
-            registry.add("spring.datasource.username", postgres::getUsername)
-            registry.add("spring.datasource.password", postgres::getPassword)
-            registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
+            if (postgres != null) {
+                // Use PostgreSQL when Docker is available
+                println("✓ Using PostgreSQL testcontainer for API tests")
+                registry.add("spring.datasource.url", postgres::getJdbcUrl)
+                registry.add("spring.datasource.username", postgres::getUsername)
+                registry.add("spring.datasource.password", postgres::getPassword)
+                registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
+            } else {
+                // Use H2 when Docker is not available (CI or local without Docker)
+                println("✓ Using H2 in-memory database for API tests")
+                registry.add("spring.datasource.url") { "jdbc:h2:mem:chatkeep_apitest;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DEFAULT_NULL_ORDERING=HIGH" }
+                registry.add("spring.datasource.username") { "sa" }
+                registry.add("spring.datasource.password") { "" }
+                registry.add("spring.datasource.driver-class-name") { "org.h2.Driver" }
+            }
         }
     }
 
