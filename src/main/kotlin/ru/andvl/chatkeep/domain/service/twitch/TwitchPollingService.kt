@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import ru.andvl.chatkeep.domain.model.twitch.StreamTimelineEvent
 import ru.andvl.chatkeep.domain.model.twitch.TwitchStream
 import ru.andvl.chatkeep.infrastructure.repository.twitch.StreamTimelineEventRepository
@@ -24,7 +24,8 @@ class TwitchPollingService(
     private val channelRepo: TwitchChannelSubscriptionRepository,
     private val timelineRepo: StreamTimelineEventRepository,
     private val notificationService: TwitchNotificationService,
-    private val twitchApiClient: TwitchApiClient
+    private val twitchApiClient: TwitchApiClient,
+    private val transactionTemplate: TransactionTemplate
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -40,9 +41,12 @@ class TwitchPollingService(
      * This is a fallback in case EventSub doesn't fire (e.g., stream already live when subscribed).
      */
     @Scheduled(fixedDelay = 120_000, initialDelay = 30_000) // 2 minutes
-    @Transactional
     fun checkForNewStreams() {
-        val subscriptions = channelRepo.findAll().toList()
+        // Read subscriptions in transaction
+        val subscriptions = transactionTemplate.execute {
+            channelRepo.findAll().toList()
+        } ?: emptyList()
+
         if (subscriptions.isEmpty()) {
             return
         }
@@ -53,7 +57,7 @@ class TwitchPollingService(
         val channelIds = subscriptions.map { it.twitchChannelId }
 
         try {
-            // Fetch all live streams for subscribed channels in one API call
+            // Fetch all live streams for subscribed channels in one API call (no transaction needed)
             val liveStreams = twitchApiClient.getStreams(channelIds)
 
             liveStreams.forEach { streamData ->
@@ -61,8 +65,13 @@ class TwitchPollingService(
                 val subscription = subscriptions.find { it.twitchChannelId == streamData.userId }
                     ?: return@forEach
 
-                // Check if we already have an active stream record
-                val existingStream = streamRepo.findActiveBySubscriptionId(subscription.id!!)
+                val subscriptionId = subscription.id ?: return@forEach
+
+                // Check if we already have an active stream record (in transaction)
+                val existingStream = transactionTemplate.execute {
+                    streamRepo.findActiveBySubscriptionId(subscriptionId)
+                }
+
                 if (existingStream != null) {
                     // Stream already tracked, skip
                     return@forEach
@@ -71,26 +80,31 @@ class TwitchPollingService(
                 // New live stream detected! Create record and send notification
                 logger.info("New live stream detected for ${subscription.twitchLogin} (subscription ${subscription.id})")
 
-                val stream = TwitchStream.createNew(
-                    subscriptionId = subscription.id,
-                    twitchStreamId = streamData.id,
-                    startedAt = Instant.parse(streamData.startedAt),
-                    currentGame = streamData.gameName,
-                    currentTitle = streamData.title
-                )
-                val saved = streamRepo.save(stream)
-
-                // Create initial timeline event
-                timelineRepo.save(
-                    StreamTimelineEvent.createNew(
-                        streamId = saved.id!!,
-                        streamOffsetSeconds = 0,
-                        gameName = streamData.gameName,
-                        streamTitle = streamData.title
+                // Create stream and timeline event in transaction
+                val saved = transactionTemplate.execute {
+                    val stream = TwitchStream.createNew(
+                        subscriptionId = subscriptionId,
+                        twitchStreamId = streamData.id,
+                        startedAt = Instant.parse(streamData.startedAt),
+                        currentGame = streamData.gameName,
+                        currentTitle = streamData.title
                     )
-                )
+                    val savedStream = streamRepo.save(stream)
 
-                // Send notification
+                    // Create initial timeline event
+                    timelineRepo.save(
+                        StreamTimelineEvent.createNew(
+                            streamId = savedStream.id!!,
+                            streamOffsetSeconds = 0,
+                            gameName = streamData.gameName,
+                            streamTitle = streamData.title
+                        )
+                    )
+
+                    savedStream
+                }!!
+
+                // Send notification asynchronously (with its own transaction)
                 scope.launch {
                     try {
                         val messageId = notificationService.sendStreamStartNotification(
@@ -102,13 +116,16 @@ class TwitchPollingService(
                         )
 
                         if (messageId != null) {
-                            streamRepo.save(
-                                saved.copy(
-                                    telegramMessageId = messageId,
-                                    telegramChatId = subscription.chatId,
-                                    viewerCount = streamData.viewerCount
+                            // Update stream with message ID in separate transaction
+                            transactionTemplate.execute {
+                                streamRepo.save(
+                                    saved.copy(
+                                        telegramMessageId = messageId,
+                                        telegramChatId = subscription.chatId,
+                                        viewerCount = streamData.viewerCount
+                                    )
                                 )
-                            )
+                            }
                             logger.info("Sent notification for new stream ${saved.id}, messageId=$messageId")
                         }
                     } catch (e: Exception) {
@@ -126,18 +143,24 @@ class TwitchPollingService(
      * Optimized to make ONE Twitch API call for all unique channels.
      */
     @Scheduled(fixedDelay = 180_000, initialDelay = 60_000) // 3 minutes
-    @Transactional
     fun pollActiveStreams() {
-        val activeStreams = streamRepo.findAllActive()
+        // Read active streams in transaction
+        val activeStreams = transactionTemplate.execute {
+            streamRepo.findAllActive()
+        } ?: emptyList()
+
         if (activeStreams.isEmpty()) {
             return
         }
 
         logger.info("Polling ${activeStreams.size} active streams")
 
-        // Load all subscriptions for active streams
+        // Load all subscriptions for active streams in transaction
         val subscriptionIds = activeStreams.map { it.subscriptionId }.distinct()
-        val subscriptions = subscriptionIds.mapNotNull { channelRepo.findById(it).orElse(null) }
+        val subscriptions = transactionTemplate.execute {
+            subscriptionIds.mapNotNull { channelRepo.findById(it).orElse(null) }
+        } ?: emptyList()
+
         val subscriptionMap = subscriptions.associateBy { it.id }
 
         // Get unique channel IDs and make ONE API call
@@ -150,7 +173,7 @@ class TwitchPollingService(
         logger.info("Fetching data for ${uniqueChannelIds.size} unique channels (from ${activeStreams.size} streams)")
 
         try {
-            // ONE API call for all channels
+            // ONE API call for all channels (no transaction needed)
             val liveStreamsData = twitchApiClient.getStreams(uniqueChannelIds)
             val streamDataByChannelId = liveStreamsData.associateBy { it.userId }
 
@@ -191,16 +214,21 @@ class TwitchPollingService(
      * Update viewer count and duration without adding timeline event
      */
     private fun updateViewerCountAndDuration(stream: ru.andvl.chatkeep.domain.model.twitch.TwitchStream, streamData: TwitchStreamData, streamerName: String, streamerLogin: String) {
-        // Update stream with new viewer count
-        val updated = stream.copy(viewerCount = streamData.viewerCount)
-        streamRepo.save(updated)
+        // Update stream with new viewer count in transaction
+        val updated = transactionTemplate.execute {
+            val updatedStream = stream.copy(viewerCount = streamData.viewerCount)
+            streamRepo.save(updatedStream)
+        }!!
 
         // Update Telegram message asynchronously (viewer count and duration will be refreshed)
         if (stream.telegramMessageId != null && stream.telegramChatId != null) {
             scope.launch {
                 try {
-                    val timeline = timelineRepo.findByStreamId(stream.id!!)
-                    notificationService.updateStreamNotification(
+                    val timeline = transactionTemplate.execute {
+                        timelineRepo.findByStreamId(stream.id!!)
+                    } ?: emptyList()
+
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
@@ -208,6 +236,14 @@ class TwitchPollingService(
                         streamerLogin = streamerLogin,
                         timeline = timeline
                     )
+
+                    // Store Telegraph URL if created
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
+
                     logger.debug("Updated viewer count/duration for stream ${stream.id}: viewers=${streamData.viewerCount}")
                 } catch (e: Exception) {
                     logger.error("Failed to update stream notification for stream ${stream.id}", e)
@@ -217,31 +253,38 @@ class TwitchPollingService(
     }
 
     private fun handleStreamUpdate(stream: ru.andvl.chatkeep.domain.model.twitch.TwitchStream, streamData: TwitchStreamData, streamerName: String, streamerLogin: String) {
-        // Update stream
-        val updated = stream.copy(
-            currentGame = streamData.gameName,
-            currentTitle = streamData.title,
-            viewerCount = streamData.viewerCount
-        )
-        streamRepo.save(updated)
-
-        // Add timeline event
-        val offsetSeconds = Duration.between(stream.startedAt, Instant.now()).seconds.toInt()
-        timelineRepo.save(
-            StreamTimelineEvent.createNew(
-                streamId = stream.id!!,
-                streamOffsetSeconds = offsetSeconds,
-                gameName = streamData.gameName,
-                streamTitle = streamData.title
+        // Update stream and add timeline event in transaction
+        val updated = transactionTemplate.execute {
+            val updatedStream = stream.copy(
+                currentGame = streamData.gameName,
+                currentTitle = streamData.title,
+                viewerCount = streamData.viewerCount
             )
-        )
+            streamRepo.save(updatedStream)
+
+            // Add timeline event
+            val offsetSeconds = Duration.between(stream.startedAt, Instant.now()).seconds.toInt()
+            timelineRepo.save(
+                StreamTimelineEvent.createNew(
+                    streamId = stream.id!!,
+                    streamOffsetSeconds = offsetSeconds,
+                    gameName = streamData.gameName,
+                    streamTitle = streamData.title
+                )
+            )
+
+            updatedStream
+        }!!
 
         // Update Telegram message asynchronously
         if (stream.telegramMessageId != null && stream.telegramChatId != null) {
             scope.launch {
                 try {
-                    val timeline = timelineRepo.findByStreamId(stream.id)
-                    notificationService.updateStreamNotification(
+                    val timeline = transactionTemplate.execute {
+                        timelineRepo.findByStreamId(stream.id!!)
+                    } ?: emptyList()
+
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
@@ -249,6 +292,13 @@ class TwitchPollingService(
                         streamerLogin = streamerLogin,
                         timeline = timeline
                     )
+
+                    // Store Telegraph URL if created
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
                 } catch (e: Exception) {
                     logger.error("Failed to update stream notification for stream ${stream.id}", e)
                 }
@@ -259,18 +309,24 @@ class TwitchPollingService(
     }
 
     private fun handleStreamEnded(stream: ru.andvl.chatkeep.domain.model.twitch.TwitchStream, streamerName: String, streamerLogin: String) {
-        val updated = stream.copy(
-            status = "ended",
-            endedAt = Instant.now()
-        )
-        streamRepo.save(updated)
+        // Update stream status in transaction
+        val updated = transactionTemplate.execute {
+            val updatedStream = stream.copy(
+                status = "ended",
+                endedAt = Instant.now()
+            )
+            streamRepo.save(updatedStream)
+        }!!
 
-        // Update Telegram message asynchronously
+        // Update Telegram message asynchronously with Telegraph button if URL was stored
         if (stream.telegramMessageId != null && stream.telegramChatId != null) {
             scope.launch {
                 try {
-                    val timeline = timelineRepo.findByStreamId(stream.id!!)
-                    notificationService.updateStreamNotification(
+                    val timeline = transactionTemplate.execute {
+                        timelineRepo.findByStreamId(stream.id!!)
+                    } ?: emptyList()
+
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
@@ -278,6 +334,13 @@ class TwitchPollingService(
                         streamerLogin = streamerLogin,
                         timeline = timeline
                     )
+
+                    // Store Telegraph URL if created (for ended stream)
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
                 } catch (e: Exception) {
                     logger.error("Failed to update stream ended notification for stream ${stream.id}", e)
                 }
