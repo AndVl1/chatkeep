@@ -10,12 +10,9 @@ import jakarta.validation.Valid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.AntifloodSettingsResponse
 import ru.andvl.chatkeep.api.dto.UpdateAntifloodRequest
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.exception.ValidationException
 import ru.andvl.chatkeep.domain.model.AntifloodSettings
 import ru.andvl.chatkeep.domain.model.moderation.ActionType
@@ -33,15 +30,10 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppAntifloodController(
     private val antifloodService: AntifloodService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val logChannelService: LogChannelService,
     private val chatService: ChatService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get anti-flood settings")
@@ -53,14 +45,7 @@ class MiniAppAntifloodController(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): AntifloodSettingsResponse {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val settings = antifloodService.getSettings(chatId)
             ?: AntifloodSettings(chatId = chatId)
@@ -87,14 +72,7 @@ class MiniAppAntifloodController(
         @Valid @RequestBody updateRequest: UpdateAntifloodRequest,
         request: HttpServletRequest
     ): AntifloodSettingsResponse {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         // Validate action enum
         updateRequest.action?.let {

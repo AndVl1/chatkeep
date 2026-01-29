@@ -9,12 +9,8 @@ import jakarta.servlet.http.HttpServletRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
-import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.ChatStatisticsResponse
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.domain.service.AdminService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 
@@ -24,13 +20,8 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppStatisticsController(
     private val adminService: AdminService,
-    private val adminCacheService: AdminCacheService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+    adminCacheService: AdminCacheService
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping("/stats")
     @Operation(summary = "Get chat statistics")
@@ -43,15 +34,7 @@ class MiniAppStatisticsController(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ChatStatisticsResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val stats = adminService.getStatistics(chatId)
             ?: throw ResourceNotFoundException("Chat", chatId)

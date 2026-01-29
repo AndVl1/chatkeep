@@ -11,7 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -20,8 +19,6 @@ import ru.andvl.chatkeep.api.dto.ButtonDto
 import ru.andvl.chatkeep.api.dto.ChannelReplyResponse
 import ru.andvl.chatkeep.api.dto.MediaUploadResponse
 import ru.andvl.chatkeep.api.dto.UpdateChannelReplyRequest
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.service.MediaUploadService
 import ru.andvl.chatkeep.domain.model.channelreply.ChannelReplySettings
 import ru.andvl.chatkeep.domain.model.channelreply.MediaType
@@ -40,18 +37,13 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppChannelReplyController(
     private val channelReplyService: ChannelReplyService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val mediaUploadService: MediaUploadService,
     private val mediaStorageService: ru.andvl.chatkeep.domain.service.media.MediaStorageService,
     private val linkedChannelService: ru.andvl.chatkeep.domain.service.channelreply.LinkedChannelService,
     private val debouncedLogService: DebouncedLogService,
     private val chatService: ChatService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get channel reply settings")
@@ -63,15 +55,7 @@ class MiniAppChannelReplyController(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ChannelReplyResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (use IO dispatcher to avoid blocking main thread pool)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val settings = channelReplyService.getSettings(chatId)
             ?: ChannelReplySettings(chatId = chatId)
@@ -112,15 +96,7 @@ class MiniAppChannelReplyController(
         @Valid @RequestBody updateRequest: UpdateChannelReplyRequest,
         request: HttpServletRequest
     ): ChannelReplyResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val existing = channelReplyService.getSettings(chatId)
             ?: ChannelReplySettings(chatId = chatId)
@@ -163,15 +139,7 @@ class MiniAppChannelReplyController(
         @RequestParam("file") file: MultipartFile,
         request: HttpServletRequest
     ): ResponseEntity<MediaUploadResponse> {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId, forceRefresh = true)
 
         // Store file as blob and get hash
         val hash = mediaStorageService.storeMedia(file)
@@ -200,15 +168,7 @@ class MiniAppChannelReplyController(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): ResponseEntity<Void> {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission (force refresh for write operation, use IO dispatcher)
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId, forceRefresh = true)
 
         // Clear media from database
         channelReplyService.clearMedia(chatId)
