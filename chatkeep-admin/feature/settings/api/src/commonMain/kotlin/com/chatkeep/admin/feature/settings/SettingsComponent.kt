@@ -8,10 +8,16 @@ interface SettingsComponent {
     fun onThemeChange(theme: Theme)
     fun onBaseUrlChange(url: String)
     fun onLogoutClick()
+    fun onShowThemeDialog()
+    fun onDismissThemeDialog()
+    fun onShowBaseUrlDialog()
+    fun onDismissBaseUrlDialog()
 
     data class SettingsState(
         val theme: Theme,
         val baseUrl: String,
-        val appVersion: String
+        val appVersion: String,
+        val showThemeDialog: Boolean = false,
+        val showBaseUrlDialog: Boolean = false
     )
 }

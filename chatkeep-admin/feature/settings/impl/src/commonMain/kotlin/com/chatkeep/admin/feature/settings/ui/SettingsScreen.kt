@@ -15,8 +15,6 @@ import com.chatkeep.admin.feature.settings.SettingsComponent
 @Composable
 fun SettingsScreen(component: SettingsComponent) {
     val state by component.state.subscribeAsState()
-    var showThemeDialog by remember { mutableStateOf(false) }
-    var showBaseUrlDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -36,7 +34,7 @@ fun SettingsScreen(component: SettingsComponent) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showThemeDialog = true }
+                    .clickable { component.onShowThemeDialog() }
             ) {
                 Row(
                     modifier = Modifier
@@ -63,7 +61,7 @@ fun SettingsScreen(component: SettingsComponent) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showBaseUrlDialog = true }
+                    .clickable { component.onShowBaseUrlDialog() }
             ) {
                 Row(
                     modifier = Modifier
@@ -125,25 +123,19 @@ fun SettingsScreen(component: SettingsComponent) {
         }
     }
 
-    if (showThemeDialog) {
+    if (state.showThemeDialog) {
         ThemeSelectionDialog(
             currentTheme = state.theme,
-            onThemeSelected = { theme ->
-                component.onThemeChange(theme)
-                showThemeDialog = false
-            },
-            onDismiss = { showThemeDialog = false }
+            onThemeSelected = component::onThemeChange,
+            onDismiss = component::onDismissThemeDialog
         )
     }
 
-    if (showBaseUrlDialog) {
+    if (state.showBaseUrlDialog) {
         BaseUrlDialog(
             currentUrl = state.baseUrl,
-            onUrlSelected = { url ->
-                component.onBaseUrlChange(url)
-                showBaseUrlDialog = false
-            },
-            onDismiss = { showBaseUrlDialog = false }
+            onUrlSelected = component::onBaseUrlChange,
+            onDismiss = component::onDismissBaseUrlDialog
         )
     }
 }
