@@ -236,16 +236,41 @@ class TwitchNotificationService(
             .replace("{viewers}", stream.viewerCount.toString())
             .replace("{duration}", duration)
 
-        // Smart timeline compression: show first, last, and game changes
+        // Add timeline: try full timeline first, compress only if exceeds limit
         if (timeline.isNotEmpty() && (isEnded || timeline.size > 1)) {
-            val compressedTimeline = compressTimeline(timeline, maxLength = 800)
-            if (compressedTimeline.isNotEmpty()) {
-                caption += "\n\n📋 Таймлайн:\n$compressedTimeline"
+            // Format full timeline
+            val fullTimeline = formatFullTimeline(timeline)
+            val captionWithFullTimeline = caption + "\n\n📋 Таймлайн:\n$fullTimeline"
+
+            // Check if full timeline fits within limit
+            if (captionWithFullTimeline.length <= 1000) {
+                caption = captionWithFullTimeline
+            } else {
+                // Timeline too long, use compressed version
+                val compressedTimeline = compressTimeline(timeline, maxLength = 800)
+                if (compressedTimeline.isNotEmpty()) {
+                    caption += "\n\n📋 Таймлайн:\n$compressedTimeline"
+                }
             }
             // Note: Telegraph link is NOT added to caption, only as button
         }
 
         return caption
+    }
+
+    /**
+     * Format full timeline (all events)
+     */
+    private fun formatFullTimeline(timeline: List<StreamTimelineEvent>): String {
+        if (timeline.isEmpty()) return ""
+
+        return timeline.joinToString("\n") { event ->
+            val time = formatSeconds(event.streamOffsetSeconds)
+            val game = event.gameName ?: "Just Chatting"
+            val title = event.streamTitle?.take(50) ?: ""
+            val titlePart = if (title.isNotEmpty()) " | $title" else ""
+            "$time - $game$titlePart"
+        }
     }
 
     /**
