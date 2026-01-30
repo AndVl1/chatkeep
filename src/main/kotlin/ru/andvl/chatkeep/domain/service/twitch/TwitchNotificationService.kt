@@ -2,6 +2,7 @@ package ru.andvl.chatkeep.domain.service.twitch
 
 import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.requests.abstracts.InputFile
+import dev.inmo.tgbotapi.requests.chat.modify.PinChatMessage
 import dev.inmo.tgbotapi.requests.edit.caption.EditChatMessageCaption
 import dev.inmo.tgbotapi.requests.edit.text.EditChatMessageText
 import dev.inmo.tgbotapi.requests.send.SendTextMessage
@@ -34,14 +35,17 @@ class TwitchNotificationService(
 
     /**
      * Send stream start notification
+     * Returns pair of (messageId, hasPhoto)
      */
     suspend fun sendStreamStartNotification(
         chatId: Long,
         stream: TwitchStream,
         streamerName: String,
         streamerLogin: String,
-        thumbnailUrl: String?
-    ): Long? {
+        thumbnailUrl: String?,
+        isPinned: Boolean = false,
+        pinSilently: Boolean = true
+    ): Pair<Long, Boolean>? {
         try {
             val settings = settingsRepository.findByChatId(chatId)
                 ?: TwitchNotificationSettings.createNew(chatId)
@@ -66,7 +70,8 @@ class TwitchNotificationService(
                 ?.replace("{width}", "1280")
                 ?.replace("{height}", "720")
 
-            val message = if (thumbnail != null) {
+            val hasPhoto = thumbnail != null
+            val message = if (hasPhoto) {
                 // Send photo with caption
                 bot.execute(
                     SendPhoto(
@@ -88,8 +93,24 @@ class TwitchNotificationService(
                 )
             }
 
-            logger.info("Sent stream start notification: chatId=$chatId, messageId=${message.messageId}, stream=${stream.id}, hasPhoto=${thumbnail != null}")
-            return message.messageId.long
+            // Pin message if needed
+            if (isPinned) {
+                try {
+                    bot.execute(
+                        PinChatMessage(
+                            chatId = chatId.toChatId(),
+                            messageId = message.messageId,
+                            disableNotification = pinSilently
+                        )
+                    )
+                    logger.info("Pinned stream notification: chatId=$chatId, messageId=${message.messageId}, silently=$pinSilently")
+                } catch (e: Exception) {
+                    logger.error("Failed to pin stream notification: chatId=$chatId, messageId=${message.messageId}", e)
+                }
+            }
+
+            logger.info("Sent stream start notification: chatId=$chatId, messageId=${message.messageId}, stream=${stream.id}, hasPhoto=$hasPhoto")
+            return Pair(message.messageId.long, hasPhoto)
         } catch (e: Exception) {
             logger.error("Failed to send stream start notification: chatId=$chatId", e)
             return null
@@ -105,7 +126,8 @@ class TwitchNotificationService(
         stream: TwitchStream,
         streamerName: String,
         streamerLogin: String,
-        timeline: List<StreamTimelineEvent>
+        timeline: List<StreamTimelineEvent>,
+        thumbnailUrl: String? = null
     ): String? {
         try {
             val settings = settingsRepository.findByChatId(chatId)
@@ -120,27 +142,35 @@ class TwitchNotificationService(
                 telegraphUrl = null
             )
 
-            // Create Telegraph page ONLY if caption > 600 characters
-            val telegraphUrl = if (captionWithoutTelegraph.length > 600) {
-                logger.info("Caption length ${captionWithoutTelegraph.length} > 600, creating Telegraph page for stream ${stream.id}")
+            // Create Telegraph page ONLY if caption > 1000 characters
+            val telegraphUrl = if (captionWithoutTelegraph.length > 1000) {
+                logger.info("Caption length ${captionWithoutTelegraph.length} > 1000, creating Telegraph page for stream ${stream.id}")
                 telegraphService.createOrUpdateTimelinePage(
                     streamerId = streamerLogin,
                     streamerName = streamerName,
                     timeline = timeline
                 )
             } else {
-                logger.info("Caption length ${captionWithoutTelegraph.length} <= 600, skipping Telegraph page for stream ${stream.id}")
+                logger.info("Caption length ${captionWithoutTelegraph.length} <= 1000, skipping Telegraph page for stream ${stream.id}")
                 null
             }
 
             // Use caption without Telegraph URL (we don't add link to caption, only button)
             val caption = captionWithoutTelegraph
 
-            // Build keyboard with stream link button and optional Telegraph button
+            // Check if we need to add preview button (thumbnail fallback)
+            val previewUrl = if (!stream.hasPhoto && thumbnailUrl != null) {
+                thumbnailUrl.replace("{width}", "1280").replace("{height}", "720")
+            } else {
+                null
+            }
+
+            // Build keyboard with stream link button and optional Telegraph/preview buttons
             val keyboard = buildKeyboard(
                 streamLink = "https://twitch.tv/$streamerLogin",
                 buttonText = settings.buttonText,
-                telegraphUrl = telegraphUrl
+                telegraphUrl = telegraphUrl,
+                previewUrl = previewUrl
             )
 
             // Try to edit as caption first (for photo messages)
@@ -275,12 +305,13 @@ class TwitchNotificationService(
     }
 
     /**
-     * Build inline keyboard with stream link and optional Telegraph button
+     * Build inline keyboard with stream link and optional Telegraph/preview buttons
      */
     private fun buildKeyboard(
         streamLink: String,
         buttonText: String,
-        telegraphUrl: String?
+        telegraphUrl: String?,
+        previewUrl: String? = null
     ): InlineKeyboardMarkup {
         val rows = mutableListOf<List<URLInlineKeyboardButton>>()
 
@@ -290,6 +321,11 @@ class TwitchNotificationService(
         // Telegraph button (if URL provided)
         if (telegraphUrl != null) {
             rows.add(listOf(URLInlineKeyboardButton("📋 Полный таймлайн", telegraphUrl)))
+        }
+
+        // Preview button (if thumbnail became available after initial send)
+        if (previewUrl != null) {
+            rows.add(listOf(URLInlineKeyboardButton("📸 Превью", previewUrl)))
         }
 
         return InlineKeyboardMarkup(keyboard = rows)

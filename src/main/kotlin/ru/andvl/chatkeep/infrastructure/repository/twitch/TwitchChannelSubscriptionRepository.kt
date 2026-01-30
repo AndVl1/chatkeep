@@ -1,5 +1,6 @@
 package ru.andvl.chatkeep.infrastructure.repository.twitch
 
+import org.springframework.data.jdbc.repository.query.Modifying
 import org.springframework.data.jdbc.repository.query.Query
 import org.springframework.data.repository.CrudRepository
 import ru.andvl.chatkeep.domain.model.twitch.TwitchChannelSubscription
@@ -17,4 +18,8 @@ interface TwitchChannelSubscriptionRepository : CrudRepository<TwitchChannelSubs
 
     @Query("SELECT COUNT(*) FROM twitch_channel_subscriptions WHERE chat_id = :chatId")
     fun countByChatId(chatId: Long): Int
+
+    @Modifying
+    @Query("UPDATE twitch_channel_subscriptions SET is_pinned = false WHERE chat_id = :chatId")
+    fun unpinAllForChat(chatId: Long): Int
 }

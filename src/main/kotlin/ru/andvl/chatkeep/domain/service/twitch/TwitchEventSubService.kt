@@ -16,6 +16,7 @@ import ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchChannelSubscript
 import ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchStreamRepository
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 @Service
 class TwitchEventSubService(
@@ -64,17 +65,38 @@ class TwitchEventSubService(
                     return@forEach
                 }
 
-                // Create stream record
-                val stream = TwitchStream.createNew(
-                    subscriptionId = subscription.id,
-                    twitchStreamId = streamId,
-                    startedAt = Instant.parse(startedAt),
-                    currentGame = streamData?.gameName,
-                    currentTitle = streamData?.title
+                // Check for recently ended stream (within last 5 minutes) - stream recovery
+                val recentlyEnded = streamRepo.findRecentlyEndedBySubscriptionId(
+                    subscription.id,
+                    Instant.now().minus(5, ChronoUnit.MINUTES)
                 )
 
-                val saved = streamRepo.save(stream)
-                logger.info("EventSub: Created stream record with id=${saved.id} for subscription ${subscription.id}")
+                val saved = if (recentlyEnded != null) {
+                    // Reuse existing stream record and Telegram message
+                    logger.info("EventSub: Stream recovered for subscription ${subscription.id}, reusing stream ${recentlyEnded.id}")
+                    streamRepo.save(
+                        recentlyEnded.copy(
+                            status = "live",
+                            twitchStreamId = streamId,
+                            endedAt = null,
+                            currentGame = streamData?.gameName,
+                            currentTitle = streamData?.title
+                        )
+                    )
+                } else {
+                    // Create new stream record
+                    val stream = TwitchStream.createNew(
+                        subscriptionId = subscription.id,
+                        twitchStreamId = streamId,
+                        startedAt = Instant.parse(startedAt),
+                        currentGame = streamData?.gameName,
+                        currentTitle = streamData?.title,
+                        hasPhoto = streamData?.thumbnailUrl != null
+                    )
+                    streamRepo.save(stream)
+                }
+
+                logger.info("EventSub: Stream record with id=${saved.id} for subscription ${subscription.id} (recovered=${recentlyEnded != null})")
 
                 // Create initial timeline event
                 timelineRepo.save(
@@ -87,34 +109,42 @@ class TwitchEventSubService(
                 )
                 logger.info("EventSub: Created timeline event for stream ${saved.id}")
 
-                // Send notification asynchronously
-                logger.info("EventSub: Sending stream start notification for subscription ${subscription.id} to chat ${subscription.chatId}")
-                scope.launch {
-                    try {
-                        val messageId = notificationService.sendStreamStartNotification(
-                            chatId = subscription.chatId,
-                            stream = saved,
-                            streamerName = subscription.displayName ?: subscription.twitchLogin,
-                            streamerLogin = subscription.twitchLogin,
-                            thumbnailUrl = streamData?.thumbnailUrl
-                        )
-
-                        if (messageId != null) {
-                            logger.info("EventSub: Notification sent successfully, messageId=$messageId")
-                            // Update stream with message info
-                            streamRepo.save(
-                                saved.copy(
-                                    telegramMessageId = messageId,
-                                    telegramChatId = subscription.chatId,
-                                    viewerCount = streamData?.viewerCount ?: 0
-                                )
+                // Send notification asynchronously (only if it's a new stream, not recovered)
+                if (recentlyEnded == null) {
+                    logger.info("EventSub: Sending stream start notification for subscription ${subscription.id} to chat ${subscription.chatId}")
+                    scope.launch {
+                        try {
+                            val result = notificationService.sendStreamStartNotification(
+                                chatId = subscription.chatId,
+                                stream = saved,
+                                streamerName = subscription.displayName ?: subscription.twitchLogin,
+                                streamerLogin = subscription.twitchLogin,
+                                thumbnailUrl = streamData?.thumbnailUrl,
+                                isPinned = subscription.isPinned,
+                                pinSilently = subscription.pinSilently
                             )
-                        } else {
-                            logger.warn("EventSub: Notification service returned null messageId for subscription ${subscription.id}")
+
+                            if (result != null) {
+                                val (messageId, hasPhoto) = result
+                                logger.info("EventSub: Notification sent successfully, messageId=$messageId, hasPhoto=$hasPhoto")
+                                // Update stream with message info
+                                streamRepo.save(
+                                    saved.copy(
+                                        telegramMessageId = messageId,
+                                        telegramChatId = subscription.chatId,
+                                        viewerCount = streamData?.viewerCount ?: 0,
+                                        hasPhoto = hasPhoto
+                                    )
+                                )
+                            } else {
+                                logger.warn("EventSub: Notification service returned null for subscription ${subscription.id}")
+                            }
+                        } catch (e: Exception) {
+                            logger.error("EventSub: Failed to send stream start notification for subscription ${subscription.id}", e)
                         }
-                    } catch (e: Exception) {
-                        logger.error("EventSub: Failed to send stream start notification for subscription ${subscription.id}", e)
                     }
+                } else {
+                    logger.info("EventSub: Stream recovered, skipping notification send (reusing existing message)")
                 }
             } catch (e: Exception) {
                 logger.error("EventSub: Failed to handle stream online for subscription ${subscription.id}", e)
