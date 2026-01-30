@@ -133,7 +133,37 @@ class TwitchNotificationService(
             val settings = settingsRepository.findByChatId(chatId)
                 ?: TwitchNotificationSettings.createNew(chatId)
 
-            // Format caption first WITHOUT Telegraph URL to check length
+            // Check if we need Telegraph by testing FULL timeline length
+            // (formatStreamCaption compresses internally, so we need to check beforehand)
+            val needsTelegraph = if (timeline.isNotEmpty()) {
+                val baseCaption = settings.messageTemplate
+                    .replace("{streamer}", streamerName)
+                    .replace("{title}", stream.currentTitle ?: "")
+                    .replace("{game}", stream.currentGame ?: "Just Chatting")
+                    .replace("{viewers}", stream.viewerCount.toString())
+                    .replace("{duration}", formatDuration(Duration.between(stream.startedAt, Instant.now())))
+
+                val fullTimeline = formatFullTimeline(timeline)
+                val fullCaption = baseCaption + "\n\n📋 Таймлайн:\n$fullTimeline"
+                fullCaption.length > 1000
+            } else {
+                false
+            }
+
+            // Create Telegraph page if needed
+            val telegraphUrl = if (needsTelegraph) {
+                logger.info("Full timeline exceeds 1000 chars, creating Telegraph page for stream ${stream.id}")
+                telegraphService.createOrUpdateTimelinePage(
+                    streamerId = streamerLogin,
+                    streamerName = streamerName,
+                    timeline = timeline
+                )
+            } else {
+                logger.info("Full timeline fits in 1000 chars, skipping Telegraph page for stream ${stream.id}")
+                null
+            }
+
+            // Format caption (will compress timeline if needed)
             val captionWithoutTelegraph = formatStreamCaption(
                 settings = settings,
                 stream = stream,
@@ -141,19 +171,6 @@ class TwitchNotificationService(
                 timeline = timeline,
                 telegraphUrl = null
             )
-
-            // Create Telegraph page ONLY if caption > 1000 characters
-            val telegraphUrl = if (captionWithoutTelegraph.length > 1000) {
-                logger.info("Caption length ${captionWithoutTelegraph.length} > 1000, creating Telegraph page for stream ${stream.id}")
-                telegraphService.createOrUpdateTimelinePage(
-                    streamerId = streamerLogin,
-                    streamerName = streamerName,
-                    timeline = timeline
-                )
-            } else {
-                logger.info("Caption length ${captionWithoutTelegraph.length} <= 1000, skipping Telegraph page for stream ${stream.id}")
-                null
-            }
 
             // Use caption without Telegraph URL (we don't add link to caption, only button)
             val caption = captionWithoutTelegraph
