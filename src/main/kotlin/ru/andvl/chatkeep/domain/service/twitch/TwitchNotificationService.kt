@@ -275,10 +275,11 @@ class TwitchNotificationService(
 
     /**
      * Compress timeline to fit within character limit
-     * Shows: first event, all game changes, last event
+     * Intelligently selects events to show: game changes + evenly distributed samples
      */
     private fun compressTimeline(timeline: List<StreamTimelineEvent>, maxLength: Int): String {
         if (timeline.isEmpty()) return ""
+        if (timeline.size == 1) return formatFullTimeline(timeline)
 
         val first = timeline.first()
         val last = timeline.last()
@@ -289,7 +290,7 @@ class TwitchNotificationService(
             prevEvent == null || prevEvent.gameName != event.gameName
         }
 
-        // Build entry list: first + game changes + last
+        // Build initial entry list: first + game changes + last
         val entries = mutableListOf<StreamTimelineEvent>()
         entries.add(first)
         gameChanges.forEach { event ->
@@ -301,8 +302,20 @@ class TwitchNotificationService(
             entries.add(last)
         }
 
+        // If very few entries (no game changes), add evenly distributed samples
+        if (entries.size <= 3 && timeline.size > 3) {
+            val step = timeline.size / 5  // Sample ~5 events evenly
+            for (i in step until timeline.size - 1 step step) {
+                val event = timeline[i]
+                if (event != first && event != last && !entries.contains(event)) {
+                    entries.add(event)
+                }
+            }
+            entries.sortBy { it.streamOffsetSeconds }
+        }
+
         // Format entries
-        var result = entries.joinToString("\n") { event ->
+        val formattedEntries = entries.map { event ->
             val time = formatSeconds(event.streamOffsetSeconds)
             val game = event.gameName ?: "Just Chatting"
             val title = event.streamTitle?.take(50) ?: ""
@@ -310,17 +323,27 @@ class TwitchNotificationService(
             "$time - $game$titlePart"
         }
 
-        // If still too long, show only first and last with count
+        // Try to fit as many entries as possible within maxLength
+        var result = formattedEntries.joinToString("\n")
+
+        // If still too long, progressively remove middle entries
         if (result.length > maxLength && entries.size > 3) {
-            val kept = listOf(entries.first(), entries.last())
-            val removed = timeline.size - 2
-            result = kept.joinToString("\n") { event ->
-                val time = formatSeconds(event.streamOffsetSeconds)
-                val game = event.gameName ?: "Just Chatting"
-                val title = event.streamTitle?.take(50) ?: ""
-                val titlePart = if (title.isNotEmpty()) " | $title" else ""
-                "$time - $game$titlePart"
+            var kept = entries.toMutableList()
+            while (kept.size > 2 && result.length > maxLength) {
+                // Remove middle entry
+                val midIndex = kept.size / 2
+                kept.removeAt(midIndex)
+
+                result = kept.joinToString("\n") { event ->
+                    val time = formatSeconds(event.streamOffsetSeconds)
+                    val game = event.gameName ?: "Just Chatting"
+                    val title = event.streamTitle?.take(50) ?: ""
+                    val titlePart = if (title.isNotEmpty()) " | $title" else ""
+                    "$time - $game$titlePart"
+                }
             }
+
+            val removed = timeline.size - kept.size
             if (removed > 0) {
                 result += "\n... (+$removed записей в полном таймлайне)"
             }
