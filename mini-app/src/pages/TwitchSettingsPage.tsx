@@ -22,6 +22,8 @@ export function TwitchSettingsPage() {
     addChannel,
     removeChannel,
     updateSettings,
+    pinChannel,
+    unpinChannel,
     refetch,
   } = useTwitch(numericChatId);
 
@@ -63,6 +65,30 @@ export function TwitchSettingsPage() {
     [updateSettings, showError, t]
   );
 
+  const handlePinChannel = useCallback(
+    async (channelId: number, pinSilently: boolean) => {
+      try {
+        await pinChannel(channelId, pinSilently);
+      } catch (err) {
+        showError((err as Error).message || t('twitch.updateSettingsError'));
+        throw err;
+      }
+    },
+    [pinChannel, showError, t]
+  );
+
+  const handleUnpinChannel = useCallback(
+    async (channelId: number) => {
+      try {
+        await unpinChannel(channelId);
+      } catch (err) {
+        showError((err as Error).message || t('twitch.updateSettingsError'));
+        throw err;
+      }
+    },
+    [unpinChannel, showError, t]
+  );
+
   if (!chatId || isNaN(numericChatId)) {
     return <Navigate to="/" replace />;
   }
@@ -89,6 +115,8 @@ export function TwitchSettingsPage() {
         settings={settings}
         onAddChannel={handleAddChannel}
         onRemoveChannel={handleRemoveChannel}
+        onPinChannel={handlePinChannel}
+        onUnpinChannel={handleUnpinChannel}
         onUpdateSettings={handleUpdateSettings}
       />
     </div>

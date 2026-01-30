@@ -14,6 +14,8 @@ interface TwitchSettingsFormProps {
   settings: TwitchSettings;
   onAddChannel: (data: AddTwitchChannelRequest) => Promise<void>;
   onRemoveChannel: (channelId: number) => Promise<void>;
+  onPinChannel: (channelId: number, pinSilently: boolean) => Promise<void>;
+  onUnpinChannel: (channelId: number) => Promise<void>;
   onUpdateSettings: (template: string, endedTemplate: string, buttonText: string) => Promise<void>;
   disabled?: boolean;
   maxChannels?: number;
@@ -24,6 +26,8 @@ export function TwitchSettingsForm({
   settings,
   onAddChannel,
   onRemoveChannel,
+  onPinChannel,
+  onUnpinChannel,
   onUpdateSettings,
   disabled = false,
   maxChannels = 5,
@@ -33,6 +37,7 @@ export function TwitchSettingsForm({
   const { showSuccess, showError } = useNotification();
   const [isAdding, setIsAdding] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isPinning, setIsPinning] = useState(false);
   const [template, setTemplate] = useState(settings.messageTemplate);
   const [endedTemplate, setEndedTemplate] = useState(settings.endedMessageTemplate);
   const [buttonText, setButtonText] = useState(settings.buttonText);
@@ -84,6 +89,36 @@ export function TwitchSettingsForm({
       }
     },
     [confirm, onRemoveChannel, showSuccess, showError, t]
+  );
+
+  const handlePinChannel = useCallback(
+    async (channelId: number, pinSilently: boolean) => {
+      try {
+        setIsPinning(true);
+        await onPinChannel(channelId, pinSilently);
+        showSuccess(t('twitch.channelPinned'));
+      } catch (err) {
+        showError((err as Error).message || t('twitch.updateSettingsError'));
+      } finally {
+        setIsPinning(false);
+      }
+    },
+    [onPinChannel, showSuccess, showError, t]
+  );
+
+  const handleUnpinChannel = useCallback(
+    async (channelId: number) => {
+      try {
+        setIsPinning(true);
+        await onUnpinChannel(channelId);
+        showSuccess(t('twitch.channelUnpinned'));
+      } catch (err) {
+        showError((err as Error).message || t('twitch.updateSettingsError'));
+      } finally {
+        setIsPinning(false);
+      }
+    },
+    [onUnpinChannel, showSuccess, showError, t]
   );
 
   const handleTemplateChange = useCallback(
@@ -160,7 +195,9 @@ export function TwitchSettingsForm({
         <ChannelList
           channels={channels}
           onDelete={handleRemoveChannel}
-          disabled={disabled || isRemoving}
+          onPin={handlePinChannel}
+          onUnpin={handleUnpinChannel}
+          disabled={disabled || isRemoving || isPinning}
         />
 
         {channels.length === 0 && (
