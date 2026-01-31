@@ -57,6 +57,7 @@ out/
 .claude/changes.log
 .claude/settings.json
 .claude/research/
+.claude/specs/
 .claude/qa-*.md
 .claude/manual-qa-*.md
 .claude/testing-log.md
