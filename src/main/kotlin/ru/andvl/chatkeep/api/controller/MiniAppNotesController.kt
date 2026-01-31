@@ -12,15 +12,12 @@ import kotlinx.coroutines.runBlocking
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.CreateNoteRequest
 import ru.andvl.chatkeep.api.dto.ModerationActionResponse
 import ru.andvl.chatkeep.api.dto.NoteResponse
 import ru.andvl.chatkeep.api.dto.UpdateNoteRequest
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.api.exception.ValidationException
 import ru.andvl.chatkeep.domain.service.NotesService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
@@ -31,13 +28,8 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppNotesController(
     private val notesService: NotesService,
-    private val adminCacheService: AdminCacheService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+    adminCacheService: AdminCacheService
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get all notes for a chat")
@@ -45,18 +37,11 @@ class MiniAppNotesController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getNotes(
+    suspend fun getNotes(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): List<NoteResponse> {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val notes = notesService.getAllNotes(chatId)
 
@@ -79,19 +64,12 @@ class MiniAppNotesController(
         ApiResponse(responseCode = "400", description = "Note already exists"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun createNote(
+    suspend fun createNote(
         @PathVariable chatId: Long,
         @Valid @RequestBody createRequest: CreateNoteRequest,
         request: HttpServletRequest
     ): ResponseEntity<NoteResponse> {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val saved = try {
             notesService.createNote(
@@ -123,20 +101,13 @@ class MiniAppNotesController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Note not found")
     )
-    fun updateNote(
+    suspend fun updateNote(
         @PathVariable chatId: Long,
         @PathVariable noteId: Long,
         @Valid @RequestBody updateRequest: UpdateNoteRequest,
         request: HttpServletRequest
     ): NoteResponse {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val updated = try {
             notesService.updateNote(chatId, noteId, updateRequest.content)
@@ -161,19 +132,12 @@ class MiniAppNotesController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Note not found")
     )
-    fun deleteNote(
+    suspend fun deleteNote(
         @PathVariable chatId: Long,
         @PathVariable noteId: Long,
         request: HttpServletRequest
     ): ModerationActionResponse {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val deleted = notesService.deleteNote(chatId, noteId)
         if (!deleted) {

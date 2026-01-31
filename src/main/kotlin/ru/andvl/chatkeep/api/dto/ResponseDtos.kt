@@ -71,7 +71,9 @@ data class TwitchChannelDto(
     val twitchLogin: String,
     val displayName: String?,
     val avatarUrl: String?,
-    val isLive: Boolean = false
+    val isLive: Boolean = false,
+    val isPinned: Boolean = false,
+    val pinSilently: Boolean = true
 )
 
 data class TwitchSearchResultDto(
@@ -106,6 +108,10 @@ data class UpdateTwitchSettingsRequest(
     @field:NotBlank(message = "Button text is required")
     @field:Size(max = 64, message = "Button text must not exceed 64 characters")
     val buttonText: String
+)
+
+data class PinChannelRequest(
+    val pinSilently: Boolean = true
 )
 
 data class BlocklistPatternResponse(

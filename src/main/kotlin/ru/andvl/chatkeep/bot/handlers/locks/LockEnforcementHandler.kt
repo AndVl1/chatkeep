@@ -17,7 +17,10 @@ import dev.inmo.tgbotapi.types.message.abstracts.FromUserMessage
 import dev.inmo.tgbotapi.utils.RiskFeature
 import dev.inmo.tgbotapi.utils.matrix
 import dev.inmo.tgbotapi.utils.row
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,6 +52,12 @@ class LockEnforcementHandler(
 ) : Handler {
 
     private val logger = LoggerFactory.getLogger(javaClass)
+
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+        logger.error("Uncaught exception in lock enforcement coroutine", exception)
+    }
+
+    private val autoDeleteScope = CoroutineScope(Dispatchers.Default + SupervisorJob() + exceptionHandler)
 
     companion object {
         private val AUTO_DELETE_DELAY = 60.seconds
@@ -283,7 +292,7 @@ class LockEnforcementHandler(
             )
 
             // Auto-delete after delay
-            launch {
+            autoDeleteScope.launch {
                 delay(AUTO_DELETE_DELAY)
                 try {
                     delete(sentMessage)

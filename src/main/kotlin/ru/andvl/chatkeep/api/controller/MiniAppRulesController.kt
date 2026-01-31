@@ -10,13 +10,10 @@ import jakarta.validation.Valid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.RulesResponse
 import ru.andvl.chatkeep.api.dto.UpdateRulesRequest
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.domain.model.moderation.ActionType
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
 import ru.andvl.chatkeep.domain.service.ChatService
@@ -31,15 +28,10 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppRulesController(
     private val rulesService: RulesService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val debouncedLogService: DebouncedLogService,
     private val chatService: ChatService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get chat rules")
@@ -48,18 +40,11 @@ class MiniAppRulesController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "Rules not set")
     )
-    fun getRules(
+    suspend fun getRules(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): RulesResponse {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val rules = rulesService.getRules(chatId)
             ?: throw ResourceNotFoundException("Rules", chatId)
@@ -76,19 +61,12 @@ class MiniAppRulesController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun updateRules(
+    suspend fun updateRules(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateRulesRequest,
         request: HttpServletRequest
     ): RulesResponse {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         // Get existing rules for comparison
         val existing = rulesService.getRules(chatId)

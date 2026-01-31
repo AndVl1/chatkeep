@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.server.ResponseStatusException
 import ru.andvl.chatkeep.api.dto.ErrorResponse
 
 @RestControllerAdvice
@@ -78,6 +79,21 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
             .body(ErrorResponse("BAD_REQUEST", ex.message ?: "Invalid argument"))
+    }
+
+    @ExceptionHandler(ResponseStatusException::class)
+    fun handleResponseStatus(ex: ResponseStatusException): ResponseEntity<ErrorResponse> {
+        logger.debug("ResponseStatusException: ${ex.reason}")
+        val errorCode = when (ex.statusCode.value()) {
+            401 -> "UNAUTHORIZED"
+            403 -> "FORBIDDEN"
+            404 -> "NOT_FOUND"
+            400 -> "BAD_REQUEST"
+            else -> "ERROR"
+        }
+        return ResponseEntity
+            .status(ex.statusCode)
+            .body(ErrorResponse(errorCode, ex.reason ?: ex.statusCode.toString()))
     }
 
     @ExceptionHandler(Exception::class)

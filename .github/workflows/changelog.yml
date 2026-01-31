@@ -1,0 +1,241 @@
+name: Generate Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
+    branches: [main, production]
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'PR number to generate changelog for'
+        required: true
+        type: string
+
+concurrency:
+  group: changelog-${{ github.event.pull_request.number || github.event.inputs.pr-number }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  # Resolve PR info for both pull_request and workflow_dispatch triggers
+  resolve-pr:
+    name: Resolve PR Info
+    runs-on: ubuntu-latest
+    # Skip on PR close (except for notify-telegram which has its own condition)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.action != 'closed'
+    outputs:
+      pr-number: ${{ steps.resolve.outputs.pr_number }}
+      base-branch: ${{ steps.resolve.outputs.base_branch }}
+      head-branch: ${{ steps.resolve.outputs.head_branch }}
+      is-draft: ${{ steps.resolve.outputs.is_draft }}
+    steps:
+      - name: Resolve PR details
+        id: resolve
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prNumber, baseBranch, headBranch, isDraft;
+
+            if (context.eventName === 'workflow_dispatch') {
+              prNumber = context.payload.inputs['pr-number'];
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: parseInt(prNumber)
+              });
+              baseBranch = pr.base.ref;
+              headBranch = pr.head.ref;
+              isDraft = pr.draft;
+            } else {
+              prNumber = context.payload.pull_request.number;
+              baseBranch = context.payload.pull_request.base.ref;
+              headBranch = context.payload.pull_request.head.ref;
+              isDraft = context.payload.pull_request.draft;
+            }
+
+            core.setOutput('pr_number', prNumber);
+            core.setOutput('base_branch', baseBranch);
+            core.setOutput('head_branch', headBranch);
+            core.setOutput('is_draft', isDraft);
+
+            console.log(`PR #${prNumber}: ${headBranch} → ${baseBranch} (draft: ${isDraft})`);
+
+  # Generate changelog and post as PR comment
+  generate-changelog:
+    name: Generate and Post Changelog
+    runs-on: ubuntu-latest
+    needs: resolve-pr
+    if: needs.resolve-pr.outputs.is-draft != 'true'
+
+    steps:
+      - name: Check API key
+        id: check-key
+        env:
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_CHANGELOG }}
+        run: |
+          if [ -z "$OPENROUTER_KEY" ]; then
+            echo "has_key=false" >> $GITHUB_OUTPUT
+            echo "::warning::OPENROUTER_API_KEY is not set. Skipping changelog generation."
+          else
+            echo "has_key=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repository
+        if: steps.check-key.outputs.has_key == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        if: steps.check-key.outputs.has_key == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Shadow JAR
+        if: steps.check-key.outputs.has_key == 'true'
+        id: jar-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/changelog-generator/build/libs/
+          key: changelog-jar-${{ hashFiles('tools/changelog-generator/src/**', 'tools/changelog-generator/build.gradle.kts') }}
+
+      - name: Build Shadow JAR
+        if: steps.check-key.outputs.has_key == 'true' && steps.jar-cache.outputs.cache-hit != 'true'
+        working-directory: tools/changelog-generator
+        run: |
+          chmod +x ../../gradlew
+          ../../gradlew shadowJar --no-daemon
+
+      - name: Generate Changelog
+        if: steps.check-key.outputs.has_key == 'true'
+        id: generate
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_CHANGELOG }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGELOG_MODEL: ${{ vars.CHANGELOG_MODEL || 'deepseek/deepseek-chat-v3-0324' }}
+          PR_NUMBER: ${{ needs.resolve-pr.outputs.pr-number }}
+          REPO: ${{ github.repository }}
+          BASE_BRANCH: ${{ needs.resolve-pr.outputs.base-branch }}
+          HEAD_BRANCH: ${{ needs.resolve-pr.outputs.head-branch }}
+        run: |
+          java -jar tools/changelog-generator/build/libs/changelog-generator.jar \
+            --pr-number="$PR_NUMBER" \
+            --repo="$REPO" \
+            --base-branch="$BASE_BRANCH" \
+            --head-branch="$HEAD_BRANCH" \
+            --mode=generate 2>&1 | tee changelog-output.txt
+
+  # Send Telegram notification only when PR is merged into production
+  notify-telegram:
+    name: Send Telegram Notification
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'production'
+
+    steps:
+      - name: Check secrets
+        id: check-secrets
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_CHANGELOG_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHANGELOG_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+            echo "::warning::Telegram secrets not configured. Skipping notification."
+          else
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repository
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Shadow JAR
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        id: jar-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/changelog-generator/build/libs/
+          key: changelog-jar-${{ hashFiles('tools/changelog-generator/src/**', 'tools/changelog-generator/build.gradle.kts') }}
+
+      - name: Build Shadow JAR
+        if: steps.check-secrets.outputs.has_secrets == 'true' && steps.jar-cache.outputs.cache-hit != 'true'
+        working-directory: tools/changelog-generator
+        run: |
+          chmod +x ../../gradlew
+          ../../gradlew shadowJar --no-daemon
+
+      - name: Generate Changelog
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        id: generate
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_CHANGELOG }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGELOG_MODEL: ${{ vars.CHANGELOG_MODEL || 'deepseek/deepseek-chat-v3-0324' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          java -jar tools/changelog-generator/build/libs/changelog-generator.jar \
+            --pr-number="$PR_NUMBER" \
+            --repo="$REPO" \
+            --base-branch="$BASE_BRANCH" \
+            --head-branch="$HEAD_BRANCH" \
+            --mode=generate 2>&1 | tee changelog-output.txt
+
+          if grep -q "Продакшн-изменения:" changelog-output.txt; then
+            echo "has_production_changes=true" >> $GITHUB_OUTPUT
+            sed -n '/^🚀 PR/,/^$/p' changelog-output.txt > telegram-message.txt
+            if [ -s telegram-message.txt ]; then
+              {
+                echo 'telegram_message<<EOF'
+                cat telegram-message.txt
+                echo EOF
+              } >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "has_production_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Telegram Notification
+        if: >-
+          steps.check-secrets.outputs.has_secrets == 'true' &&
+          steps.generate.outputs.has_production_changes == 'true' &&
+          steps.generate.outcome == 'success'
+        continue-on-error: true
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_CHANGELOG_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHANGELOG_CHAT_ID }}
+        run: |
+          MESSAGE=$(cat <<'MSGEOF'
+          ${{ steps.generate.outputs.telegram_message }}
+
+          [PR #${{ github.event.pull_request.number }}](${{ github.event.pull_request.html_url }})
+          MSGEOF
+          )
+
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"${TG_CHAT}\", \"text\": $(echo \"$MESSAGE\" | jq -Rs .), \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"

@@ -40,7 +40,13 @@ data class TwitchStream @PersistenceCreator constructor(
     val currentTitle: String? = null,
 
     @Column("viewer_count")
-    val viewerCount: Int = 0
+    val viewerCount: Int = 0,
+
+    @Column("telegraph_url")
+    val telegraphUrl: String? = null,
+
+    @Column("has_photo")
+    val hasPhoto: Boolean = false
 ) {
 
     companion object {
@@ -49,7 +55,8 @@ data class TwitchStream @PersistenceCreator constructor(
             twitchStreamId: String?,
             startedAt: Instant,
             currentGame: String?,
-            currentTitle: String?
+            currentTitle: String?,
+            hasPhoto: Boolean = false
         ): TwitchStream {
             return TwitchStream(
                 id = null,
@@ -62,7 +69,8 @@ data class TwitchStream @PersistenceCreator constructor(
                 status = "live",
                 currentGame = currentGame,
                 currentTitle = currentTitle,
-                viewerCount = 0
+                viewerCount = 0,
+                hasPhoto = hasPhoto
             )
         }
     }

@@ -6,6 +6,8 @@ import {
   getTwitchSettings,
   updateTwitchSettings,
   searchTwitchChannels,
+  pinTwitchChannel,
+  unpinTwitchChannel,
 } from '@/api';
 import type {
   TwitchChannel,
@@ -26,6 +28,8 @@ interface UseTwitchResult {
   updateSettings: (data: UpdateTwitchSettingsRequest) => Promise<void>;
   search: (query: string) => Promise<void>;
   refetch: () => Promise<void>;
+  pinChannel: (channelId: number, pinSilently: boolean) => Promise<void>;
+  unpinChannel: (channelId: number) => Promise<void>;
 }
 
 export function useTwitch(chatId: number): UseTwitchResult {
@@ -131,6 +135,51 @@ export function useTwitch(chatId: number): UseTwitchResult {
     [channels]
   );
 
+  const handlePinChannel = useCallback(
+    async (channelId: number, pinSilently: boolean) => {
+      // Optimistic update: unpin all others, pin this one
+      const previousChannels = channels;
+      setChannels(prev =>
+        prev.map(ch => ({
+          ...ch,
+          isPinned: ch.id === channelId,
+          pinSilently: ch.id === channelId ? pinSilently : ch.pinSilently,
+        }))
+      );
+
+      try {
+        await pinTwitchChannel(chatId, channelId, pinSilently);
+        // Refetch to sync state with backend
+        await refreshChannels();
+      } catch (err) {
+        // Rollback on error
+        setChannels(previousChannels);
+        throw err;
+      }
+    },
+    [chatId, channels, refreshChannels]
+  );
+
+  const handleUnpinChannel = useCallback(
+    async (channelId: number) => {
+      // Optimistic update
+      const previousChannels = channels;
+      setChannels(prev =>
+        prev.map(ch => (ch.id === channelId ? { ...ch, isPinned: false } : ch))
+      );
+
+      try {
+        await unpinTwitchChannel(chatId, channelId);
+        await refreshChannels();
+      } catch (err) {
+        // Rollback on error
+        setChannels(previousChannels);
+        throw err;
+      }
+    },
+    [chatId, channels, refreshChannels]
+  );
+
   return {
     channels,
     settings,
@@ -142,5 +191,7 @@ export function useTwitch(chatId: number): UseTwitchResult {
     updateSettings: handleUpdateSettings,
     search: handleSearch,
     refetch: fetchData,
+    pinChannel: handlePinChannel,
+    unpinChannel: handleUnpinChannel,
   };
 }

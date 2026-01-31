@@ -148,6 +148,12 @@ private fun ChatItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Text(
+                text = chat.typeIcon,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)

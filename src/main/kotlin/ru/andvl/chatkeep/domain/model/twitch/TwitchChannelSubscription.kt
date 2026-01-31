@@ -34,7 +34,13 @@ data class TwitchChannelSubscription @PersistenceCreator constructor(
     val createdAt: Instant = Instant.now(),
 
     @Column("created_by")
-    val createdBy: Long? = null
+    val createdBy: Long? = null,
+
+    @Column("is_pinned")
+    val isPinned: Boolean = false,
+
+    @Column("pin_silently")
+    val pinSilently: Boolean = true
 ) {
 
     companion object {

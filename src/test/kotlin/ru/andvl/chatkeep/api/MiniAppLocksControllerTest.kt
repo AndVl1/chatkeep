@@ -36,7 +36,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -51,7 +51,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.chatId") { value(TestDataFactory.DEFAULT_CHAT_ID) }
             jsonPath("$.locks") { isMap() }
@@ -79,7 +79,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.locks.TEXT.locked") { value(true) }
             jsonPath("$.locks.TEXT.reason") { value("No text messages allowed") }
@@ -107,7 +107,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
 
         mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/locks") {
             header("Authorization", authHeader)
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.lockWarnsEnabled") { value(false) }
         }
@@ -125,7 +125,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
             header("Authorization", authHeader)
             contentType = MediaType.APPLICATION_JSON
             content = """{"locks": {}}"""
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isForbidden() }
         }
     }
@@ -150,7 +150,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isBadRequest() }
         }
     }
@@ -176,7 +176,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.locks.TEXT.locked") { value(true) }
             jsonPath("$.locks.TEXT.reason") { value("No spam") }
@@ -216,7 +216,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.locks.TEXT.locked") { value(true) }
             jsonPath("$.locks.STICKER.locked") { value(true) }
@@ -258,7 +258,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     "lockWarnsEnabled": true
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.lockWarnsEnabled") { value(true) }
         }
@@ -311,7 +311,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     "lockWarnsEnabled": false
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.lockWarnsEnabled") { value(false) }
         }
@@ -361,7 +361,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     "lockWarnsEnabled": false
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -390,7 +390,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.locks.TEXT.locked") { value(true) }
             jsonPath("$.lockWarnsEnabled") { value(false) } // Default is false when no settings exist
@@ -428,7 +428,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.locks.TEXT") { doesNotExist() } // Unlocked locks are removed from response
         }
@@ -466,7 +466,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
             jsonPath("$.locks.TEXT.locked") { value(true) }
             jsonPath("$.locks.STICKER.locked") { value(true) }
@@ -514,7 +514,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -571,7 +571,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -625,7 +625,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 
@@ -670,7 +670,7 @@ class MiniAppLocksControllerTest : MiniAppApiTestBase() {
                     }
                 }
             """.trimIndent()
-        }.andExpect {
+        }.asyncDispatchIfNeeded().andExpect {
             status { isOk() }
         }
 

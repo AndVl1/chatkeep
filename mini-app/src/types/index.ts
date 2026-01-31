@@ -242,6 +242,8 @@ export interface TwitchChannel {
   displayName: string;
   avatarUrl: string | null;
   isLive: boolean;
+  isPinned: boolean;
+  pinSilently: boolean;
 }
 
 export interface TwitchSearchResult {

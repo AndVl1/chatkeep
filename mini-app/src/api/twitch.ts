@@ -45,3 +45,22 @@ export async function updateTwitchSettings(
     .put(`chats/${chatId}/twitch/settings`, { json: data })
     .json<TwitchSettings>();
 }
+
+export async function pinTwitchChannel(
+  chatId: number,
+  channelId: number,
+  pinSilently: boolean
+): Promise<TwitchChannel> {
+  return client
+    .put(`chats/${chatId}/twitch/channels/${channelId}/pin`, { json: { pinSilently } })
+    .json<TwitchChannel>();
+}
+
+export async function unpinTwitchChannel(
+  chatId: number,
+  channelId: number
+): Promise<TwitchChannel> {
+  return client
+    .delete(`chats/${chatId}/twitch/channels/${channelId}/pin`)
+    .json<TwitchChannel>();
+}

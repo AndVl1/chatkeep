@@ -10,12 +10,9 @@ import jakarta.validation.Valid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.UpdateWelcomeRequest
 import ru.andvl.chatkeep.api.dto.WelcomeSettingsResponse
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.domain.model.WelcomeSettings
 import ru.andvl.chatkeep.domain.model.moderation.ActionType
 import ru.andvl.chatkeep.domain.model.moderation.PunishmentSource
@@ -31,15 +28,10 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppWelcomeController(
     private val welcomeService: WelcomeService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val debouncedLogService: DebouncedLogService,
     private val chatService: ChatService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get welcome message settings")
@@ -47,18 +39,11 @@ class MiniAppWelcomeController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun getWelcomeSettings(
+    suspend fun getWelcomeSettings(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): WelcomeSettingsResponse {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        requireAdmin(request, chatId)
 
         val settings = welcomeService.getWelcomeSettings(chatId)
             ?: WelcomeSettings(chatId = chatId)
@@ -78,19 +63,12 @@ class MiniAppWelcomeController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun updateWelcomeSettings(
+    suspend fun updateWelcomeSettings(
         @PathVariable chatId: Long,
         @Valid @RequestBody updateRequest: UpdateWelcomeRequest,
         request: HttpServletRequest
     ): WelcomeSettingsResponse {
-        val user = getUserFromRequest(request)
-
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val existing = welcomeService.getWelcomeSettings(chatId)
             ?: WelcomeSettings(chatId = chatId)

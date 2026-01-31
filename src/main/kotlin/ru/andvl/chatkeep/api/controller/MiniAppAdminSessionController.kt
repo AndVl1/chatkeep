@@ -9,13 +9,10 @@ import jakarta.servlet.http.HttpServletRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.springframework.web.bind.annotation.*
-import ru.andvl.chatkeep.api.auth.TelegramAuthFilter
 import ru.andvl.chatkeep.api.auth.TelegramAuthService
 import ru.andvl.chatkeep.api.dto.AdminSessionResponse
 import ru.andvl.chatkeep.api.dto.ModerationActionResponse
-import ru.andvl.chatkeep.api.exception.AccessDeniedException
 import ru.andvl.chatkeep.api.exception.ResourceNotFoundException
-import ru.andvl.chatkeep.api.exception.UnauthorizedException
 import ru.andvl.chatkeep.domain.service.ChatService
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.moderation.AdminSessionService
@@ -26,14 +23,9 @@ import ru.andvl.chatkeep.domain.service.moderation.AdminSessionService
 @SecurityRequirement(name = "TelegramAuth")
 class MiniAppAdminSessionController(
     private val adminSessionService: AdminSessionService,
-    private val adminCacheService: AdminCacheService,
+    adminCacheService: AdminCacheService,
     private val chatService: ChatService
-) {
-
-    private fun getUserFromRequest(request: HttpServletRequest): TelegramAuthService.TelegramUser {
-        return request.getAttribute(TelegramAuthFilter.USER_ATTR) as? TelegramAuthService.TelegramUser
-            ?: throw UnauthorizedException("User not authenticated")
-    }
+) : BaseMiniAppController(adminCacheService) {
 
     @GetMapping
     @Operation(summary = "Get current admin session for a chat")
@@ -42,19 +34,11 @@ class MiniAppAdminSessionController(
         ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
         ApiResponse(responseCode = "404", description = "No active session")
     )
-    fun getSession(
+    suspend fun getSession(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): AdminSessionResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = false)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId)
 
         val session = adminSessionService.getSession(user.id)
             ?: throw ResourceNotFoundException("AdminSession", user.id)
@@ -72,19 +56,11 @@ class MiniAppAdminSessionController(
         ApiResponse(responseCode = "200", description = "Success"),
         ApiResponse(responseCode = "403", description = "Forbidden - not admin")
     )
-    fun connectSession(
+    suspend fun connectSession(
         @PathVariable chatId: Long,
         request: HttpServletRequest
     ): AdminSessionResponse {
-        val user = getUserFromRequest(request)
-
-        // Check admin permission
-        val isAdmin = runBlocking(Dispatchers.IO) {
-            adminCacheService.isAdmin(user.id, chatId, forceRefresh = true)
-        }
-        if (!isAdmin) {
-            throw AccessDeniedException("You are not an admin in this chat")
-        }
+        val user = requireAdmin(request, chatId, forceRefresh = true)
 
         val chatTitle = chatService.getSettings(chatId)?.chatTitle
 
