@@ -342,10 +342,10 @@ class TwitchNotificationService(
 
         // Try to fit as many entries as possible within maxLength
         var result = formattedEntries.joinToString("\n")
+        var kept = entries.toMutableList()
 
         // If still too long, progressively remove middle entries
         if (result.length > maxLength && entries.size > 3) {
-            var kept = entries.toMutableList()
             while (kept.size > 2 && result.length > maxLength) {
                 // Remove middle entry
                 val midIndex = kept.size / 2
@@ -359,11 +359,12 @@ class TwitchNotificationService(
                     "$time - $game$titlePart"
                 }
             }
+        }
 
-            val removed = timeline.size - kept.size
-            if (removed > 0) {
-                result += "\n... (+$removed записей в полном таймлайне)"
-            }
+        // Add count of skipped events (if any were removed)
+        val skipped = timeline.size - kept.size
+        if (skipped > 0) {
+            result += "\n... (пропущено событий: $skipped)"
         }
 
         return result
