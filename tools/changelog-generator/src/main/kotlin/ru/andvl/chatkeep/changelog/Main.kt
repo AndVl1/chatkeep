@@ -1,6 +1,5 @@
 package ru.andvl.chatkeep.changelog
 
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ru.andvl.chatkeep.changelog.agent.ChangelogAgent
@@ -11,7 +10,7 @@ import ru.andvl.chatkeep.changelog.formatter.MarkdownFormatter
 import ru.andvl.chatkeep.changelog.git.GitOperations
 import ru.andvl.chatkeep.changelog.github.GitHubClient
 
-fun main(args: Array<String>) = runBlocking {
+fun main(args: Array<String>) {
     try {
         val config = Config.fromEnvAndArgs(args)
 
@@ -34,7 +33,7 @@ fun main(args: Array<String>) = runBlocking {
     }
 }
 
-private suspend fun generateChangelog(config: Config) {
+private fun generateChangelog(config: Config) {
     val gitOps = GitOperations()
     val tools = ChangelogTools(gitOps, config.baseBranch, config.headBranch)
 
@@ -53,7 +52,7 @@ private suspend fun generateChangelog(config: Config) {
         val githubClient = GitHubClient(config.githubToken)
         githubClient.updatePRBody(config.githubRepository, config.prNumber, fallbackChangelog)
 
-        println("✓ Updated PR with fallback changelog (commit list)")
+        println("Updated PR with fallback changelog (commit list)")
         return
     }
 
@@ -64,10 +63,10 @@ private suspend fun generateChangelog(config: Config) {
     val githubClient = GitHubClient(config.githubToken)
     githubClient.updatePRBody(config.githubRepository, config.prNumber, prChangelog)
 
-    println("✓ Changelog generated and PR updated")
+    println("Changelog generated and PR updated")
     println()
 
-    // Output production changes as JSON for Telegram step
+    // Output production changes for Telegram step
     val telegramOutput = MarkdownFormatter.formatForTelegram(
         changelog,
         config.prNumber,
@@ -86,7 +85,7 @@ private suspend fun generateChangelog(config: Config) {
     println(jsonOutput)
 }
 
-private suspend fun generateWithRetry(
+private fun generateWithRetry(
     config: Config,
     tools: ChangelogTools,
     maxAttempts: Int
@@ -105,7 +104,7 @@ private suspend fun generateWithRetry(
 
             if (attempt < maxAttempts - 1) {
                 println("Retrying...")
-                kotlinx.coroutines.delay(2000L * (attempt + 1))
+                Thread.sleep(2000L * (attempt + 1))
             }
         }
     }
@@ -113,9 +112,7 @@ private suspend fun generateWithRetry(
     throw lastException ?: RuntimeException("All attempts failed")
 }
 
-private suspend fun checkAndUpdate(config: Config) {
-    // For MVP, just re-run generation
-    // In the future, this could be smarter about checking if update is needed
+private fun checkAndUpdate(config: Config) {
     println("Check-update mode: re-running generation...")
     generateChangelog(config)
 }

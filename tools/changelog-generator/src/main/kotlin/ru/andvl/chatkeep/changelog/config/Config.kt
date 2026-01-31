@@ -59,9 +59,15 @@ data class Config(
             while (i < args.size) {
                 val arg = args[i]
                 if (arg.startsWith("--")) {
-                    val key = arg.removePrefix("--")
-                    if (i + 1 < args.size && !args[i + 1].startsWith("--")) {
-                        result[key] = args[i + 1]
+                    val stripped = arg.removePrefix("--")
+                    if (stripped.contains("=")) {
+                        // Handle --key=value format
+                        val (key, value) = stripped.split("=", limit = 2)
+                        result[key] = value
+                        i++
+                    } else if (i + 1 < args.size && !args[i + 1].startsWith("--")) {
+                        // Handle --key value format
+                        result[stripped] = args[i + 1]
                         i += 2
                     } else {
                         i++

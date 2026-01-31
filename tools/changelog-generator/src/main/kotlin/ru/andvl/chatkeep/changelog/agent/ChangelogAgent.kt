@@ -66,7 +66,7 @@ class ChangelogAgent(
 Пиши понятным языком для разработчиков. Группируй связанные изменения.
     """.trimIndent()
 
-    suspend fun generateChangelog(): ChangelogResponse {
+    fun generateChangelog(): ChangelogResponse {
         // Gather information
         val changedFiles = tools.listChangedFiles()
         val commits = tools.getCommitMessages()

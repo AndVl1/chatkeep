@@ -22,9 +22,6 @@ dependencies {
     // Kotlin serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
 
-    // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-
     // HTTP client for GitHub API and OpenRouter
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 

@@ -47,7 +47,13 @@ class GitOperations {
 
     fun getFileContent(path: String): String {
         return try {
-            File(path).readText()
+            // Prevent path traversal — only allow relative paths within repo
+            val normalized = File(path).normalize().path
+            if (normalized.startsWith("..") || File(normalized).isAbsolute) {
+                "Error: path traversal not allowed: $path"
+            } else {
+                File(normalized).readText()
+            }
         } catch (e: Exception) {
             "Error reading file $path: ${e.message}"
         }
