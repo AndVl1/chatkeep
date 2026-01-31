@@ -37,7 +37,11 @@ ai.koog.prompt.structure.StructureFixingParser
 // JSON schema
 ai.koog.prompt.structure.json.JsonStructuredData
 
-// Strategy with structured output
+// Strategy DSL nodes
+ai.koog.agents.core.dsl.extension.nodeLLMRequestStructured  // node returning Result<StructuredResponse<T>>
+ai.koog.agents.core.dsl.extension.requestLLMStructured       // extension on AIAgentFunctionalContext
+
+// Pre-built strategy with structured output
 ai.koog.agents.ext.agent.structuredOutputWithToolsStrategy
 
 // LLModel for custom models
@@ -381,27 +385,31 @@ val agent = AIAgent(
 val typed: MyResponse = agent.run("input")
 ```
 
-### Pattern 3: nodeLLMRequestStructured in Custom Strategy
+### Pattern 3: nodeLLMRequestStructured in Custom Strategy (recommended)
 
-Use structured output as a node within a custom strategy graph.
+Use structured output as a node within a custom strategy graph. This is the cleanest approach — tool calling loop followed by typed structured output.
 
 ```kotlin
+import ai.koog.agents.core.dsl.builder.forwardTo
+import ai.koog.agents.core.dsl.builder.strategy
+import ai.koog.agents.core.dsl.extension.*
+
 val myStrategy = strategy<String, MyResponse>("structured-agent") {
     val nodeLLM by nodeLLMRequest()
     val nodeExec by nodeExecuteTool()
     val nodeSend by nodeLLMSendToolResult()
     val nodeStructured by nodeLLMRequestStructured<MyResponse>(
-        examples = listOf(MyResponse(...)),
-        fixingParser = StructureFixingParser(fixingModel = model, retries = 2)
+        // examples = listOf(MyResponse(...)),    // optional: few-shot examples
+        fixingParser = StructureFixingParser(fixingModel = glmModel, retries = 3)
     )
 
-    // First: tool calling loop
+    // Tool calling loop
     edge(nodeStart forwardTo nodeLLM)
     edge(nodeLLM forwardTo nodeExec onToolCall { true })
     edge(nodeExec forwardTo nodeSend)
     edge(nodeSend forwardTo nodeExec onToolCall { true })
 
-    // Then: get structured output
+    // When LLM stops calling tools → get structured output
     edge(nodeLLM forwardTo nodeStructured onAssistantMessage { true })
     edge(nodeSend forwardTo nodeStructured onAssistantMessage { true })
 
@@ -409,4 +417,43 @@ val myStrategy = strategy<String, MyResponse>("structured-agent") {
     edge(nodeStructured forwardTo nodeFinish onCondition { it.isSuccess }
         transformed { it.getOrThrow().structure })
 }
+
+// Use with AIAgent — returns MyResponse directly
+val agent = AIAgent(
+    promptExecutor = executor,
+    llmModel = OpenRouterModels.DeepSeekV30324,
+    strategy = myStrategy,
+    toolRegistry = toolRegistry,
+    systemPrompt = "..."
+)
+val result: MyResponse = agent.run("input")
+```
+
+### Pattern 4: requestLLMStructured in writeSession
+
+Use inside a custom node to call structured output mid-strategy:
+
+```kotlin
+val nodeGetData by node<String, MyResponse> { input ->
+    val result = llm.writeSession {
+        requestLLMStructured<MyResponse>(
+            serializer = MyResponse.serializer(),
+            examples = emptyList(),
+            fixingParser = fixingParser
+        )
+    }
+    result.getOrThrow().structure
+}
+```
+
+Or via `AIAgentFunctionalContext` extension (available in strategy functional blocks):
+
+```kotlin
+// Extension function on AIAgentFunctionalContext
+val result = requestLLMStructured<MyResponse>(
+    message = "Generate the response",
+    examples = listOf(...),
+    fixingParser = fixingParser
+)
+result.getOrThrow().structure
 ```
