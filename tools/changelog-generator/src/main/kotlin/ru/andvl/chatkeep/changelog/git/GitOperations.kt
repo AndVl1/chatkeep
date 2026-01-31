@@ -13,7 +13,9 @@ data class ChangedFile(
 class GitOperations {
 
     fun listChangedFiles(baseBranch: String, headBranch: String): List<ChangedFile> {
-        val output = executeGitCommand("git", "diff", "--numstat", "$baseBranch...$headBranch")
+        val base = resolveRef(baseBranch)
+        val head = resolveRef(headBranch)
+        val output = executeGitCommand("git", "diff", "--numstat", "$base...$head")
 
         return output.lines()
             .filter { it.isNotBlank() }
@@ -31,18 +33,41 @@ class GitOperations {
     }
 
     fun getFileDiff(baseBranch: String, headBranch: String, path: String): String {
+        val base = resolveRef(baseBranch)
+        val head = resolveRef(headBranch)
         return try {
-            executeGitCommand("git", "diff", "$baseBranch...$headBranch", "--", path)
+            executeGitCommand("git", "diff", "$base...$head", "--", path)
         } catch (e: Exception) {
             "Error getting diff for $path: ${e.message}"
         }
     }
 
     fun getCommitMessages(baseBranch: String, headBranch: String): List<String> {
-        val output = executeGitCommand("git", "log", "--oneline", "$baseBranch..$headBranch")
+        val base = resolveRef(baseBranch)
+        val head = resolveRef(headBranch)
+        val output = executeGitCommand("git", "log", "--oneline", "$base..$head")
 
         return output.lines()
             .filter { it.isNotBlank() }
+    }
+
+    /**
+     * Resolve a branch name to a valid git ref.
+     * In CI (GitHub Actions), local branch refs may not exist —
+     * try the name as-is first, then fall back to origin/ prefix.
+     */
+    private fun resolveRef(branch: String): String {
+        return try {
+            executeGitCommand("git", "rev-parse", "--verify", branch)
+            branch
+        } catch (e: Exception) {
+            try {
+                executeGitCommand("git", "rev-parse", "--verify", "origin/$branch")
+                "origin/$branch"
+            } catch (e2: Exception) {
+                branch // fall back to original, let git produce the error
+            }
+        }
     }
 
     fun getFileContent(path: String): String {
