@@ -65,7 +65,7 @@ val node by nodeLLMRequestStructured<MyDataClass>(
     name = "structured",
     examples = listOf(MyDataClass(...)),        // few-shot examples
     fixingParser = StructureFixingParser(        // auto-fix malformed JSON
-        model = OpenAIModels.Chat.GPT4oMini,
+        fixingModel = OpenAIModels.Chat.GPT4oMini,
         retries = 2
     )
 )
