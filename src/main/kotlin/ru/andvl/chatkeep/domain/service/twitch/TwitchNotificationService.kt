@@ -11,6 +11,7 @@ import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.MessageId
 import dev.inmo.tgbotapi.types.buttons.InlineKeyboardButtons.URLInlineKeyboardButton
 import dev.inmo.tgbotapi.types.buttons.InlineKeyboardMarkup
+import dev.inmo.tgbotapi.types.message.HTMLParseMode
 import dev.inmo.tgbotapi.types.toChatId
 import dev.inmo.tgbotapi.utils.row
 import org.slf4j.LoggerFactory
@@ -34,6 +35,16 @@ class TwitchNotificationService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     /**
+     * Escape HTML special characters to prevent broken messages
+     */
+    private fun escapeHtml(text: String): String {
+        return text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+    }
+
+    /**
      * Send stream start notification
      * Returns pair of (messageId, hasPhoto)
      */
@@ -54,7 +65,8 @@ class TwitchNotificationService(
                 settings = settings,
                 stream = stream,
                 streamerName = streamerName,
-                timeline = emptyList()
+                timeline = emptyList(),
+                previewUrl = null
             )
 
             val keyboard = InlineKeyboardMarkup(
@@ -78,7 +90,8 @@ class TwitchNotificationService(
                         chatId = chatId.toChatId(),
                         photo = InputFile.fromUrl(thumbnail),
                         text = caption,
-                        replyMarkup = keyboard
+                        replyMarkup = keyboard,
+                        parseMode = HTMLParseMode
                     )
                 )
             } else {
@@ -88,7 +101,8 @@ class TwitchNotificationService(
                     SendTextMessage(
                         chatId = chatId.toChatId(),
                         text = caption,
-                        replyMarkup = keyboard
+                        replyMarkup = keyboard,
+                        parseMode = HTMLParseMode
                     )
                 )
             }
@@ -163,31 +177,28 @@ class TwitchNotificationService(
                 null
             }
 
-            // Format caption (will compress timeline if needed)
-            val captionWithoutTelegraph = formatStreamCaption(
-                settings = settings,
-                stream = stream,
-                streamerName = streamerName,
-                timeline = timeline,
-                telegraphUrl = null
-            )
-
-            // Use caption without Telegraph URL (we don't add link to caption, only button)
-            val caption = captionWithoutTelegraph
-
-            // Check if we need to add preview button (thumbnail fallback)
+            // Check if we have a preview URL (thumbnail fallback)
             val previewUrl = if (!stream.hasPhoto && thumbnailUrl != null) {
                 thumbnailUrl.replace("{width}", "1280").replace("{height}", "720")
             } else {
                 null
             }
 
-            // Build keyboard with stream link button and optional Telegraph/preview buttons
+            // Format caption (will compress timeline if needed and embed preview link in emoji)
+            val caption = formatStreamCaption(
+                settings = settings,
+                stream = stream,
+                streamerName = streamerName,
+                timeline = timeline,
+                telegraphUrl = null,
+                previewUrl = previewUrl
+            )
+
+            // Build keyboard with stream link button and optional Telegraph button (NO preview button)
             val keyboard = buildKeyboard(
                 streamLink = "https://twitch.tv/$streamerLogin",
                 buttonText = settings.buttonText,
-                telegraphUrl = telegraphUrl,
-                previewUrl = previewUrl
+                telegraphUrl = telegraphUrl
             )
 
             // Try to edit as caption first (for photo messages)
@@ -197,7 +208,8 @@ class TwitchNotificationService(
                         chatId = chatId.toChatId(),
                         messageId = MessageId(messageId),
                         text = caption,
-                        replyMarkup = keyboard
+                        replyMarkup = keyboard,
+                        parseMode = HTMLParseMode
                     )
                 )
             } catch (captionError: Exception) {
@@ -208,7 +220,8 @@ class TwitchNotificationService(
                         chatId = chatId.toChatId(),
                         messageId = MessageId(messageId),
                         text = caption,
-                        replyMarkup = keyboard
+                        replyMarkup = keyboard,
+                        parseMode = HTMLParseMode
                     )
                 )
             }
@@ -229,7 +242,8 @@ class TwitchNotificationService(
         stream: TwitchStream,
         streamerName: String,
         timeline: List<StreamTimelineEvent>,
-        telegraphUrl: String? = null
+        telegraphUrl: String? = null,
+        previewUrl: String? = null
     ): String {
         val isEnded = stream.status == "ended"
 
@@ -244,20 +258,32 @@ class TwitchNotificationService(
             settings.messageTemplate
         }
 
-        logger.info("formatStreamCaption: isEnded=$isEnded, timelineSize=${timeline.size}, telegraphUrl=$telegraphUrl")
+        logger.info("formatStreamCaption: isEnded=$isEnded, timelineSize=${timeline.size}, telegraphUrl=$telegraphUrl, previewUrl=$previewUrl")
+
+        // HTML-escape user-generated content
+        val escapedStreamerName = escapeHtml(streamerName)
+        val escapedTitle = escapeHtml(stream.currentTitle ?: "")
+        val escapedGame = escapeHtml(stream.currentGame ?: "Just Chatting")
 
         var caption = template
-            .replace("{streamer}", streamerName)
-            .replace("{title}", stream.currentTitle ?: "")
-            .replace("{game}", stream.currentGame ?: "Just Chatting")
+            .replace("{streamer}", escapedStreamerName)
+            .replace("{title}", escapedTitle)
+            .replace("{game}", escapedGame)
             .replace("{viewers}", stream.viewerCount.toString())
             .replace("{duration}", duration)
 
         // Add timeline: try full timeline first, compress only if exceeds limit
         if (timeline.isNotEmpty() && (isEnded || timeline.size > 1)) {
+            // Timeline header with optional preview link
+            val timelineHeader = if (previewUrl != null) {
+                "<a href=\"$previewUrl\">📋</a> Таймлайн:"
+            } else {
+                "📋 Таймлайн:"
+            }
+
             // Format full timeline
             val fullTimeline = formatFullTimeline(timeline)
-            val captionWithFullTimeline = caption + "\n\n📋 Таймлайн:\n$fullTimeline"
+            val captionWithFullTimeline = caption + "\n\n$timelineHeader\n$fullTimeline"
 
             // Check if full timeline fits within limit
             if (captionWithFullTimeline.length <= 1000) {
@@ -266,7 +292,7 @@ class TwitchNotificationService(
                 // Timeline too long, use compressed version
                 val compressedTimeline = compressTimeline(timeline, maxLength = 800)
                 if (compressedTimeline.isNotEmpty()) {
-                    caption += "\n\n📋 Таймлайн:\n$compressedTimeline"
+                    caption += "\n\n$timelineHeader\n$compressedTimeline"
                 }
             }
             // Note: Telegraph link is NOT added to caption, only as button
@@ -283,8 +309,8 @@ class TwitchNotificationService(
 
         return timeline.joinToString("\n") { event ->
             val time = formatSeconds(event.streamOffsetSeconds)
-            val game = event.gameName ?: "Just Chatting"
-            val title = event.streamTitle?.take(50) ?: ""
+            val game = escapeHtml(event.gameName ?: "Just Chatting")
+            val title = event.streamTitle?.let { escapeHtml(it) } ?: ""
             val titlePart = if (title.isNotEmpty()) " | $title" else ""
             "$time - $game$titlePart"
         }
@@ -334,8 +360,8 @@ class TwitchNotificationService(
         // Format entries
         val formattedEntries = entries.map { event ->
             val time = formatSeconds(event.streamOffsetSeconds)
-            val game = event.gameName ?: "Just Chatting"
-            val title = event.streamTitle?.take(50) ?: ""
+            val game = escapeHtml(event.gameName ?: "Just Chatting")
+            val title = event.streamTitle?.let { escapeHtml(it) } ?: ""
             val titlePart = if (title.isNotEmpty()) " | $title" else ""
             "$time - $game$titlePart"
         }
@@ -353,8 +379,8 @@ class TwitchNotificationService(
 
                 result = kept.joinToString("\n") { event ->
                     val time = formatSeconds(event.streamOffsetSeconds)
-                    val game = event.gameName ?: "Just Chatting"
-                    val title = event.streamTitle?.take(50) ?: ""
+                    val game = escapeHtml(event.gameName ?: "Just Chatting")
+                    val title = event.streamTitle?.let { escapeHtml(it) } ?: ""
                     val titlePart = if (title.isNotEmpty()) " | $title" else ""
                     "$time - $game$titlePart"
                 }
@@ -371,13 +397,12 @@ class TwitchNotificationService(
     }
 
     /**
-     * Build inline keyboard with stream link and optional Telegraph/preview buttons
+     * Build inline keyboard with stream link and optional Telegraph button
      */
     private fun buildKeyboard(
         streamLink: String,
         buttonText: String,
-        telegraphUrl: String?,
-        previewUrl: String? = null
+        telegraphUrl: String?
     ): InlineKeyboardMarkup {
         val rows = mutableListOf<List<URLInlineKeyboardButton>>()
 
@@ -387,11 +412,6 @@ class TwitchNotificationService(
         // Telegraph button (if URL provided)
         if (telegraphUrl != null) {
             rows.add(listOf(URLInlineKeyboardButton("📋 Полный таймлайн", telegraphUrl)))
-        }
-
-        // Preview button (if thumbnail became available after initial send)
-        if (previewUrl != null) {
-            rows.add(listOf(URLInlineKeyboardButton("📸 Превью", previewUrl)))
         }
 
         return InlineKeyboardMarkup(keyboard = rows)
