@@ -134,6 +134,7 @@ jobs:
             --mode=generate 2>&1 | tee changelog-output.txt
 
   # Send Telegram notification only when PR is merged into production
+  # Reads existing changelog from PR body instead of regenerating
   notify-telegram:
     name: Send Telegram Notification
     runs-on: ubuntu-latest
@@ -157,85 +158,56 @@ jobs:
             echo "has_secrets=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Checkout repository
+      - name: Extract changelog from PR body
         if: steps.check-secrets.outputs.has_secrets == 'true'
-        uses: actions/checkout@v4
+        id: extract
+        uses: actions/github-script@v7
         with:
-          fetch-depth: 0
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const prNumber = context.payload.pull_request.number;
+            const prUrl = context.payload.pull_request.html_url;
 
-      - name: Set up Java 17
-        if: steps.check-secrets.outputs.has_secrets == 'true'
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+            // Extract changelog between markers
+            const startMarker = '<!-- CHANGELOG_START -->';
+            const endMarker = '<!-- CHANGELOG_END -->';
+            const startIdx = body.indexOf(startMarker);
+            const endIdx = body.indexOf(endMarker);
 
-      - name: Cache Shadow JAR
-        if: steps.check-secrets.outputs.has_secrets == 'true'
-        id: jar-cache
-        uses: actions/cache@v4
-        with:
-          path: tools/changelog-generator/build/libs/
-          key: changelog-jar-${{ hashFiles('tools/changelog-generator/src/**', 'tools/changelog-generator/build.gradle.kts') }}
+            if (startIdx === -1 || endIdx === -1) {
+              console.log('No changelog markers found in PR body');
+              core.setOutput('has_changelog', 'false');
+              return;
+            }
 
-      - name: Build Shadow JAR
-        if: steps.check-secrets.outputs.has_secrets == 'true' && steps.jar-cache.outputs.cache-hit != 'true'
-        working-directory: tools/changelog-generator
-        run: |
-          chmod +x ../../gradlew
-          ../../gradlew shadowJar --no-daemon
+            let changelog = body.substring(startIdx + startMarker.length, endIdx).trim();
 
-      - name: Generate Changelog
-        if: steps.check-secrets.outputs.has_secrets == 'true'
-        id: generate
-        continue-on-error: true
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_CHANGELOG }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHANGELOG_MODEL: ${{ vars.CHANGELOG_MODEL || 'deepseek/deepseek-chat-v3-0324' }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
-          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          java -jar tools/changelog-generator/build/libs/changelog-generator.jar \
-            --pr-number="$PR_NUMBER" \
-            --repo="$REPO" \
-            --base-branch="$BASE_BRANCH" \
-            --head-branch="$HEAD_BRANCH" \
-            --mode=generate 2>&1 | tee changelog-output.txt
+            // Remove the ## Changelog heading
+            changelog = changelog.replace(/^## Changelog\s*\n/, '');
 
-          if grep -q "Продакшн-изменения:" changelog-output.txt; then
-            echo "has_production_changes=true" >> $GITHUB_OUTPUT
-            sed -n '/^🚀 PR/,/^$/p' changelog-output.txt > telegram-message.txt
-            if [ -s telegram-message.txt ]; then
-              {
-                echo 'telegram_message<<EOF'
-                cat telegram-message.txt
-                echo EOF
-              } >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "has_production_changes=false" >> $GITHUB_OUTPUT
-          fi
+            // Check if there are production changes
+            if (!changelog.includes('Продакшн-изменения:')) {
+              console.log('No production changes in changelog');
+              core.setOutput('has_changelog', 'false');
+              return;
+            }
+
+            // Build Telegram message
+            const message = `🚀 Деплой в продакшн\n\n${changelog}\n\nPR #${prNumber}: ${prUrl}`;
+            core.setOutput('has_changelog', 'true');
+            core.setOutput('message', message);
+            console.log('Changelog extracted successfully');
 
       - name: Send Telegram Notification
         if: >-
           steps.check-secrets.outputs.has_secrets == 'true' &&
-          steps.generate.outputs.has_production_changes == 'true' &&
-          steps.generate.outcome == 'success'
+          steps.extract.outputs.has_changelog == 'true'
         continue-on-error: true
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_CHANGELOG_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHANGELOG_CHAT_ID }}
+          MESSAGE: ${{ steps.extract.outputs.message }}
         run: |
-          MESSAGE=$(cat <<'MSGEOF'
-          ${{ steps.generate.outputs.telegram_message }}
-
-          [PR #${{ github.event.pull_request.number }}](${{ github.event.pull_request.html_url }})
-          MSGEOF
-          )
-
           curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{\"chat_id\": \"${TG_CHAT}\", \"text\": $(echo \"$MESSAGE\" | jq -Rs .), \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+            -d "{\"chat_id\": \"${TG_CHAT}\", \"text\": $(echo "$MESSAGE" | jq -Rs .), \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
