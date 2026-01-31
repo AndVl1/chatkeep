@@ -55,7 +55,6 @@ class DatabaseSchemaSnapshotTest {
     private lateinit var jdbcTemplate: JdbcTemplate
 
     @Test
-    @Disabled("Snapshot not yet generated. Run with REGENERATE_SNAPSHOT=true to create initial snapshot")
     fun `database schema should match snapshot`() {
         val currentSchema = generateSchemaSnapshot()
 
