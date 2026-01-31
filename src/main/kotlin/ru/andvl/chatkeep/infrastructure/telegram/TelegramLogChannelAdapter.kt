@@ -190,6 +190,8 @@ class TelegramLogChannelAdapter(
             ActionType.RULES_CHANGED -> "#RULES_CHANGED"
             ActionType.TWITCH_CHANNEL_ADDED -> "#TWITCH_ADDED"
             ActionType.TWITCH_CHANNEL_REMOVED -> "#TWITCH_REMOVED"
+            ActionType.TWITCH_CHANNEL_PINNED -> "#TWITCH_PINNED"
+            ActionType.TWITCH_CHANNEL_UNPINNED -> "#TWITCH_UNPINNED"
             ActionType.TWITCH_SETTINGS_CHANGED -> "#TWITCH_SETTINGS"
             ActionType.CHANNEL_REPLY_CHANGED -> "#CHANNEL_REPLY_CHANGED"
             ActionType.ANTIFLOOD_CHANGED -> "#ANTIFLOOD_CHANGED"

@@ -164,4 +164,100 @@ class FlywayMigrationTest {
 
         assertTrue(count!! >= 1, "Should have at least one migration record")
     }
+
+    @Test
+    fun `twitch_streams table should exist with correct columns`() {
+        val columns = jdbcTemplate.queryForList(
+            """
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'twitch_streams'
+            ORDER BY ordinal_position
+            """.trimIndent()
+        )
+
+        assertTrue(columns.isNotEmpty(), "twitch_streams table should exist")
+
+        val columnNames = columns.map { it["column_name"] as String }
+        assertTrue("id" in columnNames, "Should have id column")
+        assertTrue("subscription_id" in columnNames, "Should have subscription_id column")
+        assertTrue("twitch_stream_id" in columnNames, "Should have twitch_stream_id column")
+        assertTrue("started_at" in columnNames, "Should have started_at column")
+        assertTrue("ended_at" in columnNames, "Should have ended_at column")
+        assertTrue("status" in columnNames, "Should have status column")
+        assertTrue("telegram_message_id" in columnNames, "Should have telegram_message_id column")
+        assertTrue("telegram_chat_id" in columnNames, "Should have telegram_chat_id column")
+        assertTrue("telegraph_url" in columnNames, "Should have telegraph_url column")
+        assertTrue("has_photo" in columnNames, "Should have has_photo column")
+    }
+
+    @Test
+    fun `stream_timeline_events table should exist with correct columns`() {
+        val columns = jdbcTemplate.queryForList(
+            """
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'stream_timeline_events'
+            ORDER BY ordinal_position
+            """.trimIndent()
+        )
+
+        assertTrue(columns.isNotEmpty(), "stream_timeline_events table should exist")
+
+        val columnNames = columns.map { it["column_name"] as String }
+        assertTrue("id" in columnNames, "Should have id column")
+        assertTrue("stream_id" in columnNames, "Should have stream_id column")
+        assertTrue("event_time" in columnNames, "Should have event_time column")
+        assertTrue("stream_offset_seconds" in columnNames, "Should have stream_offset_seconds column")
+        assertTrue("game_name" in columnNames, "Should have game_name column")
+        assertTrue("stream_title" in columnNames, "Should have stream_title column")
+    }
+
+    @Test
+    fun `twitch_channel_subscriptions table should have pin columns`() {
+        val columns = jdbcTemplate.queryForList(
+            """
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'twitch_channel_subscriptions'
+              AND column_name IN ('is_pinned', 'pin_silently')
+            ORDER BY ordinal_position
+            """.trimIndent()
+        )
+
+        assertTrue(columns.isNotEmpty(), "Should have pin columns")
+
+        val columnNames = columns.map { it["column_name"] as String }
+        assertTrue("is_pinned" in columnNames, "Should have is_pinned column")
+        assertTrue("pin_silently" in columnNames, "Should have pin_silently column")
+    }
+
+    @Test
+    fun `media_storage table should exist with BYTEA column`() {
+        val columns = jdbcTemplate.queryForList(
+            """
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'media_storage'
+            ORDER BY ordinal_position
+            """.trimIndent()
+        )
+
+        assertTrue(columns.isNotEmpty(), "media_storage table should exist")
+
+        val columnNames = columns.map { it["column_name"] as String }
+        assertTrue("id" in columnNames, "Should have id column")
+        assertTrue("hash" in columnNames, "Should have hash column")
+        assertTrue("content" in columnNames, "Should have content column")
+        assertTrue("mime_type" in columnNames, "Should have mime_type column")
+        assertTrue("file_size" in columnNames, "Should have file_size column")
+        assertTrue("telegram_file_id" in columnNames, "Should have telegram_file_id column")
+
+        // Verify content column is BYTEA
+        val contentColumn = columns.find { it["column_name"] == "content" }
+        assertTrue(
+            contentColumn != null && contentColumn["data_type"] == "bytea",
+            "content column should be BYTEA type"
+        )
+    }
 }

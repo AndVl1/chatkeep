@@ -17,6 +17,7 @@ import ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchChannelSubscript
 import ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchStreamRepository
 import java.time.Duration
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 @Service
 class TwitchPollingService(
@@ -77,19 +78,43 @@ class TwitchPollingService(
                     return@forEach
                 }
 
-                // New live stream detected! Create record and send notification
-                logger.info("New live stream detected for ${subscription.twitchLogin} (subscription ${subscription.id})")
-
-                // Create stream and timeline event in transaction
-                val saved = transactionTemplate.execute {
-                    val stream = TwitchStream.createNew(
-                        subscriptionId = subscriptionId,
-                        twitchStreamId = streamData.id,
-                        startedAt = Instant.parse(streamData.startedAt),
-                        currentGame = streamData.gameName,
-                        currentTitle = streamData.title
+                // Check for recently ended stream (within last 5 minutes) - stream recovery
+                val recentlyEnded = transactionTemplate.execute {
+                    streamRepo.findRecentlyEndedBySubscriptionId(
+                        subscriptionId,
+                        Instant.now().minus(5, ChronoUnit.MINUTES)
                     )
-                    val savedStream = streamRepo.save(stream)
+                }
+
+                // New live stream detected! Create record or recover and send notification
+                logger.info("New live stream detected for ${subscription.twitchLogin} (subscription ${subscription.id}, recovered=${recentlyEnded != null})")
+
+                // Create/recover stream and timeline event in transaction
+                val saved = transactionTemplate.execute {
+                    val savedStream = if (recentlyEnded != null) {
+                        // Reuse existing stream record
+                        logger.info("Stream recovered for subscription $subscriptionId, reusing stream ${recentlyEnded.id}")
+                        streamRepo.save(
+                            recentlyEnded.copy(
+                                status = "live",
+                                twitchStreamId = streamData.id,
+                                endedAt = null,
+                                currentGame = streamData.gameName,
+                                currentTitle = streamData.title
+                            )
+                        )
+                    } else {
+                        // Create new stream
+                        val stream = TwitchStream.createNew(
+                            subscriptionId = subscriptionId,
+                            twitchStreamId = streamData.id,
+                            startedAt = Instant.parse(streamData.startedAt),
+                            currentGame = streamData.gameName,
+                            currentTitle = streamData.title,
+                            hasPhoto = streamData.thumbnailUrl != null
+                        )
+                        streamRepo.save(stream)
+                    }
 
                     // Create initial timeline event
                     timelineRepo.save(
@@ -104,33 +129,41 @@ class TwitchPollingService(
                     savedStream
                 }!!
 
-                // Send notification asynchronously (with its own transaction)
-                scope.launch {
-                    try {
-                        val messageId = notificationService.sendStreamStartNotification(
-                            chatId = subscription.chatId,
-                            stream = saved,
-                            streamerName = subscription.displayName ?: subscription.twitchLogin,
-                            streamerLogin = subscription.twitchLogin,
-                            thumbnailUrl = streamData.thumbnailUrl
-                        )
+                // Send notification asynchronously (only if not recovered)
+                if (recentlyEnded == null) {
+                    scope.launch {
+                        try {
+                            val result = notificationService.sendStreamStartNotification(
+                                chatId = subscription.chatId,
+                                stream = saved,
+                                streamerName = subscription.displayName ?: subscription.twitchLogin,
+                                streamerLogin = subscription.twitchLogin,
+                                thumbnailUrl = streamData.thumbnailUrl,
+                                isPinned = subscription.isPinned,
+                                pinSilently = subscription.pinSilently
+                            )
 
-                        if (messageId != null) {
-                            // Update stream with message ID in separate transaction
-                            transactionTemplate.execute {
-                                streamRepo.save(
-                                    saved.copy(
-                                        telegramMessageId = messageId,
-                                        telegramChatId = subscription.chatId,
-                                        viewerCount = streamData.viewerCount
+                            if (result != null) {
+                                val (messageId, hasPhoto) = result
+                                // Update stream with message ID in separate transaction
+                                transactionTemplate.execute {
+                                    streamRepo.save(
+                                        saved.copy(
+                                            telegramMessageId = messageId,
+                                            telegramChatId = subscription.chatId,
+                                            viewerCount = streamData.viewerCount,
+                                            hasPhoto = hasPhoto
+                                        )
                                     )
-                                )
+                                }
+                                logger.info("Sent notification for new stream ${saved.id}, messageId=$messageId, hasPhoto=$hasPhoto")
                             }
-                            logger.info("Sent notification for new stream ${saved.id}, messageId=$messageId")
+                        } catch (e: Exception) {
+                            logger.error("Failed to send notification for new stream ${saved.id}", e)
                         }
-                    } catch (e: Exception) {
-                        logger.error("Failed to send notification for new stream ${saved.id}", e)
                     }
+                } else {
+                    logger.info("Stream recovered, skipping notification send (reusing existing message)")
                 }
             }
         } catch (e: Exception) {
@@ -195,10 +228,10 @@ class TwitchPollingService(
 
                         if (gameChanged || titleChanged) {
                             // Game/title changed - add timeline event and update message
-                            handleStreamUpdate(stream, streamData, streamerName, streamerLogin)
+                            handleStreamUpdate(stream, streamData, streamerName, streamerLogin, streamData.thumbnailUrl)
                         } else {
                             // No game/title change - still update viewer count and duration
-                            updateViewerCountAndDuration(stream, streamData, streamerName, streamerLogin)
+                            updateViewerCountAndDuration(stream, streamData, streamerName, streamerLogin, streamData.thumbnailUrl)
                         }
                     }
                 } catch (e: Exception) {
@@ -213,7 +246,7 @@ class TwitchPollingService(
     /**
      * Update viewer count and duration without adding timeline event
      */
-    private fun updateViewerCountAndDuration(stream: ru.andvl.chatkeep.domain.model.twitch.TwitchStream, streamData: TwitchStreamData, streamerName: String, streamerLogin: String) {
+    private fun updateViewerCountAndDuration(stream: ru.andvl.chatkeep.domain.model.twitch.TwitchStream, streamData: TwitchStreamData, streamerName: String, streamerLogin: String, thumbnailUrl: String?) {
         // Update stream with new viewer count in transaction
         val updated = transactionTemplate.execute {
             val updatedStream = stream.copy(viewerCount = streamData.viewerCount)
@@ -228,14 +261,22 @@ class TwitchPollingService(
                         timelineRepo.findByStreamId(stream.id!!)
                     } ?: emptyList()
 
-                    notificationService.updateStreamNotification(
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
                         streamerName = streamerName,
                         streamerLogin = streamerLogin,
-                        timeline = timeline
+                        timeline = timeline,
+                        thumbnailUrl = thumbnailUrl
                     )
+
+                    // Store Telegraph URL if created
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
 
                     logger.debug("Updated viewer count/duration for stream ${stream.id}: viewers=${streamData.viewerCount}")
                 } catch (e: Exception) {
@@ -245,7 +286,7 @@ class TwitchPollingService(
         }
     }
 
-    private fun handleStreamUpdate(stream: ru.andvl.chatkeep.domain.model.twitch.TwitchStream, streamData: TwitchStreamData, streamerName: String, streamerLogin: String) {
+    private fun handleStreamUpdate(stream: ru.andvl.chatkeep.domain.model.twitch.TwitchStream, streamData: TwitchStreamData, streamerName: String, streamerLogin: String, thumbnailUrl: String?) {
         // Update stream and add timeline event in transaction
         val updated = transactionTemplate.execute {
             val updatedStream = stream.copy(
@@ -277,14 +318,22 @@ class TwitchPollingService(
                         timelineRepo.findByStreamId(stream.id!!)
                     } ?: emptyList()
 
-                    notificationService.updateStreamNotification(
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
                         streamerName = streamerName,
                         streamerLogin = streamerLogin,
-                        timeline = timeline
+                        timeline = timeline,
+                        thumbnailUrl = thumbnailUrl
                     )
+
+                    // Store Telegraph URL if created
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
                 } catch (e: Exception) {
                     logger.error("Failed to update stream notification for stream ${stream.id}", e)
                 }
@@ -304,7 +353,7 @@ class TwitchPollingService(
             streamRepo.save(updatedStream)
         }!!
 
-        // Update Telegram message asynchronously
+        // Update Telegram message asynchronously with Telegraph button if URL was stored
         if (stream.telegramMessageId != null && stream.telegramChatId != null) {
             scope.launch {
                 try {
@@ -312,7 +361,7 @@ class TwitchPollingService(
                         timelineRepo.findByStreamId(stream.id!!)
                     } ?: emptyList()
 
-                    notificationService.updateStreamNotification(
+                    val telegraphUrl = notificationService.updateStreamNotification(
                         chatId = stream.telegramChatId,
                         messageId = stream.telegramMessageId,
                         stream = updated,
@@ -320,6 +369,13 @@ class TwitchPollingService(
                         streamerLogin = streamerLogin,
                         timeline = timeline
                     )
+
+                    // Store Telegraph URL if created (for ended stream)
+                    if (telegraphUrl != null && stream.telegraphUrl != telegraphUrl) {
+                        transactionTemplate.execute {
+                            streamRepo.save(updated.copy(telegraphUrl = telegraphUrl))
+                        }
+                    }
                 } catch (e: Exception) {
                     logger.error("Failed to update stream ended notification for stream ${stream.id}", e)
                 }

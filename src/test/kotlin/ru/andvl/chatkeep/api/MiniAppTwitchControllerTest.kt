@@ -391,4 +391,169 @@ class MiniAppTwitchControllerTest : MiniAppApiTestBase() {
         assertThat(settings?.endedMessageTemplate).isEqualTo("Stream ended: {streamer}")
         assertThat(settings?.buttonText).isEqualTo("📺 Watch Now")
     }
+
+    @Test
+    fun `PUT channels pin - pins channel successfully`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        val subscription = twitchChannelSubscriptionRepository.save(
+            TwitchChannelSubscription.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                twitchChannelId = "12345",
+                twitchLogin = "teststreamer",
+                displayName = "Test Streamer",
+                avatarUrl = null,
+                createdBy = user.id
+            )
+        )
+
+        mockMvc.put("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/channels/${subscription.id}/pin") {
+            header("Authorization", authHeader)
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"pinSilently": true}"""
+        }.asyncDispatchIfNeeded().andExpect {
+            status { isOk() }
+            jsonPath("$.id") { value(subscription.id!!) }
+            jsonPath("$.isPinned") { value(true) }
+            jsonPath("$.pinSilently") { value(true) }
+        }
+
+        // Verify subscription was updated
+        val updated = twitchChannelSubscriptionRepository.findById(subscription.id!!).get()
+        assertThat(updated.isPinned).isTrue()
+        assertThat(updated.pinSilently).isTrue()
+    }
+
+    @Test
+    fun `PUT channels pin - unpins other channels when pinning new one`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        // Create two subscriptions, pin the first one
+        val sub1 = twitchChannelSubscriptionRepository.save(
+            TwitchChannelSubscription.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                twitchChannelId = "12345",
+                twitchLogin = "streamer1",
+                displayName = "Streamer One",
+                avatarUrl = null,
+                createdBy = user.id
+            ).copy(isPinned = true)
+        )
+
+        val sub2 = twitchChannelSubscriptionRepository.save(
+            TwitchChannelSubscription.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                twitchChannelId = "67890",
+                twitchLogin = "streamer2",
+                displayName = "Streamer Two",
+                avatarUrl = null,
+                createdBy = user.id
+            )
+        )
+
+        // Pin sub2
+        mockMvc.put("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/channels/${sub2.id}/pin") {
+            header("Authorization", authHeader)
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"pinSilently": false}"""
+        }.asyncDispatchIfNeeded().andExpect {
+            status { isOk() }
+            jsonPath("$.id") { value(sub2.id!!) }
+            jsonPath("$.isPinned") { value(true) }
+            jsonPath("$.pinSilently") { value(false) }
+        }
+
+        // Verify sub1 was unpinned
+        val updatedSub1 = twitchChannelSubscriptionRepository.findById(sub1.id!!).get()
+        assertThat(updatedSub1.isPinned).isFalse()
+
+        // Verify sub2 is pinned
+        val updatedSub2 = twitchChannelSubscriptionRepository.findById(sub2.id!!).get()
+        assertThat(updatedSub2.isPinned).isTrue()
+        assertThat(updatedSub2.pinSilently).isFalse()
+    }
+
+    @Test
+    fun `DELETE channels pin - unpins channel`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        val subscription = twitchChannelSubscriptionRepository.save(
+            TwitchChannelSubscription.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                twitchChannelId = "12345",
+                twitchLogin = "teststreamer",
+                displayName = "Test Streamer",
+                avatarUrl = null,
+                createdBy = user.id
+            ).copy(isPinned = true, pinSilently = true)
+        )
+
+        mockMvc.delete("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/channels/${subscription.id}/pin") {
+            header("Authorization", authHeader)
+        }.asyncDispatchIfNeeded().andExpect {
+            status { isOk() }
+            jsonPath("$.id") { value(subscription.id!!) }
+            jsonPath("$.isPinned") { value(false) }
+        }
+
+        // Verify subscription was updated
+        val updated = twitchChannelSubscriptionRepository.findById(subscription.id!!).get()
+        assertThat(updated.isPinned).isFalse()
+    }
+
+    @Test
+    fun `GET channels - includes pin status correctly`() {
+        val user = testDataFactory.createTelegramUser()
+        val authHeader = authTestHelper.createValidAuthHeader(user)
+        mockUserIsAdmin(TestDataFactory.DEFAULT_CHAT_ID, user.id)
+
+        chatSettingsRepository.save(testDataFactory.createChatSettings())
+
+        // Create pinned and unpinned subscriptions
+        twitchChannelSubscriptionRepository.save(
+            TwitchChannelSubscription.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                twitchChannelId = "12345",
+                twitchLogin = "streamer1",
+                displayName = "Streamer One",
+                avatarUrl = null,
+                createdBy = user.id
+            ).copy(isPinned = true, pinSilently = true)
+        )
+
+        twitchChannelSubscriptionRepository.save(
+            TwitchChannelSubscription.createNew(
+                chatId = TestDataFactory.DEFAULT_CHAT_ID,
+                twitchChannelId = "67890",
+                twitchLogin = "streamer2",
+                displayName = "Streamer Two",
+                avatarUrl = null,
+                createdBy = user.id
+            )
+        )
+
+        mockMvc.get("/api/v1/miniapp/chats/${TestDataFactory.DEFAULT_CHAT_ID}/twitch/channels") {
+            header("Authorization", authHeader)
+        }.asyncDispatchIfNeeded().andExpect {
+            status { isOk() }
+            jsonPath("$.length()") { value(2) }
+            jsonPath("$[0].twitchLogin") { value("streamer1") }
+            jsonPath("$[0].isPinned") { value(true) }
+            jsonPath("$[0].pinSilently") { value(true) }
+            jsonPath("$[1].twitchLogin") { value("streamer2") }
+            jsonPath("$[1].isPinned") { value(false) }
+        }
+    }
 }

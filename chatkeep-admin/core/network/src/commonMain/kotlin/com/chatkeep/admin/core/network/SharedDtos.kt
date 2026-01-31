@@ -74,6 +74,7 @@ data class ActionResponse(
 data class ChatResponse(
     val chatId: Long,
     val chatTitle: String? = null,
+    val chatType: String? = null,
     val messagesToday: Int,
     val messagesYesterday: Int
 )

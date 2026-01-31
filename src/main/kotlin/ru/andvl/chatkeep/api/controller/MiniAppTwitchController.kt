@@ -25,6 +25,7 @@ import ru.andvl.chatkeep.domain.service.logchannel.dto.ModerationLogEntry
 import ru.andvl.chatkeep.domain.service.moderation.AdminCacheService
 import ru.andvl.chatkeep.domain.service.twitch.TwitchChannelService
 import ru.andvl.chatkeep.domain.service.twitch.TwitchNotificationService
+import ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchChannelSubscriptionRepository
 import ru.andvl.chatkeep.infrastructure.repository.twitch.TwitchStreamRepository
 import java.time.Duration
 import java.time.Instant
@@ -38,6 +39,7 @@ class MiniAppTwitchController(
     private val channelService: TwitchChannelService,
     private val notificationService: TwitchNotificationService,
     private val streamRepo: TwitchStreamRepository,
+    private val subscriptionRepo: TwitchChannelSubscriptionRepository,
     adminCacheService: AdminCacheService,
     private val logChannelService: LogChannelService,
     private val debouncedLogService: DebouncedLogService,
@@ -72,7 +74,9 @@ class MiniAppTwitchController(
                 twitchLogin = sub.twitchLogin,
                 displayName = sub.displayName,
                 avatarUrl = sub.avatarUrl,
-                isLive = sub.id in liveStreamIds
+                isLive = sub.id in liveStreamIds,
+                isPinned = sub.isPinned,
+                pinSilently = sub.pinSilently
             )
         }
     }
@@ -120,7 +124,9 @@ class MiniAppTwitchController(
             twitchLogin = subscription.twitchLogin,
             displayName = subscription.displayName,
             avatarUrl = subscription.avatarUrl,
-            isLive = isLive
+            isLive = isLive,
+            isPinned = subscription.isPinned,
+            pinSilently = subscription.pinSilently
         )
     }
 
@@ -161,6 +167,131 @@ class MiniAppTwitchController(
                 )
             )
         }
+    }
+
+    @PutMapping("/channels/{subscriptionId}/pin")
+    @Operation(summary = "Pin a Twitch channel (only one channel can be pinned per chat)")
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Success"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
+        ApiResponse(responseCode = "404", description = "Channel not found")
+    )
+    suspend fun pinChannel(
+        @PathVariable chatId: Long,
+        @PathVariable subscriptionId: Long,
+        @Valid @RequestBody pinRequest: PinChannelRequest,
+        request: HttpServletRequest
+    ): TwitchChannelDto {
+        val user = requireAdmin(request, chatId, forceRefresh = true)
+
+        // Find subscription
+        val subscription = subscriptionRepo.findById(subscriptionId).orElse(null)
+            ?: throw IllegalArgumentException("Subscription not found")
+
+        if (subscription.chatId != chatId) {
+            throw IllegalArgumentException("Subscription does not belong to this chat")
+        }
+
+        // Unpin all other channels for this chat
+        subscriptionRepo.unpinAllForChat(chatId)
+
+        // Pin this channel
+        val updated = subscriptionRepo.save(
+            subscription.copy(
+                isPinned = true,
+                pinSilently = pinRequest.pinSilently
+            )
+        )
+
+        // Log the pin action
+        val chatTitle = chatService.getSettings(chatId)?.chatTitle
+        logChannelService.logModerationAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatTitle,
+                adminId = user.id,
+                adminFirstName = user.firstName,
+                adminLastName = user.lastName,
+                adminUserName = user.username,
+                actionType = ActionType.TWITCH_CHANNEL_PINNED,
+                reason = "Twitch: ${subscription.displayName} (@${subscription.twitchLogin})",
+                source = PunishmentSource.MANUAL
+            )
+        )
+
+        // Check if live
+        val isLive = streamRepo.findAllActive()
+            .any { it.subscriptionId == subscriptionId }
+
+        return TwitchChannelDto(
+            id = updated.id!!,
+            twitchChannelId = updated.twitchChannelId,
+            twitchLogin = updated.twitchLogin,
+            displayName = updated.displayName,
+            avatarUrl = updated.avatarUrl,
+            isLive = isLive,
+            isPinned = updated.isPinned,
+            pinSilently = updated.pinSilently
+        )
+    }
+
+    @DeleteMapping("/channels/{subscriptionId}/pin")
+    @Operation(summary = "Unpin a Twitch channel")
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Success"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not admin"),
+        ApiResponse(responseCode = "404", description = "Channel not found")
+    )
+    suspend fun unpinChannel(
+        @PathVariable chatId: Long,
+        @PathVariable subscriptionId: Long,
+        request: HttpServletRequest
+    ): TwitchChannelDto {
+        val user = requireAdmin(request, chatId, forceRefresh = true)
+
+        // Find subscription
+        val subscription = subscriptionRepo.findById(subscriptionId).orElse(null)
+            ?: throw IllegalArgumentException("Subscription not found")
+
+        if (subscription.chatId != chatId) {
+            throw IllegalArgumentException("Subscription does not belong to this chat")
+        }
+
+        // Unpin this channel
+        val updated = subscriptionRepo.save(
+            subscription.copy(isPinned = false)
+        )
+
+        // Log the unpin action
+        val chatTitle = chatService.getSettings(chatId)?.chatTitle
+        logChannelService.logModerationAction(
+            ModerationLogEntry(
+                chatId = chatId,
+                chatTitle = chatTitle,
+                adminId = user.id,
+                adminFirstName = user.firstName,
+                adminLastName = user.lastName,
+                adminUserName = user.username,
+                actionType = ActionType.TWITCH_CHANNEL_UNPINNED,
+                reason = "Twitch: ${subscription.displayName} (@${subscription.twitchLogin})",
+                source = PunishmentSource.MANUAL
+            )
+        )
+
+        // Check if live
+        val isLive = streamRepo.findAllActive()
+            .any { it.subscriptionId == subscriptionId }
+
+        return TwitchChannelDto(
+            id = updated.id!!,
+            twitchChannelId = updated.twitchChannelId,
+            twitchLogin = updated.twitchLogin,
+            displayName = updated.displayName,
+            avatarUrl = updated.avatarUrl,
+            isLive = isLive,
+            isPinned = updated.isPinned,
+            pinSilently = updated.pinSilently
+        )
     }
 
     @GetMapping("/settings")
