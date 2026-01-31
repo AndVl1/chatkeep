@@ -18,11 +18,19 @@ repositories {
     mavenCentral()
 }
 
+val koogVersion = "0.5.2"
+
 dependencies {
+    // Koog AI Agent framework
+    implementation("ai.koog:koog-agents:$koogVersion")
+
     // Kotlin serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
 
-    // HTTP client for GitHub API and OpenRouter
+    // Kotlin coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+
+    // HTTP client for GitHub API only
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Testing

@@ -1,16 +1,17 @@
 package ru.andvl.chatkeep.changelog
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ru.andvl.chatkeep.changelog.agent.ChangelogAgent
 import ru.andvl.chatkeep.changelog.agent.ChangelogResponse
-import ru.andvl.chatkeep.changelog.agent.ChangelogTools
+import ru.andvl.chatkeep.changelog.agent.ChangelogToolSet
 import ru.andvl.chatkeep.changelog.config.Config
 import ru.andvl.chatkeep.changelog.formatter.MarkdownFormatter
 import ru.andvl.chatkeep.changelog.git.GitOperations
 import ru.andvl.chatkeep.changelog.github.GitHubClient
 
-fun main(args: Array<String>) {
+fun main(args: Array<String>) = runBlocking {
     try {
         val config = Config.fromEnvAndArgs(args)
 
@@ -33,14 +34,14 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun generateChangelog(config: Config) {
+private suspend fun generateChangelog(config: Config) {
     val gitOps = GitOperations()
-    val tools = ChangelogTools(gitOps, config.baseBranch, config.headBranch)
+    val toolSet = ChangelogToolSet(gitOps, config.baseBranch, config.headBranch)
 
     // Try to generate with LLM, with retry
     val changelog = try {
         println("Generating changelog with LLM...")
-        generateWithRetry(config, tools, maxAttempts = 2)
+        generateWithRetry(config, toolSet, maxAttempts = 2)
     } catch (e: Exception) {
         System.err.println("LLM generation failed after retries: ${e.message}")
         System.err.println("Falling back to commit list...")
@@ -85,9 +86,9 @@ private fun generateChangelog(config: Config) {
     println(jsonOutput)
 }
 
-private fun generateWithRetry(
+private suspend fun generateWithRetry(
     config: Config,
-    tools: ChangelogTools,
+    toolSet: ChangelogToolSet,
     maxAttempts: Int
 ): ChangelogResponse {
     var lastException: Exception? = null
@@ -96,7 +97,7 @@ private fun generateWithRetry(
         try {
             println("Attempt ${attempt + 1}/$maxAttempts...")
 
-            val agent = ChangelogAgent(config, tools)
+            val agent = ChangelogAgent(config, toolSet)
             return agent.generateChangelog()
         } catch (e: Exception) {
             lastException = e
@@ -104,7 +105,7 @@ private fun generateWithRetry(
 
             if (attempt < maxAttempts - 1) {
                 println("Retrying...")
-                Thread.sleep(2000L * (attempt + 1))
+                kotlinx.coroutines.delay(2000L * (attempt + 1))
             }
         }
     }
@@ -112,7 +113,7 @@ private fun generateWithRetry(
     throw lastException ?: RuntimeException("All attempts failed")
 }
 
-private fun checkAndUpdate(config: Config) {
+private suspend fun checkAndUpdate(config: Config) {
     println("Check-update mode: re-running generation...")
     generateChangelog(config)
 }
