@@ -19,7 +19,7 @@ jobs:
       - name: Check API key
         id: check-key
         env:
-          OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_CHANGELOG }}
         run: |
           if [ -z "$OPENROUTER_KEY" ]; then
             echo "has_key=false" >> $GITHUB_OUTPUT
@@ -61,7 +61,7 @@ jobs:
         id: generate
         continue-on-error: true
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_CHANGELOG }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHANGELOG_MODEL: ${{ vars.CHANGELOG_MODEL || 'deepseek/deepseek-chat-v3-0324' }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
