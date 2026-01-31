@@ -18,9 +18,20 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Check PAT secret
+        id: check-pat
+        env:
+          PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -z "$PAT" ]; then
+            echo "::error::GH_PAT secret is not set. Create a PAT with 'repo' scope and add it as GH_PAT repository secret."
+            exit 1
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GH_PAT }}
           fetch-depth: 0
 
       - name: Fetch production branch
@@ -63,6 +74,7 @@ jobs:
         env:
           RC_BRANCH: ${{ steps.rc_branch.outputs.branch_name }}
         with:
+          github-token: ${{ secrets.GH_PAT }}
           script: |
             const commits = ${{ steps.summary.outputs.commits }};
             const rcBranch = process.env.RC_BRANCH;
