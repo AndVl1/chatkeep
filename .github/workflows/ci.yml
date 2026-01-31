@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, production]
   push:
     branches: [main]
 
@@ -204,3 +204,79 @@ jobs:
           name: contract-test-failures
           path: chatkeep-admin/core/network/build/test-results/desktopTest
           retention-days: 7
+
+  # Dispatch changelog for production PRs (workaround for GITHUB_TOKEN limitation)
+  dispatch-changelog:
+    name: Dispatch Changelog for Production PR
+    needs: [backend, frontend, admin]
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'production'
+
+    permissions:
+      actions: write
+
+    steps:
+      - name: Check and dispatch changelog
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const headBranch = context.payload.pull_request.head.ref;
+
+            console.log(`Checking changelog for PR #${prNumber} (${headBranch} → production)`);
+
+            // Check if changelog workflow is already running or recently completed
+            const statuses = ['in_progress', 'queued'];
+            let hasActiveRun = false;
+
+            for (const status of statuses) {
+              const { data: runs } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'changelog.yml',
+                status: status
+              });
+
+              if (runs.workflow_runs.length > 0) {
+                hasActiveRun = true;
+                console.log(`Found ${runs.workflow_runs.length} ${status} changelog run(s). Skipping dispatch.`);
+                break;
+              }
+            }
+
+            if (!hasActiveRun) {
+              // Check recently completed runs (last 5 min)
+              const { data: completed } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'changelog.yml',
+                status: 'completed',
+                per_page: 5
+              });
+
+              const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+              const recentRuns = completed.workflow_runs.filter(
+                r => new Date(r.created_at) > fiveMinAgo
+              );
+
+              if (recentRuns.length > 0) {
+                hasActiveRun = true;
+                console.log(`Found ${recentRuns.length} recently completed changelog run(s). Skipping dispatch.`);
+              }
+            }
+
+            if (!hasActiveRun) {
+              console.log(`No active changelog runs. Dispatching for PR #${prNumber}...`);
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'changelog.yml',
+                ref: headBranch,
+                inputs: {
+                  'pr-number': prNumber.toString()
+                }
+              });
+              console.log('Changelog workflow dispatched successfully.');
+            }
