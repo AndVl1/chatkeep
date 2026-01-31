@@ -4,9 +4,15 @@ on:
   pull_request:
     types: [opened, synchronize, closed]
     branches: [main, production]
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'PR number to generate changelog for'
+        required: true
+        type: string
 
 concurrency:
-  group: changelog-${{ github.event.pull_request.number }}
+  group: changelog-${{ github.event.pull_request.number || github.event.inputs.pr-number }}
   cancel-in-progress: true
 
 permissions:
@@ -14,13 +20,57 @@ permissions:
   contents: read
 
 jobs:
-  # Generate changelog and post as PR comment (on open/synchronize, not on close)
+  # Resolve PR info for both pull_request and workflow_dispatch triggers
+  resolve-pr:
+    name: Resolve PR Info
+    runs-on: ubuntu-latest
+    # Skip on PR close (except for notify-telegram which has its own condition)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.action != 'closed'
+    outputs:
+      pr-number: ${{ steps.resolve.outputs.pr_number }}
+      base-branch: ${{ steps.resolve.outputs.base_branch }}
+      head-branch: ${{ steps.resolve.outputs.head_branch }}
+      is-draft: ${{ steps.resolve.outputs.is_draft }}
+    steps:
+      - name: Resolve PR details
+        id: resolve
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prNumber, baseBranch, headBranch, isDraft;
+
+            if (context.eventName === 'workflow_dispatch') {
+              prNumber = context.payload.inputs['pr-number'];
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: parseInt(prNumber)
+              });
+              baseBranch = pr.base.ref;
+              headBranch = pr.head.ref;
+              isDraft = pr.draft;
+            } else {
+              prNumber = context.payload.pull_request.number;
+              baseBranch = context.payload.pull_request.base.ref;
+              headBranch = context.payload.pull_request.head.ref;
+              isDraft = context.payload.pull_request.draft;
+            }
+
+            core.setOutput('pr_number', prNumber);
+            core.setOutput('base_branch', baseBranch);
+            core.setOutput('head_branch', headBranch);
+            core.setOutput('is_draft', isDraft);
+
+            console.log(`PR #${prNumber}: ${headBranch} → ${baseBranch} (draft: ${isDraft})`);
+
+  # Generate changelog and post as PR comment
   generate-changelog:
     name: Generate and Post Changelog
     runs-on: ubuntu-latest
-    if: >-
-      github.event.action != 'closed' &&
-      github.event.pull_request.draft == false
+    needs: resolve-pr
+    if: needs.resolve-pr.outputs.is-draft != 'true'
 
     steps:
       - name: Check API key
@@ -71,10 +121,10 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_CHANGELOG }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHANGELOG_MODEL: ${{ vars.CHANGELOG_MODEL || 'deepseek/deepseek-chat-v3-0324' }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ needs.resolve-pr.outputs.pr-number }}
           REPO: ${{ github.repository }}
-          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          BASE_BRANCH: ${{ needs.resolve-pr.outputs.base-branch }}
+          HEAD_BRANCH: ${{ needs.resolve-pr.outputs.head-branch }}
         run: |
           java -jar tools/changelog-generator/build/libs/changelog-generator.jar \
             --pr-number="$PR_NUMBER" \
@@ -88,6 +138,7 @@ jobs:
     name: Send Telegram Notification
     runs-on: ubuntu-latest
     if: >-
+      github.event_name == 'pull_request' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged == true &&
       github.event.pull_request.base.ref == 'production'

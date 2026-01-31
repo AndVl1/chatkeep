@@ -71,6 +71,19 @@ ai.koog.prompt.executor.clients.openrouter.OpenRouterParams
 ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 ai.koog.prompt.executor.clients.openai.OpenAIModels
 ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
+
+// Structured Output — see references/structured-output.md for full reference
+ai.koog.prompt.structure.StructuredOutput
+ai.koog.prompt.structure.StructuredOutputConfig
+ai.koog.prompt.structure.StructuredResponse
+ai.koog.prompt.structure.StructureFixingParser
+ai.koog.prompt.structure.json.JsonStructuredData
+ai.koog.agents.ext.agent.structuredOutputWithToolsStrategy
+
+// LLModel (custom model definitions)
+ai.koog.prompt.llm.LLModel
+ai.koog.prompt.llm.LLMProvider       // subclasses: OpenRouter, OpenAI, Anthropic, Google, etc.
+ai.koog.prompt.llm.LLMCapability     // singletons: Completion, Temperature, Tools, Schema.JSON.Basic, etc.
 ```
 
 ## AIAgent Constructor
@@ -211,6 +224,78 @@ val prompt = prompt("my-prompt") {
 val response = executor.execute(prompt, model)
 ```
 
+## Structured Output
+
+For full reference, see [references/structured-output.md](references/structured-output.md).
+
+### Quick Start: StructureFixingParser (standalone, most compatible)
+
+Parse LLM text into typed data class, with auto-fix via a secondary model:
+
+```kotlin
+import ai.koog.prompt.structure.StructureFixingParser
+import ai.koog.prompt.structure.json.JsonStructuredData
+
+// 1. Define structure from @Serializable class
+val structure = JsonStructuredData.createJsonStructure(
+    id = "MyResponse",
+    serializer = MyResponse.serializer()
+)
+
+// 2. Create fixing parser with a cheap model
+val fixingParser = StructureFixingParser(
+    fixingModel = myModel,  // any LLModel
+    retries = 3
+)
+
+// 3. Parse raw text (tries direct parse first, then fixes with LLM)
+val result: MyResponse = fixingParser.parse(executor, structure, rawText)
+```
+
+### Custom LLModel (models not in predefined catalogs)
+
+```kotlin
+import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.llm.LLMProvider
+import ai.koog.prompt.llm.LLMCapability
+
+val customModel = LLModel(
+    provider = LLMProvider.OpenRouter,       // singleton objects
+    id = "z-ai/glm-4.5-air",                // exact model ID from provider
+    capabilities = listOf(
+        LLMCapability.Completion,            // ALL are singletons — no ()
+        LLMCapability.Temperature,
+        LLMCapability.Schema.JSON.Basic
+    ),
+    contextLength = 128_000L,
+    maxOutputTokens = 8_000L                 // nullable
+)
+```
+
+### structuredOutputWithToolsStrategy (native, model-dependent)
+
+Returns typed output directly from agent. **Caveat:** not all models support this via OpenRouter (DeepSeek breaks tool calling format).
+
+```kotlin
+import ai.koog.agents.ext.agent.structuredOutputWithToolsStrategy
+import ai.koog.prompt.structure.StructuredOutputConfig
+
+val config = StructuredOutputConfig<MyResponse>(
+    default = myStructuredOutput,
+    fixingParser = fixingParser
+)
+
+val agent = AIAgent(
+    promptExecutor = executor,
+    llmModel = OpenRouterModels.GPT4o,
+    strategy = structuredOutputWithToolsStrategy(config, includeTools = true),
+    toolRegistry = toolRegistry,
+    systemPrompt = "..."
+)
+
+val typed: MyResponse = agent.run("input")
+```
+
 ## Provider Quick Reference
 
 For detailed provider configuration, see [references/providers.md](references/providers.md).
@@ -259,6 +344,7 @@ Key concepts (details in strategies.md):
 
 Features are installed in the AIAgent constructor's trailing lambda. Each has a dedicated reference:
 
+- **[Structured Output](references/structured-output.md)** — typed responses via `StructuredOutputConfig`, `StructureFixingParser`, `JsonStructuredData`, custom `LLModel` creation, `structuredOutputWithToolsStrategy`
 - **[EventHandler](references/event-handler.md)** — lifecycle callbacks (`onAgentStarting`, `onToolCallCompleted`, `onLLMCallCompleted`, etc.), custom `AIAgentFeature` with pipeline interceptors
 - **[Memory](references/memory.md)** — store/retrieve facts across conversations (Concept, Fact, MemoryScope, encrypted storage, memory nodes for strategy DSL)
 - **[Tracing & Persistence](references/tracing-persistence.md)** — trace events to log/file/remote; checkpoint/restore agent state with rollback strategies
