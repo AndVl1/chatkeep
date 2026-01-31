@@ -226,33 +226,59 @@ For detailed provider configuration, see [references/providers.md](references/pr
 
 ## Custom Strategy DSL
 
-For when predefined strategies aren't enough:
+For when predefined strategies aren't enough. Full reference: [references/strategies.md](references/strategies.md).
 
 ```kotlin
 import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
 
-val myStrategy = strategy("my-agent") {
-    val nodeSendInput by nodeLLMRequest()
-    val nodeExecuteTool by nodeExecuteTool()
-    val nodeSendToolResult by nodeLLMSendToolResult()
+val myStrategy = strategy<String, String>("my-agent") {
+    val nodeLLM by nodeLLMRequest()
+    val nodeExec by nodeExecuteTool()
+    val nodeSend by nodeLLMSendToolResult()
 
-    edge(nodeStart forwardTo nodeSendInput)
+    edge(nodeStart forwardTo nodeLLM)
+    edge(nodeLLM forwardTo nodeFinish onAssistantMessage { true })
+    edge(nodeLLM forwardTo nodeExec onToolCall { true })
+    edge(nodeExec forwardTo nodeSend)
+    edge(nodeSend forwardTo nodeFinish onAssistantMessage { true })
+    edge(nodeSend forwardTo nodeExec onToolCall { true })
+}
+```
 
-    // If LLM responds with text → finish
-    edge((nodeSendInput forwardTo nodeFinish) transformed { it } onAssistantMessage { true })
+Key concepts (details in strategies.md):
+- **Nodes**: `nodeLLMRequest`, `nodeExecuteTool`, `nodeLLMSendToolResult`, custom `node<In, Out>`
+- **Edges**: `forwardTo` + conditions (`onAssistantMessage`, `onToolCall`, `onCondition`) + `transformed`
+- **Subgraphs**: isolated sections with own tools/model — `subgraph`, `subgraphWithTask`, `subgraphWithVerification`
+- **Parallel**: `parallel(nodeA, nodeB, nodeC) { selectByMax { it } }`
+- **Sequential**: `nodeStart then subgraphA then subgraphB then nodeFinish`
+- **Structured output**: `nodeLLMRequestStructured<MyDataClass>(examples = [...])`
 
-    // If LLM calls a tool → execute it
-    edge((nodeSendInput forwardTo nodeExecuteTool) onToolCall { true })
+## Agent Features & Built-in Tools
 
-    // After tool execution → send result back to LLM
-    edge(nodeExecuteTool forwardTo nodeSendToolResult)
+Features are installed in the AIAgent constructor's trailing lambda. Each has a dedicated reference:
 
-    // After tool result, if LLM calls another tool → loop
-    edge((nodeSendToolResult forwardTo nodeSendInput) onToolCall { true })
+- **[EventHandler](references/event-handler.md)** — lifecycle callbacks (`onAgentStarting`, `onToolCallCompleted`, `onLLMCallCompleted`, etc.), custom `AIAgentFeature` with pipeline interceptors
+- **[Memory](references/memory.md)** — store/retrieve facts across conversations (Concept, Fact, MemoryScope, encrypted storage, memory nodes for strategy DSL)
+- **[Tracing & Persistence](references/tracing-persistence.md)** — trace events to log/file/remote; checkpoint/restore agent state with rollback strategies
+- **[Built-in Tools](references/built-in-tools.md)** — `AskUser`, `SayToUser`, `ExitTool`, `ReadFileTool`, `WriteFileTool`, `EditFileTool`, `ListDirectoryTool`, `ExecuteShellCommandTool`, `SimpleTool` class
 
-    // After tool result, if LLM responds with text → finish
-    edge((nodeSendToolResult forwardTo nodeFinish) transformed { it } onAssistantMessage { true })
+```kotlin
+val agent = AIAgent(...) {
+    handleEvents {
+        onAgentStarting { ctx -> println("Starting: ${ctx.agent.id}") }
+        onToolCallCompleted { ctx -> println("Tool done") }
+    }
+    install(Tracing) { addMessageProcessor(TraceFeatureMessageLogWriter(logger)) }
+    install(AgentMemory) { memoryProvider = LocalFileMemoryProvider(...) }
+}
+
+val registry = ToolRegistry {
+    tool(AskUser)                                          // ai.koog.agents.ext.tool
+    tool(SayToUser)
+    tool(ReadFileTool(JVMFileSystemProvider.ReadOnly))      // ai.koog.agents.ext.tool.file
+    tool(ExecuteShellCommandTool(BraveModeConfirmationHandler)) // ai.koog.agents.ext.tool.shell
+    tools(MyToolSet())
 }
 ```
