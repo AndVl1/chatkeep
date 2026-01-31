@@ -257,28 +257,28 @@ Key concepts (details in strategies.md):
 
 ## Agent Features & Built-in Tools
 
-Full reference: [references/features.md](references/features.md).
+Features are installed in the AIAgent constructor's trailing lambda. Each has a dedicated reference:
 
-- **EventHandler** — lifecycle callbacks (`onAgentStarting`, `onToolCallCompleted`, `onLLMCallCompleted`, etc.)
-- **Memory** — store/retrieve facts across conversations (`AgentMemory` feature, scopes, concepts)
-- **Tracing** — trace events to log/file/remote (`Tracing` feature)
-- **Persistence** — checkpoint/restore agent state (`Persistence` feature, rollback strategies)
-- **Built-in tools**: `AskUser`, `SayToUser`, `ReadFileTool`, `WriteFileTool`, `EditFileTool`, `ListDirectoryTool`, `ExecuteShellCommandTool`
+- **[EventHandler](references/event-handler.md)** — lifecycle callbacks (`onAgentStarting`, `onToolCallCompleted`, `onLLMCallCompleted`, etc.), custom `AIAgentFeature` with pipeline interceptors
+- **[Memory](references/memory.md)** — store/retrieve facts across conversations (Concept, Fact, MemoryScope, encrypted storage, memory nodes for strategy DSL)
+- **[Tracing & Persistence](references/tracing-persistence.md)** — trace events to log/file/remote; checkpoint/restore agent state with rollback strategies
+- **[Built-in Tools](references/built-in-tools.md)** — `AskUser`, `SayToUser`, `ExitTool`, `ReadFileTool`, `WriteFileTool`, `EditFileTool`, `ListDirectoryTool`, `ExecuteShellCommandTool`, `SimpleTool` class
 
 ```kotlin
-// Feature installation example
 val agent = AIAgent(...) {
     handleEvents {
         onAgentStarting { ctx -> println("Starting: ${ctx.agent.id}") }
         onToolCallCompleted { ctx -> println("Tool done") }
     }
     install(Tracing) { addMessageProcessor(TraceFeatureMessageLogWriter(logger)) }
+    install(AgentMemory) { memoryProvider = LocalFileMemoryProvider(...) }
 }
 
-// Built-in tools
 val registry = ToolRegistry {
-    tool(AskUser)       // ai.koog.agents.ext.tool.AskUser
-    tool(SayToUser)     // ai.koog.agents.ext.tool.SayToUser
+    tool(AskUser)                                          // ai.koog.agents.ext.tool
+    tool(SayToUser)
+    tool(ReadFileTool(JVMFileSystemProvider.ReadOnly))      // ai.koog.agents.ext.tool.file
+    tool(ExecuteShellCommandTool(BraveModeConfirmationHandler)) // ai.koog.agents.ext.tool.shell
     tools(MyToolSet())
 }
 ```
