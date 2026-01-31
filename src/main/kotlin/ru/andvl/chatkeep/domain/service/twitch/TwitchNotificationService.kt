@@ -45,43 +45,6 @@ class TwitchNotificationService(
     }
 
     /**
-     * Smart title truncation that removes segments from the end
-     * instead of cutting mid-word
-     */
-    private fun smartTruncateTitle(title: String, maxLength: Int = 50): String {
-        if (title.length <= maxLength) return title
-
-        // Delimiters to try removing, in order
-        val delimiters = listOf(" // ", " | ", " - ", " w/ ")
-
-        var result = title
-        for (delimiter in delimiters) {
-            while (result.length > maxLength && result.contains(delimiter)) {
-                val lastDelimiterIndex = result.lastIndexOf(delimiter)
-                if (lastDelimiterIndex > 0) {
-                    result = result.substring(0, lastDelimiterIndex)
-                } else {
-                    break
-                }
-            }
-            if (result.length <= maxLength) return result
-        }
-
-        // If still too long, truncate at last word boundary
-        if (result.length > maxLength) {
-            result = result.substring(0, maxLength)
-            val lastSpace = result.lastIndexOf(' ')
-            if (lastSpace > 0) {
-                result = result.substring(0, lastSpace) + "…"
-            } else {
-                result += "…"
-            }
-        }
-
-        return result
-    }
-
-    /**
      * Send stream start notification
      * Returns pair of (messageId, hasPhoto)
      */
@@ -347,7 +310,7 @@ class TwitchNotificationService(
         return timeline.joinToString("\n") { event ->
             val time = formatSeconds(event.streamOffsetSeconds)
             val game = escapeHtml(event.gameName ?: "Just Chatting")
-            val title = event.streamTitle?.let { smartTruncateTitle(escapeHtml(it)) } ?: ""
+            val title = event.streamTitle?.let { escapeHtml(it) } ?: ""
             val titlePart = if (title.isNotEmpty()) " | $title" else ""
             "$time - $game$titlePart"
         }
@@ -398,7 +361,7 @@ class TwitchNotificationService(
         val formattedEntries = entries.map { event ->
             val time = formatSeconds(event.streamOffsetSeconds)
             val game = escapeHtml(event.gameName ?: "Just Chatting")
-            val title = event.streamTitle?.let { smartTruncateTitle(escapeHtml(it)) } ?: ""
+            val title = event.streamTitle?.let { escapeHtml(it) } ?: ""
             val titlePart = if (title.isNotEmpty()) " | $title" else ""
             "$time - $game$titlePart"
         }
@@ -417,7 +380,7 @@ class TwitchNotificationService(
                 result = kept.joinToString("\n") { event ->
                     val time = formatSeconds(event.streamOffsetSeconds)
                     val game = escapeHtml(event.gameName ?: "Just Chatting")
-                    val title = event.streamTitle?.let { smartTruncateTitle(escapeHtml(it)) } ?: ""
+                    val title = event.streamTitle?.let { escapeHtml(it) } ?: ""
                     val titlePart = if (title.isNotEmpty()) " | $title" else ""
                     "$time - $game$titlePart"
                 }
