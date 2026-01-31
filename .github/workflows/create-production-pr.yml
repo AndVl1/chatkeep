@@ -16,6 +16,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write
 
     steps:
       - name: Checkout code
@@ -111,3 +112,19 @@ jobs:
             });
 
             console.log(`Created PR #${pr.number}: ${pr.html_url}`);
+
+            // Dispatch changelog generation for the new PR
+            try {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'changelog.yml',
+                ref: rcBranch,
+                inputs: {
+                  'pr-number': pr.number.toString()
+                }
+              });
+              console.log(`Changelog workflow dispatched for PR #${pr.number}`);
+            } catch (e) {
+              console.log(`Warning: Failed to dispatch changelog: ${e.message}`);
+            }
