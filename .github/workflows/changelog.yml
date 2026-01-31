@@ -2,7 +2,7 @@ name: Generate Changelog
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, closed]
     branches: [main, production]
 
 concurrency:
@@ -14,10 +14,13 @@ permissions:
   contents: read
 
 jobs:
+  # Generate changelog and post as PR comment (on open/synchronize, not on close)
   generate-changelog:
     name: Generate and Post Changelog
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.draft == false }}
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.draft == false
 
     steps:
       - name: Check API key
@@ -80,10 +83,79 @@ jobs:
             --head-branch="$HEAD_BRANCH" \
             --mode=generate 2>&1 | tee changelog-output.txt
 
-          # Check for production changes in output (Russian format from formatter)
+  # Send Telegram notification only when PR is merged into production
+  notify-telegram:
+    name: Send Telegram Notification
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'production'
+
+    steps:
+      - name: Check secrets
+        id: check-secrets
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_CHANGELOG_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHANGELOG_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+            echo "::warning::Telegram secrets not configured. Skipping notification."
+          else
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repository
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Shadow JAR
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        id: jar-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/changelog-generator/build/libs/
+          key: changelog-jar-${{ hashFiles('tools/changelog-generator/src/**', 'tools/changelog-generator/build.gradle.kts') }}
+
+      - name: Build Shadow JAR
+        if: steps.check-secrets.outputs.has_secrets == 'true' && steps.jar-cache.outputs.cache-hit != 'true'
+        working-directory: tools/changelog-generator
+        run: |
+          chmod +x ../../gradlew
+          ../../gradlew shadowJar --no-daemon
+
+      - name: Generate Changelog
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        id: generate
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_CHANGELOG }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGELOG_MODEL: ${{ vars.CHANGELOG_MODEL || 'deepseek/deepseek-chat-v3-0324' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          java -jar tools/changelog-generator/build/libs/changelog-generator.jar \
+            --pr-number="$PR_NUMBER" \
+            --repo="$REPO" \
+            --base-branch="$BASE_BRANCH" \
+            --head-branch="$HEAD_BRANCH" \
+            --mode=generate 2>&1 | tee changelog-output.txt
+
           if grep -q "Продакшн-изменения:" changelog-output.txt; then
             echo "has_production_changes=true" >> $GITHUB_OUTPUT
-            # Extract the Telegram notification section
             sed -n '/^🚀 PR/,/^$/p' changelog-output.txt > telegram-message.txt
             if [ -s telegram-message.txt ]; then
               {
@@ -97,7 +169,8 @@ jobs:
           fi
 
       - name: Send Telegram Notification
-        if: |
+        if: >-
+          steps.check-secrets.outputs.has_secrets == 'true' &&
           steps.generate.outputs.has_production_changes == 'true' &&
           steps.generate.outcome == 'success'
         continue-on-error: true
@@ -105,11 +178,6 @@ jobs:
           TG_TOKEN: ${{ secrets.TELEGRAM_CHANGELOG_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHANGELOG_CHAT_ID }}
         run: |
-          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
-            echo "Telegram secrets not configured. Skipping notification."
-            exit 0
-          fi
-
           MESSAGE=$(cat <<'MSGEOF'
           ${{ steps.generate.outputs.telegram_message }}
 
@@ -119,4 +187,4 @@ jobs:
 
           curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{\"chat_id\": \"${TG_CHAT}\", \"text\": $(echo "$MESSAGE" | jq -Rs .), \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+            -d "{\"chat_id\": \"${TG_CHAT}\", \"text\": $(echo \"$MESSAGE\" | jq -Rs .), \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
